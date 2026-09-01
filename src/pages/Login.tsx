@@ -270,8 +270,9 @@ const Login = () => {
             className="text-sm text-muted-foreground hover:text-foreground underline transition-colors"
             onClick={() => setIsSignUp(!isSignUp)}
           >
-            {isSignUp ? 'Já tem acesso? Entrar' : 'Criar novo acesso'}
+            {isSignUp ? 'Já tem acesso? Entrar' : 'Criar conta e testar 7 dias grátis'}
           </button>
+        </div>
         </div>
       </div>
     </div>
