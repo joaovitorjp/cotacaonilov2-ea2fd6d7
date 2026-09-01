@@ -68,11 +68,16 @@ Deno.serve(async (req) => {
 
     const mpData = await mpRes.json()
     if (!mpRes.ok) {
-      console.error('MP error', mpData)
-      return new Response(JSON.stringify({ error: 'Falha ao criar assinatura no Mercado Pago' }), {
+      console.error('MP error', mpRes.status, mpData)
+      const detalhe = mpData?.message || mpData?.error || 'erro desconhecido'
+      const dica = mpRes.status === 401
+        ? 'Token do Mercado Pago invalido ou sem permissao para assinaturas (preapproval). Gere um Access Token de producao em Suas Integracoes > Credenciais e atualize o segredo.'
+        : undefined
+      return new Response(JSON.stringify({ error: `Falha ao criar assinatura no Mercado Pago: ${detalhe}`, dica, mp_status: mpRes.status }), {
         status: 502,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       })
+
     }
 
     // Vincula o preapproval ao usuario
