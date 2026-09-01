@@ -12,6 +12,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { Trash2, Copy, Pencil, Download, FileSpreadsheet, Package, Users, Calendar } from 'lucide-react';
+import { ufsDaResposta, getPrecoUF, buildPrecosPayload } from '@/lib/estados';
 
 interface Lista {
   id: string;
@@ -49,7 +50,7 @@ const CarregarListaPanel: React.FC<CarregarListaPanelProps> = ({
   const [respostasCount, setRespostasCount] = useState<Record<string, number>>({});
   const [duplicateTarget, setDuplicateTarget] = useState<Lista | null>(null);
   const [duplicateRespostas, setDuplicateRespostas] = useState<any[]>([]);
-  const [duplicateSelected, setDuplicateSelected] = useState<Record<string, { mt: boolean; go: boolean }>>({});
+  const [duplicateSelected, setDuplicateSelected] = useState<Record<string, Record<string, boolean>>>({});
   const [duplicateName, setDuplicateName] = useState('');
   const [duplicatePrazo, setDuplicatePrazo] = useState('');
   const [duplicatePrazoHora, setDuplicatePrazoHora] = useState('23:59');
@@ -191,23 +192,31 @@ const CarregarListaPanel: React.FC<CarregarListaPanelProps> = ({
         .select().single();
       if (error || !novaLista) throw error;
 
-      // Copiar respostas de fornecedores selecionados, respeitando estados escolhidos
+      // Copiar respostas de fornecedores selecionados, respeitando UFs escolhidas
       const chosen = duplicateRespostas
         .map(r => ({ r, sel: duplicateSelected[r.empresa] }))
-        .filter(x => x.sel && (x.sel.mt || x.sel.go));
+        .filter(x => x.sel && Object.values(x.sel).some(Boolean));
 
       if (chosen.length > 0) {
-        const inserts = chosen.map(({ r, sel }) => ({
-          lista_id: novaLista.id,
-          empresa: r.empresa,
-          user_id: user?.id,
-          resposta: (r.resposta as any[]).map((item: any) => ({
-            codigo_interno: item.codigo_interno,
-            ...(sel.mt && (item.preco_mt !== undefined || item.preco !== undefined)
-              ? { preco_mt: item.preco_mt ?? item.preco ?? '' } : {}),
-            ...(sel.go && item.preco_go !== undefined ? { preco_go: item.preco_go } : {}),
-          })),
-        }));
+        const inserts = chosen.map(({ r, sel }) => {
+          const ufsSelecionadas = Object.keys(sel).filter(uf => sel[uf]);
+          return {
+            lista_id: novaLista.id,
+            empresa: r.empresa,
+            user_id: user?.id,
+            resposta: (r.resposta as any[]).map((item: any) => {
+              const precos: Record<string, string> = {};
+              ufsSelecionadas.forEach(uf => {
+                const v = getPrecoUF(item, uf);
+                if (v !== undefined && v !== '') precos[uf] = String(v);
+              });
+              return {
+                codigo_interno: item.codigo_interno,
+                ...buildPrecosPayload(precos),
+              };
+            }),
+          };
+        });
         await supabase.from('respostas').insert(inserts);
       }
 
@@ -468,25 +477,21 @@ const CarregarListaPanel: React.FC<CarregarListaPanelProps> = ({
                 <label className="text-xs font-display font-bold text-muted-foreground uppercase">Incluir preços de fornecedores</label>
                 <div className="mt-2 space-y-2 max-h-64 overflow-auto border border-border rounded-md p-2">
                   {duplicateRespostas.map((r: any) => {
-                    const sel = duplicateSelected[r.empresa] || { mt: false, go: false };
-                    const hasMT = (r.resposta as any[]).some((i: any) => (i.preco_mt !== undefined && i.preco_mt !== '') || (i.preco !== undefined && i.preco !== '' && i.preco_go === undefined));
-                    const hasGO = (r.resposta as any[]).some((i: any) => i.preco_go !== undefined && i.preco_go !== '');
+                    const sel = duplicateSelected[r.empresa] || {};
+                    const ufsFornecedor = ufsDaResposta(r.resposta as any[]);
                     return (
                       <div key={r.empresa} className="flex items-center justify-between gap-2 text-sm">
                         <span className="font-medium truncate">{r.empresa}</span>
-                        <div className="flex items-center gap-3 shrink-0">
-                          {hasMT && (
-                            <label className="flex items-center gap-1 text-xs cursor-pointer">
-                              <Checkbox checked={sel.mt} onCheckedChange={(v) => setDuplicateSelected(prev => ({ ...prev, [r.empresa]: { ...(prev[r.empresa] || { mt: false, go: false }), mt: !!v } }))} />
-                              MT
+                        <div className="flex items-center gap-3 shrink-0 flex-wrap justify-end">
+                          {ufsFornecedor.map(uf => (
+                            <label key={uf} className="flex items-center gap-1 text-xs cursor-pointer">
+                              <Checkbox
+                                checked={!!sel[uf]}
+                                onCheckedChange={(v) => setDuplicateSelected(prev => ({ ...prev, [r.empresa]: { ...(prev[r.empresa] || {}), [uf]: !!v } }))}
+                              />
+                              {uf}
                             </label>
-                          )}
-                          {hasGO && (
-                            <label className="flex items-center gap-1 text-xs cursor-pointer">
-                              <Checkbox checked={sel.go} onCheckedChange={(v) => setDuplicateSelected(prev => ({ ...prev, [r.empresa]: { ...(prev[r.empresa] || { mt: false, go: false }), go: !!v } }))} />
-                              GO
-                            </label>
-                          )}
+                          ))}
                         </div>
                       </div>
                     );

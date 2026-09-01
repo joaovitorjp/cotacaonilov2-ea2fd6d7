@@ -2,6 +2,8 @@ import React, { useState, useCallback, useRef, useEffect, useMemo } from 'react'
 import { AlignLeft, AlignCenter, AlignRight, ArrowUp, ArrowDown, ArrowLeft, ArrowRight, Copy, ClipboardPaste, Bold, Italic, Paintbrush, X, Save, Percent, Search, MapPin, Trash2, Plus, Swords, Trash, Filter } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
+import { useEstadosUsuario } from '@/hooks/useEstadosUsuario';
+import { ufNome, getPrecoUF, hasPrecoUF, buildPrecosPayload, ufsDaResposta, ordenarUFs, TIPO_LABELS, FRETE_LABELS } from '@/lib/estados';
 
 interface Produto {
   codigo_interno: string;
@@ -13,7 +15,7 @@ interface Produto {
 
 interface RespostaEmpresa {
   empresa: string;
-  resposta: { codigo_interno: string; preco?: number | string; preco_mt?: number | string; preco_go?: number | string }[];
+  resposta: { codigo_interno: string; preco?: number | string; preco_mt?: number | string; preco_go?: number | string; precos?: Record<string, number | string>; __manual_states?: string[] }[];
 }
 
 interface SpreadsheetTableProps {
@@ -28,7 +30,7 @@ interface SpreadsheetTableProps {
   listaId?: string;
   onDeleteResposta?: (empresa: string) => Promise<void>;
   onAfterSave?: () => void;
-  onAddEmpresa?: (empresa: string, states: ('MT' | 'GO')[]) => Promise<void>;
+  onAddEmpresa?: (empresa: string, states: string[]) => Promise<void>;
   tipoPrecoMap?: Record<string, string>;
 
 }
@@ -52,7 +54,8 @@ const EMPTY_ROWS = 30;
 const EMPTY_COLS = 8;
 
 type TextAlign = 'left' | 'center' | 'right';
-type StateFilter = 'MT' | 'GO' | 'BOTH';
+type StateFilter = string; // UF or '__ALL__'
+const ALL_STATES = '__ALL__';
 
 interface CellPos { row: number; col: number; }
 
@@ -71,7 +74,7 @@ interface ColDef {
   sticky?: boolean;
   highlight?: boolean;
   isSeparator?: boolean;
-  state?: 'MT' | 'GO';
+  state?: string;
   empresa?: string;
 }
 
@@ -81,22 +84,31 @@ const SpreadsheetTable: React.FC<SpreadsheetTableProps> = ({
   onAfterSave, onAddEmpresa, tipoPrecoMap = {},
 }) => {
   const { user } = useAuth();
+  const { estados: userEstados } = useEstadosUsuario();
   const empresas = useMemo(() => respostas.map(r => r.empresa), [respostas]);
 
+  // Dynamic UFs: union of UFs present in respostas, ordered by user preference; fallback to user's configured states
+  const ufs = useMemo(() => {
+    const set = new Set<string>();
+    for (const r of respostas) {
+      for (const uf of ufsDaResposta(r.resposta as any)) set.add(uf);
+    }
+    if (set.size === 0) {
+      for (const uf of userEstados) set.add(uf);
+    }
+    return ordenarUFs(Array.from(set), userEstados);
+  }, [respostas, userEstados]);
+
   // State filter
-  const [stateFilter, setStateFilter] = useState<StateFilter>('BOTH');
+  const [stateFilter, setStateFilter] = useState<StateFilter>(ALL_STATES);
 
   // Check if an empresa has ANY data for a given state
-  const empresaHasData = useCallback((empresa: string, state: 'MT' | 'GO'): boolean => {
+  const empresaHasData = useCallback((empresa: string, state: string): boolean => {
     const resp = respostas.find(r => r.empresa === empresa);
     if (!resp) return false;
     return resp.resposta.some((item: any) => {
       if (Array.isArray(item?.__manual_states) && item.__manual_states.includes(state)) return true;
-      if (state === 'MT') {
-        return (item.preco_mt !== undefined && item.preco_mt !== '' && item.preco_mt !== 0) ||
-               (item.preco !== undefined && item.preco !== '' && item.preco !== 0 && item.preco_go === undefined);
-      }
-      return item.preco_go !== undefined && item.preco_go !== '' && item.preco_go !== 0;
+      return hasPrecoUF(item, state);
     });
   }, [respostas]);
 
@@ -104,23 +116,17 @@ const SpreadsheetTable: React.FC<SpreadsheetTableProps> = ({
   const precoMap = useMemo(() => {
     const map: Record<string, Record<string, number | string>> = {};
     for (const r of respostas) {
-      const innerMT: Record<string, number | string> = {};
-      const innerGO: Record<string, number | string> = {};
-      for (const item of r.resposta) {
-        if (item.preco_mt !== undefined && item.preco_mt !== '') {
-          innerMT[item.codigo_interno] = item.preco_mt;
-        } else if (item.preco !== undefined && item.preco !== '' && item.preco_go === undefined) {
-          innerMT[item.codigo_interno] = item.preco;
+      for (const uf of ufs) {
+        const inner: Record<string, number | string> = {};
+        for (const item of r.resposta) {
+          const v = getPrecoUF(item as any, uf);
+          if (v !== undefined && v !== '') inner[item.codigo_interno] = v;
         }
-        if (item.preco_go !== undefined && item.preco_go !== '') {
-          innerGO[item.codigo_interno] = item.preco_go;
-        }
+        map[`${r.empresa}_${uf}`] = inner;
       }
-      map[`${r.empresa}_MT`] = innerMT;
-      map[`${r.empresa}_GO`] = innerGO;
     }
     return map;
-  }, [respostas]);
+  }, [respostas, ufs]);
 
   const [cellEdits, setCellEdits] = useState<Record<string, string>>({});
   const [editingCell, setEditingCell] = useState<{ row: number; col: number } | null>(null);
@@ -128,11 +134,11 @@ const SpreadsheetTable: React.FC<SpreadsheetTableProps> = ({
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   const editInputRef = useRef<HTMLInputElement>(null);
 
-  const getPreco = useCallback((empresa: string, state: 'MT' | 'GO', codigoInterno: string) => {
+  const getPreco = useCallback((empresa: string, state: string, codigoInterno: string) => {
     return precoMap[`${empresa}_${state}`]?.[codigoInterno] ?? '';
   }, [precoMap]);
 
-  const getLowestEmpresa = useCallback((codigoInterno: string, state: 'MT' | 'GO'): string | null => {
+  const getLowestEmpresa = useCallback((codigoInterno: string, state: string): string | null => {
     if (!highlightLowest || empresas.length === 0) return null;
     let lowest = Infinity;
     let lowestEmp: string | null = null;
@@ -172,7 +178,7 @@ const SpreadsheetTable: React.FC<SpreadsheetTableProps> = ({
   const [dragOverRow, setDragOverRow] = useState<number | null>(null);
 
   const [contextMenu, setContextMenu] = useState<ContextMenuState | null>(null);
-  const [winnerFilter, setWinnerFilter] = useState<{ empresa: string; state: 'MT' | 'GO' } | null>(null);
+  const [winnerFilter, setWinnerFilter] = useState<{ empresa: string; state: string } | null>(null);
 
   const [activeCell, setActiveCell] = useState<CellPos | null>(null);
   const [selectionAnchor, setSelectionAnchor] = useState<CellPos | null>(null);
@@ -195,43 +201,31 @@ const SpreadsheetTable: React.FC<SpreadsheetTableProps> = ({
       { key: 'cod_bar', label: 'Código de Barras', defaultAlign: 'center', isData: true, originalIdx: 3 },
     ];
     let idx = 4;
-    // MT columns
-    for (let i = 0; i < empresas.length; i++) {
-      cols.push({
-        key: `emp_${empresas[i]}_MT`, label: `${empresas[i]} MT`, defaultAlign: 'center',
-        highlight: editableColumn === empresas[i], isData: true, originalIdx: idx++,
-        state: 'MT', empresa: empresas[i],
-      });
-    }
-    if (editableColumn && !empresas.includes(editableColumn)) {
-      cols.push({
-        key: `emp_${editableColumn}_MT`, label: `${editableColumn} MT`, defaultAlign: 'center',
-        highlight: true, isData: true, originalIdx: idx++, state: 'MT', empresa: editableColumn,
-      });
-    }
-    // Separator
-    cols.push({ key: 'separator', label: '', defaultAlign: 'center', isData: false, isSeparator: true, originalIdx: idx++ });
-    // GO columns
-    for (let i = 0; i < empresas.length; i++) {
-      cols.push({
-        key: `emp_${empresas[i]}_GO`, label: `${empresas[i]} GO`, defaultAlign: 'center',
-        highlight: editableColumn === empresas[i], isData: true, originalIdx: idx++,
-        state: 'GO', empresa: empresas[i],
-      });
-    }
-    if (editableColumn && !empresas.includes(editableColumn)) {
-      cols.push({
-        key: `emp_${editableColumn}_GO`, label: `${editableColumn} GO`, defaultAlign: 'center',
-        highlight: true, isData: true, originalIdx: idx++, state: 'GO', empresa: editableColumn,
-      });
-    }
+    ufs.forEach((uf, ufIdx) => {
+      for (let i = 0; i < empresas.length; i++) {
+        cols.push({
+          key: `emp_${empresas[i]}_${uf}`, label: `${empresas[i]} ${uf}`, defaultAlign: 'center',
+          highlight: editableColumn === empresas[i], isData: true, originalIdx: idx++,
+          state: uf, empresa: empresas[i],
+        });
+      }
+      if (editableColumn && !empresas.includes(editableColumn)) {
+        cols.push({
+          key: `emp_${editableColumn}_${uf}`, label: `${editableColumn} ${uf}`, defaultAlign: 'center',
+          highlight: true, isData: true, originalIdx: idx++, state: uf, empresa: editableColumn,
+        });
+      }
+      if (ufIdx < ufs.length - 1) {
+        cols.push({ key: `separator_${uf}`, label: '', defaultAlign: 'center', isData: false, isSeparator: true, originalIdx: idx++ });
+      }
+    });
     return cols;
-  }, [empresas, editableColumn]);
+  }, [empresas, editableColumn, ufs]);
 
   // Filter columns based on state filter and remove empty empresa columns, then add fillers
   const baseColDefs = useMemo((): ColDef[] => {
     let filtered: ColDef[];
-    if (stateFilter === 'BOTH') {
+    if (stateFilter === ALL_STATES) {
       filtered = allColDefs;
     } else {
       filtered = allColDefs.filter(c => {
@@ -488,7 +482,7 @@ const SpreadsheetTable: React.FC<SpreadsheetTableProps> = ({
     if (onSave) onSave(updated);
 
     if (listaId) {
-      const priceEditsByEmpresa: Record<string, { rowIdx: number; value: string; state: 'MT' | 'GO' }[]> = {};
+      const priceEditsByEmpresa: Record<string, { rowIdx: number; value: string; state: string }[]> = {};
       for (const [key, value] of Object.entries(cellEdits)) {
         const [rowStr, origIdxStr] = key.split('-');
         const rowIdx = parseInt(rowStr);
@@ -510,12 +504,16 @@ const SpreadsheetTable: React.FC<SpreadsheetTableProps> = ({
           const normalized = edit.value.replace(/\./g, '').replace(',', '.');
           const numVal = parseFloat(normalized);
           const preco = isNaN(numVal) ? 0 : numVal;
-          const field = edit.state === 'MT' ? 'preco_mt' : 'preco_go';
           const existingIdx = currentItems.findIndex((i: any) => i.codigo_interno === prod.codigo_interno);
+          const payload = buildPrecosPayload({ [edit.state]: String(preco) });
+          const mergedPrecos = { ...(existingIdx >= 0 ? currentItems[existingIdx]?.precos : undefined), ...payload.precos };
+          const extra: any = { precos: mergedPrecos };
+          if (payload.preco_mt !== undefined) extra.preco_mt = payload.preco_mt;
+          if (payload.preco_go !== undefined) extra.preco_go = payload.preco_go;
           if (existingIdx >= 0) {
-            currentItems[existingIdx] = { ...currentItems[existingIdx], [field]: preco };
+            currentItems[existingIdx] = { ...currentItems[existingIdx], ...extra };
           } else {
-            currentItems.push({ codigo_interno: prod.codigo_interno, [field]: preco });
+            currentItems.push({ codigo_interno: prod.codigo_interno, ...extra });
           }
         }
         if (existingResp) {
@@ -932,7 +930,7 @@ const SpreadsheetTable: React.FC<SpreadsheetTableProps> = ({
     }
   }, [showAddEmpresa]);
 
-  const handleAddEmpresa = async (states: ('MT' | 'GO')[]) => {
+  const handleAddEmpresa = async (states: string[]) => {
     const name = newEmpresaName.trim();
     if (!name || !onAddEmpresa || states.length === 0) return;
     if (empresas.includes(name)) {
@@ -1100,8 +1098,8 @@ const SpreadsheetTable: React.FC<SpreadsheetTableProps> = ({
 
   // Render row
   const renderRow = useCallback((prod: Produto | null, idx: number, isEmpty: boolean, displayIdx: number) => {
-    const lowestEmpMT = prod ? getLowestEmpresa(prod.codigo_interno, 'MT') : null;
-    const lowestEmpGO = prod ? getLowestEmpresa(prod.codigo_interno, 'GO') : null;
+    const lowestEmpByUf: Record<string, string | null> = {};
+    if (prod) { for (const uf of ufs) lowestEmpByUf[uf] = getLowestEmpresa(prod.codigo_interno, uf); }
     const h = rowHeights[idx] || DEFAULT_ROW_HEIGHT;
     const isDragOver = dragOverRow === idx;
 
@@ -1195,7 +1193,7 @@ const SpreadsheetTable: React.FC<SpreadsheetTableProps> = ({
           if (col.state && col.empresa) {
             const emp = col.empresa;
             const state = col.state;
-            const lowestEmp = state === 'MT' ? lowestEmpMT : lowestEmpGO;
+            const lowestEmp = lowestEmpByUf[state] ?? null;
             const isLowest = lowestEmp === emp;
             const isEditable = editableColumn === emp;
             const editKey = `${idx}-${origIdx}`;
@@ -1236,7 +1234,7 @@ const SpreadsheetTable: React.FC<SpreadsheetTableProps> = ({
   }, [orderedColDefs, getColWidth, getLowestEmpresa, editingCell, editingValue, cellEdits, getPreco, getMarkedUpPrice,
       isCellSelected, isCellActive, getSelectionBorders, editableColumn, editPrices, readOnly, rowHeights,
       dragOverRow, dragRow, activeRowResize, produtos, getDisplayValue, handleCellClick, handleCellMouseDown,
-      handleCellMouseEnter, handleCellDoubleClick, commitEdit, cancelEdit, onPriceChange]);
+      handleCellMouseEnter, handleCellDoubleClick, commitEdit, cancelEdit, onPriceChange, ufs]);
 
   // Filtered rows for search + winner filter
   const displayRows = useMemo(() => {
@@ -1318,33 +1316,28 @@ const SpreadsheetTable: React.FC<SpreadsheetTableProps> = ({
         )}
 
         {/* State Filter Toggle */}
-        {empresas.length > 0 && (
+        {empresas.length > 0 && ufs.length > 0 && (
           <>
             <div className="w-px h-5 bg-border mx-1" />
             <div className="flex items-center gap-0.5 bg-background border border-border rounded-md p-0.5">
+              {ufs.map(uf => (
+                <button
+                  key={uf}
+                  onClick={() => setStateFilter(uf)}
+                  className={`px-2 py-1 rounded text-[10px] font-bold transition-colors ${
+                    stateFilter === uf ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:text-foreground hover:bg-muted'
+                  }`}
+                >
+                  {uf}
+                </button>
+              ))}
               <button
-                onClick={() => setStateFilter('MT')}
+                onClick={() => setStateFilter(ALL_STATES)}
                 className={`px-2 py-1 rounded text-[10px] font-bold transition-colors ${
-                  stateFilter === 'MT' ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:text-foreground hover:bg-muted'
+                  stateFilter === ALL_STATES ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:text-foreground hover:bg-muted'
                 }`}
               >
-                MT
-              </button>
-              <button
-                onClick={() => setStateFilter('GO')}
-                className={`px-2 py-1 rounded text-[10px] font-bold transition-colors ${
-                  stateFilter === 'GO' ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:text-foreground hover:bg-muted'
-                }`}
-              >
-                GO
-              </button>
-              <button
-                onClick={() => setStateFilter('BOTH')}
-                className={`px-2 py-1 rounded text-[10px] font-bold transition-colors ${
-                  stateFilter === 'BOTH' ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:text-foreground hover:bg-muted'
-                }`}
-              >
-                Ambos
+                Todos
               </button>
             </div>
           </>
@@ -1425,7 +1418,7 @@ const SpreadsheetTable: React.FC<SpreadsheetTableProps> = ({
                     ) : null}
                     {col.empresa && col.state ? (
                       <div className="text-[8px] leading-tight font-bold opacity-80 uppercase tracking-wide">
-                        {tipoPrecoLabel(tipoPrecoMap[`${col.empresa}_${col.state}`] ?? (col.state === 'MT' ? 'IPI_ST' : 'NOTA'))}
+                        {tipoPrecoLabel(tipoPrecoMap[`${col.empresa}_${col.state}`] ?? (col.state === 'GO' ? 'NOTA' : 'IPI_ST'))}
                         {' · '}
                         {tipoPrecoMap[`${col.empresa}_${col.state}_FRETE`] ?? 'CIF'}
                       </div>
@@ -1515,7 +1508,7 @@ const SpreadsheetTable: React.FC<SpreadsheetTableProps> = ({
                   </button>
                   {(() => {
                     const cd = orderedColDefs.find(c => c.orderIdx === contextMenu.colIdx);
-                    const st = cd?.state as 'MT' | 'GO' | undefined;
+                    const st = cd?.state as string | undefined;
                     if (!st) return null;
                     const isActive = winnerFilter?.empresa === emp && winnerFilter?.state === st;
                     return (
@@ -1635,18 +1628,18 @@ const SpreadsheetTable: React.FC<SpreadsheetTableProps> = ({
                     Em qual estado deseja adicionar a coluna para <span className="font-bold text-foreground">{newEmpresaName.trim()}</span>?
                   </p>
                   <div className="grid grid-cols-3 gap-2 mb-3">
-                    <button onClick={() => handleAddEmpresa(['MT'])}
-                      className="h-10 rounded-md border border-input bg-background hover:bg-accent text-sm font-bold transition-colors">
-                      MT
-                    </button>
-                    <button onClick={() => handleAddEmpresa(['GO'])}
-                      className="h-10 rounded-md border border-input bg-background hover:bg-accent text-sm font-bold transition-colors">
-                      GO
-                    </button>
-                    <button onClick={() => handleAddEmpresa(['MT', 'GO'])}
-                      className="h-10 rounded-md bg-primary text-primary-foreground hover:bg-primary/90 text-sm font-bold transition-colors">
-                      Ambos
-                    </button>
+                    {userEstados.map(uf => (
+                      <button key={uf} onClick={() => handleAddEmpresa([uf])}
+                        className="h-10 rounded-md border border-input bg-background hover:bg-accent text-sm font-bold transition-colors">
+                        {uf}
+                      </button>
+                    ))}
+                    {userEstados.length > 1 && (
+                      <button onClick={() => handleAddEmpresa(userEstados)}
+                        className="h-10 rounded-md bg-primary text-primary-foreground hover:bg-primary/90 text-sm font-bold transition-colors">
+                        Todos
+                      </button>
+                    )}
                   </div>
                   <div className="flex justify-end">
                     <button onClick={() => setAddEmpresaStep('name')}
