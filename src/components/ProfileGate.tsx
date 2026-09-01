@@ -1,8 +1,6 @@
 import React, { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
-import { useUserRole } from '@/hooks/useUserRole';
 import {
   AlertDialog, AlertDialogContent, AlertDialogDescription, AlertDialogFooter,
   AlertDialogHeader, AlertDialogTitle, AlertDialogAction,
@@ -13,24 +11,17 @@ import { toast } from 'sonner';
 
 /**
  * Gate that:
- *  - Redirects admins to /admin
  *  - Forces normal users without a `nome` to fill it before using the app
  */
 const ProfileGate: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { user } = useAuth();
-  const { role, loading: roleLoading } = useUserRole();
-  const navigate = useNavigate();
   const [checked, setChecked] = useState(false);
   const [needsName, setNeedsName] = useState(false);
   const [nome, setNome] = useState('');
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
-    if (!user || roleLoading) return;
-    if (role === 'admin') {
-      navigate('/admin', { replace: true });
-      return;
-    }
+    if (!user) return;
     (async () => {
       const { data } = await supabase
         .from('profiles')
@@ -41,7 +32,7 @@ const ProfileGate: React.FC<{ children: React.ReactNode }> = ({ children }) => {
       setNeedsName(!current);
       setChecked(true);
     })();
-  }, [user, role, roleLoading, navigate]);
+  }, [user]);
 
   const save = async () => {
     if (!user) return;
@@ -66,7 +57,6 @@ const ProfileGate: React.FC<{ children: React.ReactNode }> = ({ children }) => {
     }
   };
 
-  if (role === 'admin') return null;
   if (!checked) return null;
 
   return (
