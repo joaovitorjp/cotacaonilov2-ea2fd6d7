@@ -81,16 +81,59 @@ const Login = () => {
     if (error) {
       toast.error(error.message);
     } else {
-      toast.success('Cadastro realizado! Verifique seu email para confirmar o acesso.');
+      toast.success('Teste de 7 dias criado! Confirme seu email para liberar o acesso.');
       setIsSignUp(false);
     }
   };
 
   return (
-    <div className="relative flex items-center justify-center min-h-screen overflow-hidden bg-background">
+    <div className="relative flex items-center justify-center min-h-screen overflow-hidden bg-background p-4 py-10">
       <AetherFlowBackground />
-      <div className="relative z-10 w-full max-w-sm mx-auto p-8 rounded-3xl bg-white/80 backdrop-blur-2xl border border-white/50 shadow-2xl shadow-primary/5">
-        <div className="text-center mb-8">
+      <div className="relative z-10 w-full max-w-4xl mx-auto grid md:grid-cols-2 gap-6 items-stretch">
+        {/* Plano: teste de 7 dias e assinatura */}
+        <aside className="order-2 md:order-1 rounded-3xl bg-card/70 backdrop-blur-2xl border border-border/60 shadow-2xl shadow-primary/5 p-8 flex flex-col">
+          <div className="inline-flex items-center gap-2 self-start rounded-full bg-primary/10 text-primary px-3 py-1 text-xs font-semibold">
+            <Sparkles className="h-3.5 w-3.5" />
+            7 dias grátis para novos usuários
+          </div>
+
+          <h2 className="mt-4 text-xl font-display font-bold text-foreground tracking-tight">
+            Todas as funções, sem limites
+          </h2>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Comece testando gratuitamente. Depois do período de teste, mantenha o acesso com a
+            assinatura mensal — cancele quando quiser.
+          </p>
+
+          <div className="mt-5 rounded-2xl border border-primary/20 bg-primary/5 p-5">
+            <p className="text-3xl font-bold text-foreground">
+              R$ 49,99
+              <span className="text-sm font-normal text-muted-foreground">/mês</span>
+            </p>
+            <p className="mt-1 flex items-center gap-1.5 text-xs text-muted-foreground">
+              <CreditCard className="h-3.5 w-3.5" />
+              Cartão, Pix ou boleto via Mercado Pago
+            </p>
+          </div>
+
+          <ul className="mt-5 space-y-2">
+            {PLAN_FEATURES.map((f) => (
+              <li key={f} className="flex items-start gap-2 text-sm text-foreground">
+                <Check className="h-4 w-4 text-primary shrink-0 mt-0.5" />
+                {f}
+              </li>
+            ))}
+          </ul>
+
+          <p className="mt-auto pt-6 flex items-center gap-1.5 text-xs text-muted-foreground">
+            <ShieldCheck className="h-3.5 w-3.5 text-primary" />
+            Sem cobrança durante o teste. Nenhum cartão é exigido para começar.
+          </p>
+        </aside>
+
+        {/* Autenticação */}
+        <div className="order-1 md:order-2 rounded-3xl bg-card/80 backdrop-blur-2xl border border-border/60 shadow-2xl shadow-primary/5 p-8">
+        <div className="text-center mb-6">
           <div className="flex items-center justify-center gap-3">
             <img src={adrLogo.url} alt="ADR-SYSTEM" className="h-14 w-14 rounded-xl object-contain shadow-sm" />
             <h1 className="text-2xl font-display font-bold text-foreground tracking-tight">
@@ -98,9 +141,17 @@ const Login = () => {
             </h1>
           </div>
           <p className="text-sm text-muted-foreground mt-1">
-            {isSignUp ? 'Criar novo acesso' : 'Acesso administrativo'}
+            {isSignUp ? 'Criar conta e iniciar o teste de 7 dias' : 'Entrar na sua conta'}
           </p>
         </div>
+
+        {isSignUp && (
+          <div className="mb-5 rounded-2xl border border-primary/20 bg-primary/5 px-4 py-3 text-xs text-foreground">
+            Seu teste de <strong>7 dias</strong> começa assim que a conta for criada. Ao final,
+            você escolhe assinar por <strong>R$ 49,99/mês</strong> para continuar.
+          </div>
+        )}
+
 
         <form onSubmit={isSignUp ? handleSignUp : handleLogin} className="space-y-4">
           {isSignUp && (
