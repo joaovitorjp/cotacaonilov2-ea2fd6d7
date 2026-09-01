@@ -4,6 +4,8 @@ import { BarChart3, Trophy, TrendingDown, History, FileDown, Send } from 'lucide
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { drawHeader, drawChips, drawSectionTitle, drawFooter, tableStyles, PDF_COLORS, formatBRL } from '@/lib/pdf-theme';
+import { ordenarUFs, ufsDaResposta, getPrecoUF, ufNome } from '@/lib/estados';
+import { useEstadosUsuario } from '@/hooks/useEstadosUsuario';
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription,
 } from '@/components/ui/dialog';
@@ -19,7 +21,7 @@ interface Produto {
 
 interface RespostaEmpresa {
   empresa: string;
-  resposta: { codigo_interno: string; preco?: number | string; preco_mt?: number | string; preco_go?: number | string }[];
+  resposta: { codigo_interno: string; preco?: number | string; preco_mt?: number | string; preco_go?: number | string; precos?: Record<string, number | string>; [k: string]: any }[];
 }
 
 interface AnalisePrecosPanelProps {
@@ -65,21 +67,38 @@ const AnalisePrecosPanel: React.FC<AnalisePrecosPanelProps> = ({ produtos, respo
   const [showHistorico, setShowHistorico] = useState(false);
   const [loadingHistorico, setLoadingHistorico] = useState(false);
   const [showComparativoDialog, setShowComparativoDialog] = useState(false);
-  const [estadoComparativo, setEstadoComparativo] = useState<'mt' | 'go'>('mt');
+  const [estadoComparativo, setEstadoComparativo] = useState<string>('');
   const [showFornecedorDialog, setShowFornecedorDialog] = useState(false);
-  const [estadoFornecedor, setEstadoFornecedor] = useState<'mt' | 'go' | 'ambos'>('ambos');
+  const [estadoFornecedor, setEstadoFornecedor] = useState<string>('TODOS');
   const [showGanhadoresDialog, setShowGanhadoresDialog] = useState(false);
-  const [estadoGanhadores, setEstadoGanhadores] = useState<'mt' | 'go'>('mt');
+  const [estadoGanhadores, setEstadoGanhadores] = useState<string>('');
+
+  const { estados: estadosUsuario } = useEstadosUsuario();
+
+  // UFs disponíveis: as que aparecem nas respostas, ordenadas conforme preferência do usuário.
+  const ufsDisponiveis = useMemo(() => {
+    const detectadas = ordenarUFs(respostas.flatMap(r => ufsDaResposta(r.resposta as any)), estadosUsuario);
+    return detectadas.length > 0 ? detectadas : ordenarUFs(estadosUsuario, estadosUsuario);
+  }, [respostas, estadosUsuario]);
+
+  const ufPrimaria = ufsDisponiveis[0] || estadosUsuario[0] || 'MT';
+
+  useEffect(() => {
+    if (!estadoComparativo && ufsDisponiveis.length > 0) setEstadoComparativo(ufsDisponiveis[0]);
+  }, [ufsDisponiveis, estadoComparativo]);
+
+  useEffect(() => {
+    if (!estadoGanhadores && ufsDisponiveis.length > 0) setEstadoGanhadores(ufsDisponiveis[0]);
+  }, [ufsDisponiveis, estadoGanhadores]);
 
   // PDF com apenas os produtos em que o fornecedor tem o menor preço (ganhou)
   const exportGanhadoresPDF = (empresaSelecionada: string) => {
-    const estado = estadoGanhadores;
-    const getPriceField = (item: any) =>
-      estado === 'mt' ? (item.preco_mt ?? item.preco) : (item.preco_go ?? item.preco);
+    const estado = estadoGanhadores || ufPrimaria;
     const getNum = (resp: RespostaEmpresa, prod: Produto) => {
       const item = findRespItem(resp.resposta as any[], prod);
       if (!item) return NaN;
-      return parsePreco(getPriceField(item));
+      const preco = getPrecoUF(item, estado);
+      return preco === undefined ? NaN : parsePreco(preco);
     };
 
     const sel = respostas.find(r => r.empresa === empresaSelecionada);
@@ -114,7 +133,7 @@ const AnalisePrecosPanel: React.FC<AnalisePrecosPanelProps> = ({ produtos, respo
     let y0 = drawHeader(doc, {
       title: 'Produtos Ganhadores',
       subtitle: `Cotação: ${listaNome || 'Sem nome'}`,
-      meta: `Fornecedor: ${empresaSelecionada}  ·  Região: ${estado.toUpperCase()}`,
+      meta: `Fornecedor: ${empresaSelecionada}  ·  Região: ${estado} (${ufNome(estado)})`,
     });
     y0 = drawChips(doc, y0, [
       { label: 'Itens ganhos', value: String(body.length), tone: 'success' },
@@ -153,7 +172,7 @@ const AnalisePrecosPanel: React.FC<AnalisePrecosPanelProps> = ({ produtos, respo
     });
 
     drawFooter(doc);
-    doc.save(`ganhadores_${empresaSelecionada.replace(/\s+/g, '_')}_${estado.toUpperCase()}.pdf`);
+    doc.save(`ganhadores_${empresaSelecionada.replace(/\s+/g, '_')}_${estado}.pdf`);
     setShowGanhadoresDialog(false);
   };
 
@@ -161,39 +180,38 @@ const AnalisePrecosPanel: React.FC<AnalisePrecosPanelProps> = ({ produtos, respo
     const resp = respostas.find(r => r.empresa === empresaSelecionada);
     if (!resp) return;
 
-    const showMT = estadoFornecedor === 'mt' || estadoFornecedor === 'ambos';
-    const showGO = estadoFornecedor === 'go' || estadoFornecedor === 'ambos';
+    const ufsExibidas = estadoFornecedor === 'TODOS' ? ufsDisponiveis : [estadoFornecedor];
 
     const doc = new jsPDF('portrait', 'mm', 'a4');
     let y0 = drawHeader(doc, {
       title: 'Preços do Fornecedor',
       subtitle: `Cotação: ${listaNome || 'Sem nome'}`,
-      meta: `Fornecedor: ${empresaSelecionada}  ·  Região: ${estadoFornecedor === 'ambos' ? 'MT + GO' : estadoFornecedor.toUpperCase()}`,
+      meta: `Fornecedor: ${empresaSelecionada}  ·  Região: ${estadoFornecedor === 'TODOS' ? ufsDisponiveis.join(' + ') : `${estadoFornecedor} (${ufNome(estadoFornecedor)})`}`,
     });
 
-    // Cálculo de totais
-    let totalMT = 0, totalGO = 0, countMT = 0, countGO = 0;
+    // Cálculo de totais por UF
+    const totais: Record<string, { total: number; count: number }> = {};
+    ufsExibidas.forEach(uf => { totais[uf] = { total: 0, count: 0 }; });
     const body = produtos.map((prod, idx) => {
       const item: any = findRespItem(resp.resposta as any[], prod);
-      const priceMT = item ? parsePreco(item.preco_mt ?? item.preco) : NaN;
-      const priceGO = item ? parsePreco(item.preco_go ?? item.preco) : NaN;
-      if (!isNaN(priceMT) && priceMT > 0) { totalMT += priceMT; countMT++; }
-      if (!isNaN(priceGO) && priceGO > 0) { totalGO += priceGO; countGO++; }
       const row: string[] = [String(idx + 1), prod.codigo_interno, prod.descricao.substring(0, 60), prod.codigo_barras || '—'];
-      if (showMT) row.push(formatBRL(priceMT));
-      if (showGO) row.push(formatBRL(priceGO));
+      ufsExibidas.forEach(uf => {
+        const preco = item ? getPrecoUF(item, uf) : undefined;
+        const num = preco === undefined ? NaN : parsePreco(preco);
+        if (!isNaN(num) && num > 0) { totais[uf].total += num; totais[uf].count++; }
+        row.push(formatBRL(num));
+      });
       return row;
     });
 
     const chips: any[] = [{ label: 'Produtos', value: String(produtos.length), tone: 'primary' }];
-    if (showMT) chips.push({ label: 'Itens MT', value: `${countMT}`, tone: 'success' }, { label: 'Total MT', value: formatBRL(totalMT), tone: 'muted' });
-    if (showGO) chips.push({ label: 'Itens GO', value: `${countGO}`, tone: 'success' }, { label: 'Total GO', value: formatBRL(totalGO), tone: 'muted' });
+    ufsExibidas.forEach(uf => {
+      chips.push({ label: `Itens ${uf}`, value: `${totais[uf].count}`, tone: 'success' }, { label: `Total ${uf}`, value: formatBRL(totais[uf].total), tone: 'muted' });
+    });
     y0 = drawChips(doc, y0, chips);
     y0 = drawSectionTitle(doc, y0 + 2, 'Itens Precificados');
 
-    const head: string[] = ['#', 'Código', 'Descrição', 'Cód. Barras'];
-    if (showMT) head.push('MT');
-    if (showGO) head.push('GO');
+    const head: string[] = ['#', 'Código', 'Descrição', 'Cód. Barras', ...ufsExibidas];
 
     autoTable(doc, {
       ...tableStyles,
@@ -224,10 +242,9 @@ const AnalisePrecosPanel: React.FC<AnalisePrecosPanelProps> = ({ produtos, respo
 
 
   const exportComparativoPDF = (empresaSelecionada: string) => {
-    const estado = estadoComparativo;
-    const estadoLabel = estado === 'mt' ? 'MT (Mato Grosso)' : 'GO (Goiás)';
-    const getPriceField = (item: any) =>
-      estado === 'mt' ? (item.preco_mt ?? item.preco) : (item.preco_go ?? item.preco);
+    const estado = estadoComparativo || ufPrimaria;
+    const estadoLabel = `${estado} (${ufNome(estado)})`;
+    const getPriceField = (item: any) => getPrecoUF(item, estado);
     const doc = new jsPDF('landscape', 'mm', 'a4');
     const outrasEmpresas = respostas.filter(r => r.empresa !== empresaSelecionada);
 
@@ -253,7 +270,8 @@ const AnalisePrecosPanel: React.FC<AnalisePrecosPanelProps> = ({ produtos, respo
       const getNum = (resp: RespostaEmpresa) => {
         const item = findRespItem(resp.resposta as any[], prod);
         if (!item) return NaN;
-        return parsePreco(getPriceField(item));
+        const preco = getPriceField(item);
+        return preco === undefined ? NaN : parsePreco(preco);
       };
       const selPrice = getNum(respostas.find(r => r.empresa === empresaSelecionada)!);
       if (isNaN(selPrice) || selPrice <= 0) return;
@@ -281,7 +299,8 @@ const AnalisePrecosPanel: React.FC<AnalisePrecosPanelProps> = ({ produtos, respo
       const getNum = (resp: RespostaEmpresa) => {
         const item = findRespItem(resp.resposta as any[], prod);
         if (!item) return NaN;
-        return parsePreco(getPriceField(item));
+        const preco = getPriceField(item);
+        return preco === undefined ? NaN : parsePreco(preco);
       };
       const fmt = (v: number) => formatBRL(v);
 
@@ -395,7 +414,7 @@ const AnalisePrecosPanel: React.FC<AnalisePrecosPanelProps> = ({ produtos, respo
     doc.text('= Concorrente com preço menor (oportunidade de cobrir)', 20, finalY + 12.5);
 
     drawFooter(doc);
-    doc.save(`comparativo_${empresaSelecionada.replace(/\s+/g, '_')}_${estado.toUpperCase()}.pdf`);
+    doc.save(`comparativo_${empresaSelecionada.replace(/\s+/g, '_')}_${estado}.pdf`);
     setShowComparativoDialog(false);
   };
 
@@ -440,7 +459,8 @@ const AnalisePrecosPanel: React.FC<AnalisePrecosPanelProps> = ({ produtos, respo
           const items = resp.resposta as any[];
           const item = findRespItem(items, prod);
           if (item) {
-            const num = parsePreco(item.preco_mt ?? item.preco);
+            const preco = getPrecoUF(item, ufPrimaria);
+            const num = preco === undefined ? NaN : parsePreco(preco);
             if (!isNaN(num) && num > 0 && num < lowestPrice) {
               lowestPrice = num;
               lowestEmpresa = resp.empresa;
@@ -477,7 +497,8 @@ const AnalisePrecosPanel: React.FC<AnalisePrecosPanelProps> = ({ produtos, respo
       for (const resp of respostas) {
         const item = findRespItem(resp.resposta as any[], prod);
         if (item) {
-          const num = parsePreco(item.preco_mt ?? item.preco);
+          const preco = getPrecoUF(item, ufPrimaria);
+          const num = preco === undefined ? NaN : parsePreco(preco);
           if (!isNaN(num) && num > 0) {
             prices.push({ empresa: resp.empresa, preco: num });
             totalByEmpresa[resp.empresa].total += num;
@@ -514,7 +535,7 @@ const AnalisePrecosPanel: React.FC<AnalisePrecosPanelProps> = ({ produtos, respo
     }, 0);
 
     return { prodAnalysis, ranking, totalSavings };
-  }, [produtos, respostas]);
+  }, [produtos, respostas, ufPrimaria]);
 
   // PDF Export
   const exportPDF = () => {
@@ -704,9 +725,12 @@ const AnalisePrecosPanel: React.FC<AnalisePrecosPanelProps> = ({ produtos, respo
           <div className="space-y-3">
             <div>
               <label className="text-xs font-display font-bold text-muted-foreground mb-1.5 block">Estado considerado</label>
-              <div className="flex gap-2">
-                <Button type="button" variant={estadoGanhadores === 'mt' ? 'default' : 'outline'} size="sm" className="flex-1 font-display" onClick={() => setEstadoGanhadores('mt')}>MT (Mato Grosso)</Button>
-                <Button type="button" variant={estadoGanhadores === 'go' ? 'default' : 'outline'} size="sm" className="flex-1 font-display" onClick={() => setEstadoGanhadores('go')}>GO (Goiás)</Button>
+              <div className="flex gap-2 flex-wrap">
+                {ufsDisponiveis.map(uf => (
+                  <Button key={uf} type="button" variant={estadoGanhadores === uf ? 'default' : 'outline'} size="sm" className="flex-1 font-display" onClick={() => setEstadoGanhadores(uf)}>
+                    {uf} ({ufNome(uf)})
+                  </Button>
+                ))}
               </div>
             </div>
             <div>
@@ -739,25 +763,19 @@ const AnalisePrecosPanel: React.FC<AnalisePrecosPanelProps> = ({ produtos, respo
               <label className="text-xs font-display font-bold text-muted-foreground mb-1.5 block">
                 Estado considerado
               </label>
-              <div className="flex gap-2">
-                <Button
-                  type="button"
-                  variant={estadoComparativo === 'mt' ? 'default' : 'outline'}
-                  size="sm"
-                  className="flex-1 font-display"
-                  onClick={() => setEstadoComparativo('mt')}
-                >
-                  MT (Mato Grosso)
-                </Button>
-                <Button
-                  type="button"
-                  variant={estadoComparativo === 'go' ? 'default' : 'outline'}
-                  size="sm"
-                  className="flex-1 font-display"
-                  onClick={() => setEstadoComparativo('go')}
-                >
-                  GO (Goiás)
-                </Button>
+              <div className="flex gap-2 flex-wrap">
+                {ufsDisponiveis.map(uf => (
+                  <Button
+                    key={uf}
+                    type="button"
+                    variant={estadoComparativo === uf ? 'default' : 'outline'}
+                    size="sm"
+                    className="flex-1 font-display"
+                    onClick={() => setEstadoComparativo(uf)}
+                  >
+                    {uf} ({ufNome(uf)})
+                  </Button>
+                ))}
               </div>
             </div>
             <div>
@@ -795,10 +813,13 @@ const AnalisePrecosPanel: React.FC<AnalisePrecosPanelProps> = ({ produtos, respo
               <label className="text-xs font-display font-bold text-muted-foreground mb-1.5 block">
                 Estado(s)
               </label>
-              <div className="flex gap-2">
-                <Button type="button" variant={estadoFornecedor === 'mt' ? 'default' : 'outline'} size="sm" className="flex-1 font-display" onClick={() => setEstadoFornecedor('mt')}>MT</Button>
-                <Button type="button" variant={estadoFornecedor === 'go' ? 'default' : 'outline'} size="sm" className="flex-1 font-display" onClick={() => setEstadoFornecedor('go')}>GO</Button>
-                <Button type="button" variant={estadoFornecedor === 'ambos' ? 'default' : 'outline'} size="sm" className="flex-1 font-display" onClick={() => setEstadoFornecedor('ambos')}>Ambos</Button>
+              <div className="flex gap-2 flex-wrap">
+                {ufsDisponiveis.map(uf => (
+                  <Button key={uf} type="button" variant={estadoFornecedor === uf ? 'default' : 'outline'} size="sm" className="flex-1 font-display" onClick={() => setEstadoFornecedor(uf)}>
+                    {uf} ({ufNome(uf)})
+                  </Button>
+                ))}
+                <Button type="button" variant={estadoFornecedor === 'TODOS' ? 'default' : 'outline'} size="sm" className="flex-1 font-display" onClick={() => setEstadoFornecedor('TODOS')}>Todos os estados</Button>
               </div>
             </div>
             <div>

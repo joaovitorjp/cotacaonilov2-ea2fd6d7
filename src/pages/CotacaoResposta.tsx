@@ -8,6 +8,7 @@ import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { drawHeader, drawChips, drawSectionTitle, drawFooter, tableStyles, PDF_COLORS } from '@/lib/pdf-theme';
 import adrLogo from '@/assets/adr-logo.jpeg.asset.json';
+import { condicoesFromLink, parseEstados, ufNome, buildPrecosPayload, getPrecoUF, type CondicaoEstado } from '@/lib/estados';
 
 interface Produto {
   codigo_interno: string;
@@ -25,25 +26,23 @@ const CotacaoResposta = () => {
   const [listaId, setListaId] = useState('');
   const [listaNome, setListaNome] = useState('');
   const [produtos, setProdutos] = useState<Produto[]>([]);
-  const [pricesMT, setPricesMT] = useState<Record<number, string>>({});
-  const [pricesGO, setPricesGO] = useState<Record<number, string>>({});
+  const [prices, setPrices] = useState<Record<string, Record<number, string>>>({});
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [linkRespondido, setLinkRespondido] = useState(false);
   const [filledCount, setFilledCount] = useState(0);
   const [searchTerm, setSearchTerm] = useState('');
-  const [estados, setEstados] = useState<string>('AMBOS');
-  const [tipoMT, setTipoMT] = useState<string>('IPI_ST');
-  const [tipoGO, setTipoGO] = useState<string>('NOTA');
-  const [freteMT, setFreteMT] = useState<string>('CIF');
-  const [freteGO, setFreteGO] = useState<string>('CIF');
+  const [ufs, setUfs] = useState<string[]>([]);
+  const [condicoes, setCondicoes] = useState<Record<string, CondicaoEstado>>({});
   const [showBriefing, setShowBriefing] = useState(false);
   const [briefingProgress, setBriefingProgress] = useState(100);
 
   const tipoLabel = (t: string) => (t === 'NOTA' ? 'PREÇO NOTA' : 'IPI + ST');
+  const condDe = (uf: string): CondicaoEstado => condicoes[uf] ?? { tipo: 'IPI_ST', frete: 'CIF' };
+  const precoDe = (uf: string, idx: number) => prices[uf]?.[idx] ?? '';
+  const setPreco = (uf: string, idx: number, value: string) =>
+    setPrices(prev => ({ ...prev, [uf]: { ...(prev[uf] ?? {}), [idx]: value } }));
 
-  const showMT = estados === 'AMBOS' || estados === 'MT';
-  const showGO = estados === 'AMBOS' || estados === 'GO';
 
 
   useEffect(() => {
@@ -51,10 +50,13 @@ const CotacaoResposta = () => {
   }, [token]);
 
   useEffect(() => {
-    const countMT = showMT ? Object.values(pricesMT).filter(v => v && v.trim() !== '').length : 0;
-    const countGO = showGO ? Object.values(pricesGO).filter(v => v && v.trim() !== '').length : 0;
-    setFilledCount(countMT + countGO);
-  }, [pricesMT, pricesGO, showMT, showGO]);
+    let total = 0;
+    for (const uf of ufs) {
+      total += Object.values(prices[uf] ?? {}).filter(v => v && String(v).trim() !== '').length;
+    }
+    setFilledCount(total);
+  }, [prices, ufs]);
+
 
   useEffect(() => {
     if (!showBriefing) return;
@@ -89,11 +91,10 @@ const CotacaoResposta = () => {
     if (linkData.respondido) setLinkRespondido(true);
     setEmpresa(linkData.empresa);
     setListaId(linkData.lista_id);
-    setEstados((linkData as any).estados || 'AMBOS');
-    setTipoMT((linkData as any).tipo_preco_mt || 'IPI_ST');
-    setTipoGO((linkData as any).tipo_preco_go || 'NOTA');
-    setFreteMT((linkData as any).frete_mt || 'CIF');
-    setFreteGO((linkData as any).frete_go || 'CIF');
+    const conds = condicoesFromLink(linkData);
+    const lista_ufs = Object.keys(conds).length ? Object.keys(conds) : parseEstados((linkData as any).estados);
+    setCondicoes(conds);
+    setUfs(lista_ufs);
     setShowBriefing(true);
 
 
@@ -108,18 +109,18 @@ const CotacaoResposta = () => {
 
     const myResp = payload?.resposta;
     if (myResp) {
-      const prefilledMT: Record<number, string> = {};
-      const prefilledGO: Record<number, string> = {};
+      const prefilled: Record<string, Record<number, string>> = {};
       prods.forEach((p, idx) => {
         const item = (myResp.resposta as any[]).find((i: any) => i.codigo_interno === p.codigo_interno);
-        if (item) {
-          if (item.preco_mt) prefilledMT[idx] = String(item.preco_mt);
-          if (item.preco_go) prefilledGO[idx] = String(item.preco_go);
-          if (!item.preco_mt && !item.preco_go && item.preco) prefilledMT[idx] = String(item.preco);
+        if (!item) return;
+        for (const uf of lista_ufs) {
+          const v = getPrecoUF(item, uf);
+          if (v !== undefined && v !== '') {
+            prefilled[uf] = { ...(prefilled[uf] ?? {}), [idx]: String(v) };
+          }
         }
       });
-      setPricesMT(prefilledMT);
-      setPricesGO(prefilledGO);
+      setPrices(prefilled);
     }
 
     setLoading(false);
@@ -134,24 +135,22 @@ const CotacaoResposta = () => {
         meta: `Fornecedor: ${empresa}`,
       });
 
-      const preenchidosMT = showMT ? Object.values(pricesMT).filter(p => p && String(p).trim() !== '').length : 0;
-      const preenchidosGO = showGO ? Object.values(pricesGO).filter(p => p && String(p).trim() !== '').length : 0;
       const chips: { label: string; value: string; tone?: 'primary' | 'success' | 'muted' }[] = [
         { label: 'Produtos', value: String(produtos.length), tone: 'primary' },
       ];
-      if (showMT) chips.push({ label: 'Preenchidos MT', value: `${preenchidosMT}/${produtos.length}`, tone: 'success' });
-      if (showGO) chips.push({ label: 'Preenchidos GO', value: `${preenchidosGO}/${produtos.length}`, tone: 'success' });
+      for (const uf of ufs) {
+        const preenchidos = Object.values(prices[uf] ?? {}).filter(p => p && String(p).trim() !== '').length;
+        chips.push({ label: `Preenchidos ${uf}`, value: `${preenchidos}/${produtos.length}`, tone: 'success' });
+      }
       y0 = drawChips(doc, y0, chips);
       y0 = drawSectionTitle(doc, y0 + 2, 'Itens Cotados');
 
       const head: string[] = ['Código', 'Descrição', 'EAN'];
-      if (showMT) head.push(`Preço MT (R$) - ${tipoLabel(tipoMT)}`);
-      if (showGO) head.push(`Preço GO (R$) - ${tipoLabel(tipoGO)}`);
+      ufs.forEach(uf => head.push(`Preço ${uf} (R$) - ${tipoLabel(condDe(uf).tipo)}`));
 
       const body = produtos.map((p, idx) => {
         const row: string[] = [p.codigo_interno, p.descricao, p.codigo_barras || '—'];
-        if (showMT) row.push(pricesMT[idx] || '—');
-        if (showGO) row.push(pricesGO[idx] || '—');
+        ufs.forEach(uf => row.push(precoDe(uf, idx) || '—'));
         return row;
       });
 
@@ -167,7 +166,7 @@ const CotacaoResposta = () => {
         },
         didParseCell: (data: any) => {
           if (data.section !== 'body') return;
-          const isPriceCol = (showMT && data.column.index === 3) || (showGO && data.column.index === (showMT ? 4 : 3));
+          const isPriceCol = data.column.index >= 3;
           if (isPriceCol) {
             data.cell.styles.halign = 'right';
             data.cell.styles.fontStyle = 'bold';
@@ -191,8 +190,7 @@ const CotacaoResposta = () => {
     try {
       const resposta = produtos.map((p, idx) => ({
         codigo_interno: p.codigo_interno,
-        ...(showMT ? { preco_mt: (pricesMT[idx] && pricesMT[idx].trim() !== '') ? pricesMT[idx] : '' } : {}),
-        ...(showGO ? { preco_go: (pricesGO[idx] && pricesGO[idx].trim() !== '') ? pricesGO[idx] : '' } : {}),
+        ...buildPrecosPayload(Object.fromEntries(ufs.map(uf => [uf, precoDe(uf, idx)]))),
       }));
 
       if (!token) throw new Error('Link inválido');
@@ -235,9 +233,7 @@ const CotacaoResposta = () => {
   const hasCategories = produtos.some(p => p.categoria && p.categoria.trim() !== '');
 
   const renderProductCard = (prod: Produto, idx: number) => {
-    const hasPriceMT = showMT && pricesMT[idx] && pricesMT[idx].trim() !== '';
-    const hasPriceGO = showGO && pricesGO[idx] && pricesGO[idx].trim() !== '';
-    const hasAnyPrice = hasPriceMT || hasPriceGO;
+    const hasAnyPrice = ufs.some(uf => precoDe(uf, idx).trim() !== '');
     return (
       <div
         key={idx}
@@ -266,11 +262,11 @@ const CotacaoResposta = () => {
               </p>
             )}
           </div>
-          <div className="flex gap-2 sm:gap-3">
-            {showMT && (
-              <div className="flex-1">
+          <div className="flex flex-wrap gap-2 sm:gap-3">
+            {ufs.map(uf => (
+              <div key={uf} className="flex-1 min-w-[140px]">
                 <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider mb-1 block">
-                  MT (Mato Grosso) · {tipoLabel(tipoMT)}
+                  {uf} ({ufNome(uf)}) · {tipoLabel(condDe(uf).tipo)}
                 </label>
                 <div className="relative">
                   <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground font-medium">R$</span>
@@ -278,31 +274,13 @@ const CotacaoResposta = () => {
                     type="text"
                     inputMode="decimal"
                     className="w-full h-10 rounded-md border border-input bg-background pl-9 pr-3 text-sm text-right font-medium focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary transition-colors"
-                    value={pricesMT[idx] ?? ''}
-                    onChange={e => setPricesMT(prev => ({ ...prev, [idx]: e.target.value }))}
+                    value={precoDe(uf, idx)}
+                    onChange={e => setPreco(uf, idx, e.target.value)}
                     placeholder="0,00"
                   />
                 </div>
               </div>
-            )}
-            {showGO && (
-              <div className="flex-1">
-                <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider mb-1 block">
-                  GO (Goiás) · {tipoLabel(tipoGO)}
-                </label>
-                <div className="relative">
-                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground font-medium">R$</span>
-                  <input
-                    type="text"
-                    inputMode="decimal"
-                    className="w-full h-10 rounded-md border border-input bg-background pl-9 pr-3 text-sm text-right font-medium focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary transition-colors"
-                    value={pricesGO[idx] ?? ''}
-                    onChange={e => setPricesGO(prev => ({ ...prev, [idx]: e.target.value }))}
-                    placeholder="0,00"
-                  />
-                </div>
-              </div>
-            )}
+            ))}
           </div>
         </div>
       </div>
@@ -348,11 +326,11 @@ const CotacaoResposta = () => {
     );
   }
 
-  const stateCount = (showMT ? 1 : 0) + (showGO ? 1 : 0);
+  const stateCount = ufs.length;
   const totalFields = produtos.length * stateCount;
   const progress = totalFields > 0 ? Math.round((filledCount / totalFields) * 100) : 0;
 
-  const estadoLabel = estados === 'AMBOS' ? 'MT + GO' : estados;
+  const estadoLabel = ufs.length ? ufs.join(' + ') : '—';
 
   const freteLabel = (f: string) => (f === 'FOB' ? 'FOB — frete por conta do destinatário' : 'CIF — frete incluso no preço');
 
@@ -372,20 +350,13 @@ const CotacaoResposta = () => {
                 <p className="text-base font-bold text-foreground">{estadoLabel}</p>
               </div>
 
-              {showMT && (
-                <div className="rounded-lg border border-border p-3 space-y-1">
-                  <p className="text-[10px] font-bold uppercase tracking-wider text-primary">MT · Mato Grosso</p>
-                  <p className="text-sm text-foreground">Tipo de preço: <span className="font-bold">{tipoLabel(tipoMT)}</span></p>
-                  <p className="text-sm text-foreground">Frete: <span className="font-bold">{freteLabel(freteMT)}</span></p>
+              {ufs.map(uf => (
+                <div key={uf} className="rounded-lg border border-border p-3 space-y-1">
+                  <p className="text-[10px] font-bold uppercase tracking-wider text-primary">{uf} · {ufNome(uf)}</p>
+                  <p className="text-sm text-foreground">Tipo de preço: <span className="font-bold">{tipoLabel(condDe(uf).tipo)}</span></p>
+                  <p className="text-sm text-foreground">Frete: <span className="font-bold">{freteLabel(condDe(uf).frete)}</span></p>
                 </div>
-              )}
-              {showGO && (
-                <div className="rounded-lg border border-border p-3 space-y-1">
-                  <p className="text-[10px] font-bold uppercase tracking-wider text-primary">GO · Goiás</p>
-                  <p className="text-sm text-foreground">Tipo de preço: <span className="font-bold">{tipoLabel(tipoGO)}</span></p>
-                  <p className="text-sm text-foreground">Frete: <span className="font-bold">{freteLabel(freteGO)}</span></p>
-                </div>
-              )}
+              ))}
 
               <p className="text-xs text-center text-muted-foreground">
                 Este aviso fecha em {Math.ceil((briefingProgress / 100) * 5)}s
@@ -455,25 +426,15 @@ const CotacaoResposta = () => {
         <div className="max-w-3xl mx-auto space-y-2">
           <div className="bg-muted/50 border border-border rounded-lg p-3 mb-3">
             <p className="text-xs text-muted-foreground">
-              {estados === 'AMBOS' ? (
-                <>Preencha os preços para cada estado. <span className="font-bold text-foreground">MT</span> = Mato Grosso, <span className="font-bold text-foreground">GO</span> = Goiás.</>
-              ) : estados === 'MT' ? (
-                <>Preencha os preços para <span className="font-bold text-foreground">Mato Grosso (MT)</span>.</>
-              ) : (
-                <>Preencha os preços para <span className="font-bold text-foreground">Goiás (GO)</span>.</>
-              )}
+              Preencha os preços para {ufs.length > 1 ? 'cada estado' : 'o estado'}:{' '}
+              {ufs.map(uf => `${uf} = ${ufNome(uf)}`).join(', ')}.
             </p>
             <div className="flex flex-wrap gap-2 mt-2">
-              {showMT && (
-                <span className="text-[11px] font-bold px-2 py-1 rounded bg-primary/10 text-primary">
-                  MT: preços com {tipoLabel(tipoMT)}
+              {ufs.map(uf => (
+                <span key={uf} className="text-[11px] font-bold px-2 py-1 rounded bg-primary/10 text-primary">
+                  {uf}: preços com {tipoLabel(condDe(uf).tipo)}
                 </span>
-              )}
-              {showGO && (
-                <span className="text-[11px] font-bold px-2 py-1 rounded bg-primary/10 text-primary">
-                  GO: preços com {tipoLabel(tipoGO)}
-                </span>
-              )}
+              ))}
             </div>
           </div>
 

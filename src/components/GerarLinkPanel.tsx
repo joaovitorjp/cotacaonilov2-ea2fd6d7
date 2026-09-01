@@ -9,8 +9,18 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { toast } from 'sonner';
 import {
   Copy, Check, Link2, UserPlus, MessageCircle, RefreshCw, MapPin, Trash2,
-  Search, Truck, Tag, Clock, Send, Users,
+  Search, Truck, Tag, Clock, Send, Users, Settings2, Plus, X,
 } from 'lucide-react';
+import {
+  Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter,
+} from '@/components/ui/dialog';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { useEstadosUsuario } from '@/hooks/useEstadosUsuario';
+import {
+  UF_LIST, ufNome, TIPO_LABELS, FRETE_LABELS, serializeEstados,
+  type CondicaoEstado, type TipoPreco as TipoPrecoT, type Frete as FreteT,
+} from '@/lib/estados';
+
 import {
   AlertDialog,
   AlertDialogAction,
@@ -46,11 +56,9 @@ interface ExistingLink {
   estados?: string;
 }
 
-type EstadoOption = 'AMBOS' | 'MT' | 'GO';
 type TipoPreco = 'IPI_ST' | 'NOTA';
-const TIPO_LABELS: Record<TipoPreco, string> = { IPI_ST: 'IPI + ST', NOTA: 'PREÇO NOTA' };
 type Frete = 'CIF' | 'FOB';
-const FRETE_LABELS: Record<Frete, string> = { CIF: 'CIF', FOB: 'FOB' };
+
 
 interface GerarLinkPanelProps {
   open: boolean;
@@ -66,11 +74,6 @@ const getPublicBaseUrl = () => {
   return origin;
 };
 
-const ESTADO_LABELS: Record<EstadoOption, string> = {
-  'AMBOS': 'MT + GO',
-  'MT': 'Apenas MT',
-  'GO': 'Apenas GO',
-};
 
 /** Compact segmented control used across the configuration step. */
 function Segmented<T extends string>({ value, options, onChange, size = 'md' }: {
@@ -108,17 +111,57 @@ const GerarLinkPanel: React.FC<GerarLinkPanelProps> = ({ open, onOpenChange, lis
   const [generatedLinks, setGeneratedLinks] = useState<GeneratedLink[]>([]);
   const [fornecedores, setFornecedores] = useState<Fornecedor[]>([]);
   const [existingLinks, setExistingLinks] = useState<ExistingLink[]>([]);
-  const [selectedEstado, setSelectedEstado] = useState<EstadoOption>('AMBOS');
+  const [selectedUFs, setSelectedUFs] = useState<string[]>([]);
   const [listaNome, setListaNome] = useState<string>('');
   const [userNome, setUserNome] = useState<string>('');
   const [linkToDelete, setLinkToDelete] = useState<ExistingLink | null>(null);
-  const [tipoMT, setTipoMT] = useState<TipoPreco>('IPI_ST');
-  const [tipoGO, setTipoGO] = useState<TipoPreco>('NOTA');
-  const [freteMT, setFreteMT] = useState<Frete>('CIF');
-  const [freteGO, setFreteGO] = useState<Frete>('CIF');
+  const [condicoes, setCondicoes] = useState<Record<string, CondicaoEstado>>({});
+  const [gerenciarOpen, setGerenciarOpen] = useState(false);
+  const [novaUF, setNovaUF] = useState('');
+
   const [tab, setTab] = useState<'novo' | 'enviados'>('novo');
   const [search, setSearch] = useState('');
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
+
+  const { estados: estadosUsuario, save: saveEstados } = useEstadosUsuario();
+
+  // Seleciona todos os estados do usuário por padrão
+  useEffect(() => {
+    setSelectedUFs(prev => {
+      const valid = prev.filter(uf => estadosUsuario.includes(uf));
+      return valid.length ? valid : estadosUsuario;
+    });
+    setCondicoes(prev => {
+      const next = { ...prev };
+      estadosUsuario.forEach(uf => {
+        if (!next[uf]) next[uf] = { tipo: uf === 'GO' ? 'NOTA' : 'IPI_ST', frete: 'CIF' };
+      });
+      return next;
+    });
+  }, [estadosUsuario]);
+
+  const toggleUF = (uf: string) =>
+    setSelectedUFs(prev => (prev.includes(uf) ? prev.filter(x => x !== uf) : [...prev, uf]));
+
+  const setCondicao = (uf: string, patch: Partial<CondicaoEstado>) =>
+    setCondicoes(prev => ({ ...prev, [uf]: { tipo: 'IPI_ST', frete: 'CIF', ...prev[uf], ...patch } }));
+
+  const addEstado = async () => {
+    if (!novaUF || estadosUsuario.includes(novaUF)) return;
+    const { error } = await saveEstados([...estadosUsuario, novaUF]);
+    if (error) toast.error('Erro ao salvar estado.');
+    else {
+      toast.success(`${novaUF} adicionado.`);
+      setNovaUF('');
+    }
+  };
+
+  const removeEstado = async (uf: string) => {
+    const { error } = await saveEstados(estadosUsuario.filter(u => u !== uf));
+    if (error) toast.error('Erro ao remover estado.');
+    else setSelectedUFs(prev => prev.filter(u => u !== uf));
+  };
+
 
   useEffect(() => {
     if (open && user?.id) {
@@ -156,18 +199,25 @@ const GerarLinkPanel: React.FC<GerarLinkPanelProps> = ({ open, onOpenChange, lis
     }
   };
 
-  const generateLink = async (empresaNome: string, estados: EstadoOption) => {
+  const generateLink = async (empresaNome: string) => {
+    if (selectedUFs.length === 0) throw new Error('Selecione ao menos um estado');
+    const condPayload: Record<string, CondicaoEstado> = {};
+    selectedUFs.forEach(uf => {
+      condPayload[uf] = condicoes[uf] ?? { tipo: 'IPI_ST', frete: 'CIF' };
+    });
     const { data, error } = await supabase
       .from('links_cotacao')
       .insert({
         lista_id: listaId,
         empresa: empresaNome,
-        estados,
+        estados: serializeEstados(selectedUFs),
+        condicoes: condPayload as any,
         user_id: user?.id,
-        tipo_preco_mt: tipoMT,
-        tipo_preco_go: tipoGO,
-        frete_mt: freteMT,
-        frete_go: freteGO,
+        // compatibilidade com colunas legadas
+        tipo_preco_mt: condPayload.MT?.tipo ?? 'IPI_ST',
+        tipo_preco_go: condPayload.GO?.tipo ?? 'NOTA',
+        frete_mt: condPayload.MT?.frete ?? 'CIF',
+        frete_go: condPayload.GO?.frete ?? 'CIF',
       })
       .select()
       .single();
@@ -176,12 +226,13 @@ const GerarLinkPanel: React.FC<GerarLinkPanelProps> = ({ open, onOpenChange, lis
     return `${getPublicBaseUrl()}/cotacao/${data.token}`;
   };
 
+
   const handleGerar = async () => {
     if (!empresa.trim()) return;
     setLoading(true);
     try {
-      const link = await generateLink(empresa.trim(), selectedEstado);
-      setGeneratedLinks(prev => [...prev, { empresa: empresa.trim(), link, copied: false, estados: selectedEstado }]);
+      const link = await generateLink(empresa.trim());
+      setGeneratedLinks(prev => [...prev, { empresa: empresa.trim(), link, copied: false, estados: selectedUFs.join(',') }]);
       setEmpresa('');
       toast.success('Link gerado!');
       setTab('enviados');
@@ -199,8 +250,8 @@ const GerarLinkPanel: React.FC<GerarLinkPanelProps> = ({ open, onOpenChange, lis
     let count = 0;
     for (const f of alvos) {
       try {
-        const link = await generateLink(f.nome, selectedEstado);
-        setGeneratedLinks(prev => [...prev, { empresa: f.nome, link, copied: false, whatsapp: f.whatsapp, estados: selectedEstado }]);
+        const link = await generateLink(f.nome);
+        setGeneratedLinks(prev => [...prev, { empresa: f.nome, link, copied: false, whatsapp: f.whatsapp, estados: selectedUFs.join(',') }]);
         count++;
       } catch { /* skip */ }
     }
@@ -292,14 +343,14 @@ const GerarLinkPanel: React.FC<GerarLinkPanelProps> = ({ open, onOpenChange, lis
     setSelectedIds(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
   };
 
-  const showMT = selectedEstado === 'AMBOS' || selectedEstado === 'MT';
-  const showGO = selectedEstado === 'AMBOS' || selectedEstado === 'GO';
-
   const resumo = [
-    ESTADO_LABELS[selectedEstado],
-    showMT ? `MT: ${TIPO_LABELS[tipoMT]} · ${FRETE_LABELS[freteMT]}` : null,
-    showGO ? `GO: ${TIPO_LABELS[tipoGO]} · ${FRETE_LABELS[freteGO]}` : null,
-  ].filter(Boolean) as string[];
+    selectedUFs.length ? `Estados: ${selectedUFs.join(' + ')}` : 'Nenhum estado selecionado',
+    ...selectedUFs.map(uf => {
+      const c = condicoes[uf] ?? { tipo: 'IPI_ST' as TipoPreco, frete: 'CIF' as Frete };
+      return `${uf}: ${TIPO_LABELS[c.tipo]} · ${FRETE_LABELS[c.frete]}`;
+    }),
+  ];
+
 
   return (
     <>
@@ -340,48 +391,64 @@ const GerarLinkPanel: React.FC<GerarLinkPanelProps> = ({ open, onOpenChange, lis
                   </div>
 
                   <div>
-                    <p className="flex items-center gap-1.5 text-[11px] font-bold text-muted-foreground mb-1.5">
-                      <MapPin className="w-3 h-3" /> Estados
-                    </p>
-                    <Segmented
-                      value={selectedEstado}
-                      onChange={(v) => setSelectedEstado(v as EstadoOption)}
-                      options={(['AMBOS', 'MT', 'GO'] as EstadoOption[]).map(v => ({ value: v, label: ESTADO_LABELS[v] }))}
-                    />
+                    <div className="flex items-center justify-between mb-1.5">
+                      <p className="flex items-center gap-1.5 text-[11px] font-bold text-muted-foreground">
+                        <MapPin className="w-3 h-3" /> Estados
+                      </p>
+                      <button
+                        type="button"
+                        onClick={() => setGerenciarOpen(true)}
+                        className="flex items-center gap-1 text-[10px] font-bold text-primary hover:underline"
+                      >
+                        <Settings2 className="w-3 h-3" /> Gerenciar estados
+                      </button>
+                    </div>
+                    <div className="flex flex-wrap gap-1.5">
+                      {estadosUsuario.length === 0 && (
+                        <p className="text-[11px] text-muted-foreground">Nenhum estado cadastrado. Clique em "Gerenciar estados".</p>
+                      )}
+                      {estadosUsuario.map(uf => {
+                        const active = selectedUFs.includes(uf);
+                        return (
+                          <button
+                            key={uf}
+                            type="button"
+                            onClick={() => toggleUF(uf)}
+                            title={ufNome(uf)}
+                            className={`px-3 py-1.5 rounded-lg text-xs font-display font-bold border transition-all ${
+                              active
+                                ? 'bg-primary text-primary-foreground border-primary shadow-sm'
+                                : 'bg-muted text-muted-foreground border-transparent hover:text-foreground'
+                            }`}
+                          >
+                            {uf}
+                          </button>
+                        );
+                      })}
+                    </div>
                   </div>
 
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    {showMT && (
-                      <div className="rounded-lg border border-border p-3 space-y-2.5">
-                        <p className="text-[11px] font-display font-bold text-primary">MT · Mato Grosso</p>
-                        <div>
-                          <p className="flex items-center gap-1 text-[10px] font-bold text-muted-foreground mb-1"><Tag className="w-3 h-3" /> Tipo de preço</p>
-                          <Segmented size="sm" value={tipoMT} onChange={(v) => setTipoMT(v as TipoPreco)}
-                            options={(['IPI_ST', 'NOTA'] as TipoPreco[]).map(v => ({ value: v, label: TIPO_LABELS[v] }))} />
+                    {selectedUFs.map(uf => {
+                      const cond = condicoes[uf] ?? { tipo: 'IPI_ST' as TipoPreco, frete: 'CIF' as Frete };
+                      return (
+                        <div key={uf} className="rounded-lg border border-border p-3 space-y-2.5">
+                          <p className="text-[11px] font-display font-bold text-primary">{uf} · {ufNome(uf)}</p>
+                          <div>
+                            <p className="flex items-center gap-1 text-[10px] font-bold text-muted-foreground mb-1"><Tag className="w-3 h-3" /> Tipo de preço</p>
+                            <Segmented size="sm" value={cond.tipo} onChange={(v) => setCondicao(uf, { tipo: v as TipoPreco })}
+                              options={(['IPI_ST', 'NOTA'] as TipoPreco[]).map(v => ({ value: v, label: TIPO_LABELS[v] }))} />
+                          </div>
+                          <div>
+                            <p className="flex items-center gap-1 text-[10px] font-bold text-muted-foreground mb-1"><Truck className="w-3 h-3" /> Frete</p>
+                            <Segmented size="sm" value={cond.frete} onChange={(v) => setCondicao(uf, { frete: v as Frete })}
+                              options={(['CIF', 'FOB'] as Frete[]).map(v => ({ value: v, label: FRETE_LABELS[v] }))} />
+                          </div>
                         </div>
-                        <div>
-                          <p className="flex items-center gap-1 text-[10px] font-bold text-muted-foreground mb-1"><Truck className="w-3 h-3" /> Frete</p>
-                          <Segmented size="sm" value={freteMT} onChange={(v) => setFreteMT(v as Frete)}
-                            options={(['CIF', 'FOB'] as Frete[]).map(v => ({ value: v, label: FRETE_LABELS[v] }))} />
-                        </div>
-                      </div>
-                    )}
-                    {showGO && (
-                      <div className="rounded-lg border border-border p-3 space-y-2.5">
-                        <p className="text-[11px] font-display font-bold text-primary">GO · Goiás</p>
-                        <div>
-                          <p className="flex items-center gap-1 text-[10px] font-bold text-muted-foreground mb-1"><Tag className="w-3 h-3" /> Tipo de preço</p>
-                          <Segmented size="sm" value={tipoGO} onChange={(v) => setTipoGO(v as TipoPreco)}
-                            options={(['IPI_ST', 'NOTA'] as TipoPreco[]).map(v => ({ value: v, label: TIPO_LABELS[v] }))} />
-                        </div>
-                        <div>
-                          <p className="flex items-center gap-1 text-[10px] font-bold text-muted-foreground mb-1"><Truck className="w-3 h-3" /> Frete</p>
-                          <Segmented size="sm" value={freteGO} onChange={(v) => setFreteGO(v as Frete)}
-                            options={(['CIF', 'FOB'] as Frete[]).map(v => ({ value: v, label: FRETE_LABELS[v] }))} />
-                        </div>
-                      </div>
-                    )}
+                      );
+                    })}
                   </div>
+
                   <p className="text-[10px] text-muted-foreground">
                     Essas condições aparecem para o fornecedor ao abrir o link.
                   </p>
@@ -635,6 +702,58 @@ const GerarLinkPanel: React.FC<GerarLinkPanelProps> = ({ open, onOpenChange, lis
           )}
         </SheetContent>
       </Sheet>
+
+      {/* Gerenciar estados do usuário */}
+      <Dialog open={gerenciarOpen} onOpenChange={setGerenciarOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="font-display flex items-center gap-2">
+              <MapPin className="w-4 h-4 text-primary" /> Meus estados
+            </DialogTitle>
+            <DialogDescription>
+              Cadastre as UFs em que você cota. Elas ficam disponíveis na geração de links, na planilha e nos relatórios.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-3">
+            <div className="flex flex-wrap gap-1.5 min-h-[32px]">
+              {estadosUsuario.length === 0 && (
+                <p className="text-xs text-muted-foreground">Nenhum estado cadastrado.</p>
+              )}
+              {estadosUsuario.map(uf => (
+                <span key={uf} className="flex items-center gap-1.5 pl-2.5 pr-1.5 py-1 rounded-lg bg-muted text-xs font-display font-bold">
+                  {uf} <span className="font-normal text-muted-foreground">{ufNome(uf)}</span>
+                  <button type="button" onClick={() => removeEstado(uf)} className="p-0.5 rounded hover:bg-destructive/10 hover:text-destructive" title="Remover">
+                    <X className="w-3 h-3" />
+                  </button>
+                </span>
+              ))}
+            </div>
+
+            <div className="flex gap-2">
+              <Select value={novaUF} onValueChange={setNovaUF}>
+                <SelectTrigger className="h-9 text-sm">
+                  <SelectValue placeholder="Escolher estado..." />
+                </SelectTrigger>
+                <SelectContent className="max-h-64">
+                  {UF_LIST.filter(uf => !estadosUsuario.includes(uf)).map(uf => (
+                    <SelectItem key={uf} value={uf}>{uf} · {ufNome(uf)}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <Button onClick={addEstado} disabled={!novaUF} size="sm" className="h-9 shrink-0">
+                <Plus className="w-4 h-4 mr-1" /> Adicionar
+              </Button>
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setGerenciarOpen(false)}>Fechar</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+
 
       <AlertDialog open={!!linkToDelete} onOpenChange={(o) => !o && setLinkToDelete(null)}>
         <AlertDialogContent>

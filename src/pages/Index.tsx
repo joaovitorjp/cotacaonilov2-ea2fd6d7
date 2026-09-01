@@ -19,6 +19,7 @@ import ExcelJS from 'exceljs';
 import { useAuth } from '@/contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import ProfileGate from '@/components/ProfileGate';
+import { condicoesFromLink, getPrecoUF, ufsDaResposta, ordenarUFs, ufNome } from '@/lib/estados';
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
@@ -120,15 +121,16 @@ const Index = () => {
 
     const { data: links } = await supabase
       .from('links_cotacao')
-      .select('empresa, tipo_preco_mt, tipo_preco_go, frete_mt, frete_go')
+      .select('empresa, tipo_preco_mt, tipo_preco_go, frete_mt, frete_go, condicoes')
       .eq('user_id', user.id)
       .eq('lista_id', listaId);
     const map: Record<string, string> = {};
     (links ?? []).forEach((l: any) => {
-      map[`${l.empresa}_MT`] = l.tipo_preco_mt || 'IPI_ST';
-      map[`${l.empresa}_GO`] = l.tipo_preco_go || 'NOTA';
-      map[`${l.empresa}_MT_FRETE`] = l.frete_mt || 'CIF';
-      map[`${l.empresa}_GO_FRETE`] = l.frete_go || 'CIF';
+      const cond = condicoesFromLink(l);
+      Object.entries(cond).forEach(([uf, c]) => {
+        map[`${l.empresa}_${uf}`] = c.tipo;
+        map[`${l.empresa}_${uf}_FRETE`] = c.frete;
+      });
     });
     setTipoPrecoMap(map);
   }, [user?.id]);
@@ -245,22 +247,24 @@ const Index = () => {
       return isFinite(n) ? n : null;
     };
 
-    // Build price map and identify suppliers that have any MT / GO price
-    const mtByEmp: Record<string, Record<string, number>> = {};
-    const goByEmp: Record<string, Record<string, number>> = {};
-    for (const r of resps) {
-      mtByEmp[r.empresa] = {};
-      goByEmp[r.empresa] = {};
-      for (const item of r.resposta as any[]) {
-        const mt = parseBR(item.preco_mt ?? item.preco);
-        const go = parseBR(item.preco_go);
-        if (mt !== null) mtByEmp[r.empresa][item.codigo_interno] = mt;
-        if (go !== null) goByEmp[r.empresa][item.codigo_interno] = go;
+    // Build price map per UF and identify suppliers that have any price for each UF
+    const ufs = ordenarUFs(resps.flatMap(r => ufsDaResposta(r.resposta as any[])));
+    const byEmpPorUf: Record<string, Record<string, Record<string, number>>> = {};
+    for (const uf of ufs) {
+      byEmpPorUf[uf] = {};
+      for (const r of resps) {
+        byEmpPorUf[uf][r.empresa] = {};
+        for (const item of r.resposta as any[]) {
+          const v = parseBR(getPrecoUF(item, uf));
+          if (v !== null) byEmpPorUf[uf][r.empresa][item.codigo_interno] = v;
+        }
       }
     }
 
-    const mtEmpresas = resps.map(r => r.empresa).filter(e => Object.keys(mtByEmp[e]).length > 0);
-    const goEmpresas = resps.map(r => r.empresa).filter(e => Object.keys(goByEmp[e]).length > 0);
+    const empresasPorUf: Record<string, string[]> = {};
+    ufs.forEach(uf => {
+      empresasPorUf[uf] = resps.map(r => r.empresa).filter(e => Object.keys(byEmpPorUf[uf][e]).length > 0);
+    });
 
     const wb = new ExcelJS.Workbook();
     wb.creator = 'ADR-SYSTEM';
@@ -270,7 +274,8 @@ const Index = () => {
     });
 
     const fixedCols = ['Código Interno', 'Descrição', 'Código de Barras'];
-    const totalCols = fixedCols.length + mtEmpresas.length + goEmpresas.length;
+    const totalEmpresasCols = ufs.reduce((acc, uf) => acc + empresasPorUf[uf].length, 0);
+    const totalCols = fixedCols.length + totalEmpresasCols;
 
     // Row 1: Title
     ws.mergeCells(1, 1, 1, totalCols);
@@ -284,7 +289,8 @@ const Index = () => {
     // Row 2: Subtitle
     ws.mergeCells(2, 1, 2, totalCols);
     const subCell = ws.getCell(2, 1);
-    subCell.value = `Exportado em ${new Date().toLocaleString('pt-BR')} • ${lista.produtos.length} produtos • MT: ${mtEmpresas.length} fornecedor(es) • GO: ${goEmpresas.length} fornecedor(es)`;
+    const subLabel = ufs.map(uf => `${uf}: ${empresasPorUf[uf].length} fornecedor(es)`).join(' • ');
+    subCell.value = `Exportado em ${new Date().toLocaleString('pt-BR')} • ${lista.produtos.length} produtos${subLabel ? ` • ${subLabel}` : ''}`;
     subCell.font = { name: 'Calibri', size: 10, italic: true, color: { argb: 'FF475569' } };
     subCell.alignment = { vertical: 'middle', horizontal: 'center' };
     subCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF1F5F9' } };
@@ -293,10 +299,9 @@ const Index = () => {
     // Header rows 3-4
     const headerFontWhite = { name: 'Calibri', size: 11, bold: true, color: { argb: 'FFFFFFFF' } };
     const fixedFill = { type: 'pattern' as const, pattern: 'solid' as const, fgColor: { argb: 'FF2563EB' } };
-    const mtFill = { type: 'pattern' as const, pattern: 'solid' as const, fgColor: { argb: 'FF1D4ED8' } };
-    const goFill = { type: 'pattern' as const, pattern: 'solid' as const, fgColor: { argb: 'FF15803D' } };
-    const mtSubFill = { type: 'pattern' as const, pattern: 'solid' as const, fgColor: { argb: 'FFDBEAFE' } };
-    const goSubFill = { type: 'pattern' as const, pattern: 'solid' as const, fgColor: { argb: 'FFDCFCE7' } };
+    const ufGroupFills = ['FF1D4ED8', 'FF15803D', 'FFB45309', 'FF7C3AED', 'FFBE185D', 'FF0E7490'].map(argb => ({ type: 'pattern' as const, pattern: 'solid' as const, fgColor: { argb } }));
+    const ufGroupSubFills = ['FFDBEAFE', 'FFDCFCE7', 'FFFEF3C7', 'FFEDE9FE', 'FFFCE7F3', 'FFCFFAFE'].map(argb => ({ type: 'pattern' as const, pattern: 'solid' as const, fgColor: { argb } }));
+    const ufGroupTextColors = ['FF1E3A8A', 'FF14532D', 'FF78350F', 'FF4C1D95', 'FF831843', 'FF164E63'];
 
     fixedCols.forEach((label, i) => {
       const col = i + 1;
@@ -308,43 +313,30 @@ const Index = () => {
       c.alignment = { vertical: 'middle', horizontal: 'center', wrapText: true };
     });
 
-    // MT region group header + supplier columns
-    if (mtEmpresas.length > 0) {
-      const startCol = fixedCols.length + 1;
-      const endCol = startCol + mtEmpresas.length - 1;
+    // UF region group headers + supplier columns
+    let colCursor = fixedCols.length + 1;
+    const ufStartCol: Record<string, number> = {};
+    ufs.forEach((uf, ufIdx) => {
+      const empresasUf = empresasPorUf[uf];
+      if (empresasUf.length === 0) return;
+      const startCol = colCursor;
+      ufStartCol[uf] = startCol;
+      const endCol = startCol + empresasUf.length - 1;
       ws.mergeCells(3, startCol, 3, endCol);
       const g = ws.getCell(3, startCol);
-      g.value = 'MATO GROSSO (MT)';
+      g.value = `${ufNome(uf).toUpperCase()} (${uf})`;
       g.font = headerFontWhite;
-      g.fill = mtFill;
+      g.fill = ufGroupFills[ufIdx % ufGroupFills.length];
       g.alignment = { vertical: 'middle', horizontal: 'center' };
-      mtEmpresas.forEach((emp, idx) => {
+      empresasUf.forEach((emp, idx) => {
         const cell = ws.getCell(4, startCol + idx);
         cell.value = emp;
-        cell.font = { name: 'Calibri', size: 10, bold: true, color: { argb: 'FF1E3A8A' } };
-        cell.fill = mtSubFill;
+        cell.font = { name: 'Calibri', size: 10, bold: true, color: { argb: ufGroupTextColors[ufIdx % ufGroupTextColors.length] } };
+        cell.fill = ufGroupSubFills[ufIdx % ufGroupSubFills.length];
         cell.alignment = { vertical: 'middle', horizontal: 'center', wrapText: true };
       });
-    }
-
-    // GO region group header + supplier columns
-    if (goEmpresas.length > 0) {
-      const startCol = fixedCols.length + mtEmpresas.length + 1;
-      const endCol = startCol + goEmpresas.length - 1;
-      ws.mergeCells(3, startCol, 3, endCol);
-      const g = ws.getCell(3, startCol);
-      g.value = 'GOIÁS (GO)';
-      g.font = headerFontWhite;
-      g.fill = goFill;
-      g.alignment = { vertical: 'middle', horizontal: 'center' };
-      goEmpresas.forEach((emp, idx) => {
-        const cell = ws.getCell(4, startCol + idx);
-        cell.value = emp;
-        cell.font = { name: 'Calibri', size: 10, bold: true, color: { argb: 'FF14532D' } };
-        cell.fill = goSubFill;
-        cell.alignment = { vertical: 'middle', horizontal: 'center', wrapText: true };
-      });
-    }
+      colCursor = endCol + 1;
+    });
 
     ws.getRow(3).height = 22;
     ws.getRow(4).height = 22;
@@ -356,31 +348,24 @@ const Index = () => {
       ws.getCell(rowNum, 2).value = prod.descricao;
       ws.getCell(rowNum, 3).value = prod.codigo_barras;
 
-      const mtPriceCells: { col: number; value: number }[] = [];
-      const goPriceCells: { col: number; value: number }[] = [];
+      const priceCellsPorUf: Record<string, { col: number; value: number }[]> = {};
 
-      mtEmpresas.forEach((emp, idx) => {
-        const col = fixedCols.length + 1 + idx;
-        const v = mtByEmp[emp][prod.codigo_interno];
-        const cell = ws.getCell(rowNum, col);
-        if (v !== undefined) {
-          cell.value = v;
-          cell.numFmt = '"R$" #,##0.00';
-          mtPriceCells.push({ col, value: v });
-        }
-        cell.alignment = { vertical: 'middle', horizontal: 'right' };
-      });
-
-      goEmpresas.forEach((emp, idx) => {
-        const col = fixedCols.length + mtEmpresas.length + 1 + idx;
-        const v = goByEmp[emp][prod.codigo_interno];
-        const cell = ws.getCell(rowNum, col);
-        if (v !== undefined) {
-          cell.value = v;
-          cell.numFmt = '"R$" #,##0.00';
-          goPriceCells.push({ col, value: v });
-        }
-        cell.alignment = { vertical: 'middle', horizontal: 'right' };
+      ufs.forEach(uf => {
+        const empresasUf = empresasPorUf[uf];
+        if (empresasUf.length === 0) return;
+        const list: { col: number; value: number }[] = [];
+        empresasUf.forEach((emp, idx) => {
+          const col = ufStartCol[uf] + idx;
+          const v = byEmpPorUf[uf][emp][prod.codigo_interno];
+          const cell = ws.getCell(rowNum, col);
+          if (v !== undefined) {
+            cell.value = v;
+            cell.numFmt = '"R$" #,##0.00';
+            list.push({ col, value: v });
+          }
+          cell.alignment = { vertical: 'middle', horizontal: 'right' };
+        });
+        priceCellsPorUf[uf] = list;
       });
 
       // Zebra
@@ -405,8 +390,7 @@ const Index = () => {
           }
         });
       };
-      highlight(mtPriceCells);
-      highlight(goPriceCells);
+      ufs.forEach(uf => highlight(priceCellsPorUf[uf] || []));
     });
 
     // Borders
@@ -421,9 +405,11 @@ const Index = () => {
         };
       }
     }
-    // Thicker divider between MT and GO blocks
-    if (mtEmpresas.length > 0 && goEmpresas.length > 0) {
-      const divCol = fixedCols.length + mtEmpresas.length;
+    // Thicker divider between UF blocks
+    const ufsComEmpresas = ufs.filter(uf => empresasPorUf[uf].length > 0);
+    for (let i = 0; i < ufsComEmpresas.length - 1; i++) {
+      const uf = ufsComEmpresas[i];
+      const divCol = ufStartCol[uf] + empresasPorUf[uf].length - 1;
       for (let r = 3; r <= lastRow; r++) {
         const cell = ws.getCell(r, divCol);
         cell.border = { ...cell.border, right: { style: 'medium', color: { argb: 'FF64748B' } } };
@@ -434,7 +420,7 @@ const Index = () => {
     ws.getColumn(1).width = 14;
     ws.getColumn(2).width = 48;
     ws.getColumn(3).width = 18;
-    for (let i = 0; i < mtEmpresas.length + goEmpresas.length; i++) {
+    for (let i = 0; i < totalEmpresasCols; i++) {
       ws.getColumn(fixedCols.length + 1 + i).width = 16;
     }
 
@@ -466,7 +452,7 @@ const Index = () => {
       resposta: d.resposta as any[],
     }));
 
-    // Código interno por empresa + estado (MT/GO) e fallback genérico
+    // Código interno por empresa + estado (MT/GO com colunas dedicadas; demais UFs usam fallback genérico)
     const codigoConsincoPorEmpresa: Record<string, string> = {};
     const codigoConsincoPorEmpresaEstado: Record<string, string> = {};
     if (formato === 'consinco') {
@@ -483,7 +469,7 @@ const Index = () => {
         const legado = f.codigo_interno_consinco || f.codigo_interno || '';
         if (legado) {
           const est = String(f.codigo_estado || '').toUpperCase();
-          if ((est === 'MT' || est === 'GO') && !codigoConsincoPorEmpresaEstado[`${key}|${est}`]) {
+          if (est && !codigoConsincoPorEmpresaEstado[`${key}|${est}`]) {
             codigoConsincoPorEmpresaEstado[`${key}|${est}`] = legado;
           }
         }
@@ -502,14 +488,11 @@ const Index = () => {
       return NaN;
     };
 
-    const estados: { key: 'mt' | 'go'; label: string }[] = [
-      { key: 'mt', label: 'MT' },
-      { key: 'go', label: 'GO' },
-    ];
+    const ufs = ordenarUFs(resps.flatMap(r => ufsDaResposta(r.resposta as any[])));
 
     let totalArquivos = 0;
 
-    for (const est of estados) {
+    for (const uf of ufs) {
       const winnersBySupplier: Record<string, { codigo_barras: string; preco: number }[]> = {};
 
       for (const prod of lista.produtos) {
@@ -519,8 +502,7 @@ const Index = () => {
         for (const resp of resps) {
           const item = resp.resposta.find((i: any) => i.codigo_interno === prod.codigo_interno);
           if (!item) continue;
-          // Por estado: MT usa preco_mt (fallback preco), GO usa preco_go.
-          const raw = est.key === 'mt' ? (item.preco_mt ?? item.preco) : item.preco_go;
+          const raw = getPrecoUF(item, uf);
           const num = parsePrice(raw);
           if (!isNaN(num) && num > 0 && num < lowestPrice) {
             lowestPrice = num;
@@ -543,7 +525,7 @@ const Index = () => {
           if (formato === 'consinco') {
             const empKey = empresa.trim().toLowerCase();
             const codFornecedor =
-              codigoConsincoPorEmpresaEstado[`${empKey}|${est.label}`] ??
+              codigoConsincoPorEmpresaEstado[`${empKey}|${uf}`] ??
               codigoConsincoPorEmpresa[empKey] ??
               '';
             const preco = item.preco.toFixed(2);
@@ -558,7 +540,7 @@ const Index = () => {
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
-        a.download = `${lista.nome}_${est.label}_${empresa}_${formato.toUpperCase()}.csv`;
+        a.download = `${lista.nome}_${uf}_${empresa}_${formato.toUpperCase()}.csv`;
         a.click();
         URL.revokeObjectURL(url);
         totalArquivos++;
@@ -824,7 +806,7 @@ const Index = () => {
             }
           } : undefined}
           onAfterSave={currentLista ? () => loadRespostas(currentLista.id) : undefined}
-          onAddEmpresa={currentLista ? async (empresa: string, states: ('MT' | 'GO')[]) => {
+          onAddEmpresa={currentLista ? (async (empresa: string, states: string[]) => {
             const marker = [{ __manual_states: states }] as any;
             const { error } = await supabase
               .from('respostas')
@@ -835,7 +817,7 @@ const Index = () => {
               await loadRespostas(currentLista.id);
               toast.success(`Coluna "${empresa}" adicionada em ${states.join(' e ')}!`);
             }
-          } : undefined}
+          }) as any : undefined}
         />
       ) : (
         <AnalisePrecosPanel

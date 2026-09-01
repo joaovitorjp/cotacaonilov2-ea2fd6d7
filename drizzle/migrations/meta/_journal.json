@@ -8,6 +8,13 @@
       "when": 1787742055857,
       "tag": "0000_add_frete_links_cotacao",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1788295736380,
+      "tag": "0001_estados_personalizados",
+      "breakpoints": true
     }
   ]
 }

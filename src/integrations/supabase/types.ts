@@ -405,6 +405,7 @@ export type Database = {
       }
       links_cotacao: {
         Row: {
+          condicoes: Json
           created_at: string
           empresa: string
           empresa_id: string
@@ -423,6 +424,7 @@ export type Database = {
           user_id: string | null
         }
         Insert: {
+          condicoes?: Json
           created_at?: string
           empresa: string
           empresa_id?: string
@@ -441,6 +443,7 @@ export type Database = {
           user_id?: string | null
         }
         Update: {
+          condicoes?: Json
           created_at?: string
           empresa?: string
           empresa_id?: string
@@ -691,6 +694,7 @@ export type Database = {
           created_at: string
           email: string
           empresa_id: string
+          estados: string[]
           id: string
           is_super_admin: boolean | null
           network_id: string | null
@@ -703,6 +707,7 @@ export type Database = {
           created_at?: string
           email?: string
           empresa_id?: string
+          estados?: string[]
           id?: string
           is_super_admin?: boolean | null
           network_id?: string | null
@@ -715,6 +720,7 @@ export type Database = {
           created_at?: string
           email?: string
           empresa_id?: string
+          estados?: string[]
           id?: string
           is_super_admin?: boolean | null
           network_id?: string | null
