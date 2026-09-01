@@ -7,7 +7,7 @@ function createWindow() {
     width: 1400,
     height: 900,
     autoHideMenuBar: true,
-    title: 'ADR-SYSTEM - Cotações',
+    title: 'COTARME - Cotações',
     webPreferences: { contextIsolation: true, nodeIntegration: false },
   });
   win.loadURL(APP_URL);

@@ -98,24 +98,35 @@ const Login = () => {
             </div>
 
             <div className="mt-6 flex items-center gap-3">
-              <img src={adrLogo.url} alt="ADR-SYSTEM" className="h-12 w-12 rounded-xl object-contain bg-white/95 p-1 shadow-sm" />
-              <h2 className="text-2xl font-display font-bold tracking-tight">ADR-SYSTEM</h2>
+              <img src={adrLogo.url} alt="COTARME" className="h-12 w-12 rounded-xl object-contain bg-white/95 p-1 shadow-sm" />
+              <h2 className="text-2xl font-display font-bold tracking-tight">COTARME</h2>
             </div>
             <p className="mt-3 text-sm text-primary-foreground/80 leading-relaxed">
-              Todas as funções, sem limites. Comece testando gratuitamente e mantenha o acesso
-              com a assinatura mensal — cancele quando quiser.
+              Todas as funções, sem limites. Comece testando gratuitamente e escolha depois entre
+              a assinatura mensal ou a licença vitalícia.
             </p>
 
-            <div className="mt-6 rounded-2xl bg-white/10 backdrop-blur-sm border border-white/20 p-5">
-              <p className="text-3xl font-bold">
-                R$ 49,99
-                <span className="text-sm font-normal text-primary-foreground/70">/mês</span>
-              </p>
-              <p className="mt-1 flex items-center gap-1.5 text-xs text-primary-foreground/70">
-                <CreditCard className="h-3.5 w-3.5" />
-                Cartão, Pix ou boleto via Mercado Pago
-              </p>
+            <div className="mt-6 grid gap-3">
+              <div className="rounded-2xl bg-white/10 backdrop-blur-sm border border-white/20 p-5">
+                <p className="text-3xl font-bold">
+                  R$ 49,99
+                  <span className="text-sm font-normal text-primary-foreground/70">/mês</span>
+                </p>
+                <p className="mt-1 text-xs text-primary-foreground/70">Assinatura mensal — cancele quando quiser</p>
+              </div>
+              <div className="rounded-2xl bg-white/10 backdrop-blur-sm border border-white/20 p-5">
+                <p className="text-3xl font-bold">
+                  R$ 159,90
+                  <span className="text-sm font-normal text-primary-foreground/70"> à vista</span>
+                </p>
+                <p className="mt-1 text-xs text-primary-foreground/70">Licença vitalícia — pagamento único por usuário</p>
+                <p className="mt-2 flex items-center gap-1.5 text-xs text-primary-foreground/70">
+                  <CreditCard className="h-3.5 w-3.5" />
+                  Cartão, Pix ou boleto via Mercado Pago
+                </p>
+              </div>
             </div>
+
 
             <ul className="mt-6 space-y-3">
               {PLAN_FEATURES.map((f) => (
@@ -149,7 +160,8 @@ const Login = () => {
         {isSignUp && (
           <div className="mb-5 rounded-2xl border border-primary/20 bg-primary/5 px-4 py-3 text-xs text-foreground">
             Seu teste de <strong>7 dias</strong> começa assim que a conta for criada. Ao final,
-            você escolhe assinar por <strong>R$ 49,99/mês</strong> para continuar.
+            você escolhe entre <strong>R$ 49,99/mês</strong> ou a licença vitalícia de <strong>R$ 159,90</strong>.
+
           </div>
         )}
 

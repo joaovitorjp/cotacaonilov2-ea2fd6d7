@@ -13,7 +13,7 @@
     "server": {
       "name": "cotacoes-nilo-mcp",
       "version": "0.1.0",
-      "title": "ADR-SYSTEM MCP"
+      "title": "COTARME MCP"
     },
     "tools": [
       {

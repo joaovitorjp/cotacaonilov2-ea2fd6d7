@@ -28,7 +28,7 @@ export const PDF_COLORS = {
   white: [255, 255, 255] as [number, number, number],
 } as const;
 
-export const BRAND_NAME = 'ADR-SYSTEM • Sistema de Cotações';
+export const BRAND_NAME = 'COTARME • Sistema de Cotações';
 
 export const formatBRL = (n: number): string => {
   if (n === null || n === undefined || isNaN(n)) return '—';

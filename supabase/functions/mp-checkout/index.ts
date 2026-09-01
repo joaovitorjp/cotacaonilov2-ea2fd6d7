@@ -3,6 +3,7 @@ import { createClient } from 'npm:@supabase/supabase-js@2'
 
 const MP_API = 'https://api.mercadopago.com'
 const PRICE = 49.99
+const LIFETIME_PRICE = 159.9
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -43,6 +44,50 @@ Deno.serve(async (req) => {
     // Webhook registrado por assinatura (dispensa cadastro manual no painel do MP)
     const notificationUrl = `${Deno.env.get('SUPABASE_URL')}/functions/v1/mp-webhook`
 
+    const plano = body.plano === 'vitalicio' ? 'vitalicio' : 'mensal'
+
+    // Plano vitalicio: pagamento unico via Checkout Pro
+    if (plano === 'vitalicio') {
+      const prefRes = await fetch(`${MP_API}/checkout/preferences`, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${mpToken}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          items: [{
+            title: 'COTARME - Licenca Vitalicia',
+            quantity: 1,
+            unit_price: LIFETIME_PRICE,
+            currency_id: 'BRL',
+          }],
+          payer: { email: user.email },
+          external_reference: `${user.id}|lifetime`,
+          notification_url: notificationUrl,
+          back_urls: {
+            success: `${origin}/assinatura`,
+            pending: `${origin}/assinatura`,
+            failure: `${origin}/assinatura`,
+          },
+          auto_return: 'approved',
+        }),
+      })
+      const prefData = await prefRes.json()
+      if (!prefRes.ok) {
+        console.error('MP preference error', prefRes.status, prefData)
+        const detalhe = prefData?.message || prefData?.error || 'erro desconhecido'
+        return new Response(JSON.stringify({ error: `Falha ao criar pagamento no Mercado Pago: ${detalhe}`, mp_status: prefRes.status }), {
+          status: 502,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        })
+      }
+
+      return new Response(JSON.stringify({ init_point: prefData.init_point ?? prefData.sandbox_init_point }), {
+        status: 200,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      })
+    }
+
     // Cria a assinatura (preapproval) no Mercado Pago
     const mpRes = await fetch(`${MP_API}/preapproval`, {
       method: 'POST',
@@ -51,7 +96,7 @@ Deno.serve(async (req) => {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        reason: 'ADR-SYSTEM - Assinatura Mensal',
+        reason: 'COTARME - Assinatura Mensal',
         external_reference: user.id,
         payer_email: user.email,
         notification_url: notificationUrl,

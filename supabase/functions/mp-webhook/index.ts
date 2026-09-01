@@ -107,6 +107,24 @@ Deno.serve(async (req) => {
       })
       const pay = await mpRes.json()
       if (mpRes.ok && pay.status === 'approved') {
+        // Pagamento unico do plano vitalicio
+        const ref = typeof pay.external_reference === 'string' ? pay.external_reference : ''
+        if (ref.endsWith('|lifetime')) {
+          const lifetimeUser = ref.split('|')[0]
+          await admin
+            .from('assinaturas')
+            .upsert({
+              user_id: lifetimeUser,
+              status: 'lifetime',
+              current_period_end: null,
+              updated_at: new Date().toISOString(),
+            }, { onConflict: 'user_id' })
+          return new Response(JSON.stringify({ ok: true, status: 'lifetime' }), {
+            status: 200,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          })
+        }
+
         const preId = pay.preapproval_id || pay.point_of_interaction?.transaction_data?.subscription_id
         let userId: string | null = null
 

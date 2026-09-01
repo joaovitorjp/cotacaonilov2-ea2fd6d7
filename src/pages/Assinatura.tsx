@@ -4,13 +4,13 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useAssinatura } from '@/hooks/useAssinatura';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
-import { Check, Crown, LogOut } from 'lucide-react';
+import { Check, Crown, Infinity, LogOut } from 'lucide-react';
 import AetherFlowBackground from '@/components/ui/aether-flow-background';
 import adrLogo from '@/assets/adr-logo.jpeg.asset.json';
 
 const FEATURES = [
   'Cotações ilimitadas com fornecedores',
-  'Links de resposta por estado (MT e GO)',
+  'Links de resposta para os estados que você cadastrar',
   'Análise comparativa de preços e exportação em PDF/Excel',
   'Suporte prioritário',
 ];
@@ -19,14 +19,15 @@ const Assinatura = () => {
   const { user, signOut } = useAuth();
   const { assinatura, trialDaysLeft, hasAccess, refresh } = useAssinatura();
   const [loading, setLoading] = useState(false);
+  const [plano, setPlano] = useState<'mensal' | 'vitalicio'>('mensal');
 
   const [syncing, setSyncing] = useState(false);
 
-  const handleSubscribe = async () => {
+  const handleSubscribe = async (plano: 'mensal' | 'vitalicio' = 'mensal') => {
     setLoading(true);
     try {
       const { data, error } = await supabase.functions.invoke('mp-checkout', {
-        body: { origin: window.location.origin },
+        body: { origin: window.location.origin, plano },
       });
       if (error || !data?.init_point) {
         throw new Error(data?.error || error?.message || 'Falha ao iniciar checkout');
@@ -68,41 +69,67 @@ const Assinatura = () => {
   return (
     <div className="relative flex items-center justify-center min-h-screen overflow-hidden bg-background p-4">
       <AetherFlowBackground />
-      <div className="relative z-10 w-full max-w-md mx-auto p-8 rounded-3xl bg-white/80 backdrop-blur-2xl border border-white/50 shadow-2xl shadow-primary/5">
+      <div className="relative z-10 w-full max-w-lg mx-auto p-8 rounded-3xl bg-white/80 backdrop-blur-2xl border border-white/50 shadow-2xl shadow-primary/5">
         <div className="text-center mb-6">
           <div className="flex items-center justify-center gap-3">
-            <img src={adrLogo.url} alt="ADR-SYSTEM" className="h-12 w-12 rounded-xl object-contain shadow-sm" />
-            <h1 className="text-2xl font-display font-bold text-foreground tracking-tight">ADR-SYSTEM</h1>
+            <img src={adrLogo.url} alt="COTARME" className="h-12 w-12 rounded-xl object-contain shadow-sm" />
+            <h1 className="text-2xl font-display font-bold text-foreground tracking-tight">COTARME</h1>
           </div>
           <p className="text-sm text-muted-foreground mt-2">
             {assinatura ? statusLabel[assinatura.status] : 'Assine para continuar'}
           </p>
         </div>
 
-        <div className="rounded-2xl border border-primary/20 bg-primary/5 p-6 mb-6 text-center">
-          <Crown className="h-8 w-8 mx-auto text-primary mb-2" />
-          <p className="text-4xl font-bold text-foreground">
-            R$ 49,99<span className="text-base font-normal text-muted-foreground">/mês</span>
-          </p>
-          <p className="text-xs text-muted-foreground mt-1">Cobrança mensal via Mercado Pago — cancele quando quiser</p>
-        </div>
+        <div className="grid gap-3 mb-6">
+          <button
+            type="button"
+            onClick={() => setPlano('mensal')}
+            className={`text-left rounded-2xl border p-5 transition-colors ${
+              plano === 'mensal' ? 'border-primary bg-primary/5 ring-1 ring-primary/30' : 'border-border bg-card hover:border-primary/40'
+            }`}
+          >
+            <div className="flex items-center gap-2 mb-1">
+              <Crown className="h-5 w-5 text-primary" />
+              <span className="text-sm font-bold text-foreground">Assinatura mensal</span>
+            </div>
+            <p className="text-3xl font-bold text-foreground">
+              R$ 49,99<span className="text-base font-normal text-muted-foreground">/mês</span>
+            </p>
+            <p className="text-xs text-muted-foreground mt-1">Cobrança recorrente — cancele quando quiser</p>
+          </button>
 
-        <ul className="space-y-2 mb-6">
-          {FEATURES.map((f) => (
-            <li key={f} className="flex items-start gap-2 text-sm text-foreground">
-              <Check className="h-4 w-4 text-primary shrink-0 mt-0.5" />
-              {f}
-            </li>
-          ))}
-        </ul>
+          <button
+            type="button"
+            onClick={() => setPlano('vitalicio')}
+            className={`text-left rounded-2xl border p-5 transition-colors relative ${
+              plano === 'vitalicio' ? 'border-primary bg-primary/5 ring-1 ring-primary/30' : 'border-border bg-card hover:border-primary/40'
+            }`}
+          >
+            <span className="absolute top-3 right-3 text-[10px] font-bold uppercase tracking-wider bg-primary text-primary-foreground px-2 py-0.5 rounded-full">
+              Melhor custo
+            </span>
+            <div className="flex items-center gap-2 mb-1">
+              <Infinity className="h-5 w-5 text-primary" />
+              <span className="text-sm font-bold text-foreground">Licença vitalícia</span>
+            </div>
+            <p className="text-3xl font-bold text-foreground">
+              R$ 159,90<span className="text-base font-normal text-muted-foreground"> à vista</span>
+            </p>
+            <p className="text-xs text-muted-foreground mt-1">Pagamento único por usuário — acesso para sempre</p>
+          </button>
+        </div>
 
         {assinatura?.status === 'lifetime' ? (
           <Button className="w-full" onClick={() => (window.location.href = '/')}>
             Acessar o sistema
           </Button>
         ) : (
-          <Button className="w-full" onClick={handleSubscribe} disabled={loading}>
-            {loading ? 'Abrindo checkout...' : 'Assinar com Mercado Pago'}
+          <Button className="w-full" onClick={() => void handleSubscribe(plano)} disabled={loading}>
+            {loading
+              ? 'Abrindo checkout...'
+              : plano === 'vitalicio'
+                ? 'Comprar acesso vitalício — R$ 159,90'
+                : 'Assinar mensal — R$ 49,99/mês'}
           </Button>
         )}
 

@@ -125,9 +125,9 @@ var list_respostas_default = defineTool4({
 var projectRef = "ljlhrkzowsbjkqzdvrrw";
 var mcp_default = defineMcp({
   name: "cotacoes-nilo-mcp",
-  title: "ADR-SYSTEM MCP",
+  title: "COTARME MCP",
   version: "0.1.0",
-  instructions: "Ferramentas de leitura para o sistema ADR-SYSTEM. Use `list_cotacoes` para ver cota\xE7\xF5es do usu\xE1rio, `get_cotacao` para detalhes de uma cota\xE7\xE3o, `list_fornecedores` para os fornecedores cadastrados e `list_respostas` para respostas de fornecedores a uma cota\xE7\xE3o. Todos os dados s\xE3o escopados ao usu\xE1rio autenticado.",
+  instructions: "Ferramentas de leitura para o sistema COTARME. Use `list_cotacoes` para ver cota\xE7\xF5es do usu\xE1rio, `get_cotacao` para detalhes de uma cota\xE7\xE3o, `list_fornecedores` para os fornecedores cadastrados e `list_respostas` para respostas de fornecedores a uma cota\xE7\xE3o. Todos os dados s\xE3o escopados ao usu\xE1rio autenticado.",
   auth: auth.oauth.issuer({
     issuer: `https://${projectRef}.supabase.co/auth/v1`,
     acceptedAudiences: "authenticated"
