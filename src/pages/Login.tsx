@@ -160,7 +160,8 @@ const Login = () => {
         {isSignUp && (
           <div className="mb-5 rounded-2xl border border-primary/20 bg-primary/5 px-4 py-3 text-xs text-foreground">
             Seu teste de <strong>7 dias</strong> começa assim que a conta for criada. Ao final,
-            você escolhe assinar por <strong>R$ 49,99/mês</strong> para continuar.
+            você escolhe entre <strong>R$ 49,99/mês</strong> ou a licença vitalícia de <strong>R$ 159,90</strong>.
+
           </div>
         )}
 
