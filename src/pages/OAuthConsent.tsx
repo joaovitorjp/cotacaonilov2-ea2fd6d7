@@ -94,7 +94,7 @@ export default function OAuthConsent() {
     <main className="min-h-screen flex items-center justify-center p-6 bg-background">
       <div className="max-w-md w-full bg-card border border-border rounded-lg p-6 shadow space-y-4">
         <h1 className="font-display font-bold text-xl">
-          Conectar {clientName} ao ADR-SYSTEM
+          Conectar {clientName} ao COTARME
         </h1>
         <p className="text-sm text-muted-foreground">
           Isso permite que <span className="font-medium">{clientName}</span> acesse as ferramentas deste

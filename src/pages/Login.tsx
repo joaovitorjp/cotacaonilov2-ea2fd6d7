@@ -98,8 +98,8 @@ const Login = () => {
             </div>
 
             <div className="mt-6 flex items-center gap-3">
-              <img src={adrLogo.url} alt="ADR-SYSTEM" className="h-12 w-12 rounded-xl object-contain bg-white/95 p-1 shadow-sm" />
-              <h2 className="text-2xl font-display font-bold tracking-tight">ADR-SYSTEM</h2>
+              <img src={adrLogo.url} alt="COTARME" className="h-12 w-12 rounded-xl object-contain bg-white/95 p-1 shadow-sm" />
+              <h2 className="text-2xl font-display font-bold tracking-tight">COTARME</h2>
             </div>
             <p className="mt-3 text-sm text-primary-foreground/80 leading-relaxed">
               Todas as funções, sem limites. Comece testando gratuitamente e mantenha o acesso

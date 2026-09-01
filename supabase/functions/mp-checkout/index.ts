@@ -51,7 +51,7 @@ Deno.serve(async (req) => {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        reason: 'ADR-SYSTEM - Assinatura Mensal',
+        reason: 'COTARME - Assinatura Mensal',
         external_reference: user.id,
         payer_email: user.email,
         notification_url: notificationUrl,
