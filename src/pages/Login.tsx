@@ -9,6 +9,16 @@ import { toast } from 'sonner';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import AetherFlowBackground from '@/components/ui/aether-flow-background';
 import adrLogo from '@/assets/adr-logo.jpeg.asset.json';
+import { Check, CreditCard, ShieldCheck, Sparkles } from 'lucide-react';
+
+const PLAN_FEATURES = [
+  'Cotações ilimitadas com fornecedores',
+  'Links de resposta por estado (MT e GO)',
+  'Análise comparativa e exportação PDF/Excel',
+  'Chat global entre a equipe',
+  'Controle de estoques e cobertura por loja',
+];
+
 
 const Login = () => {
   const [email, setEmail] = useState('');
