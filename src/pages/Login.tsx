@@ -9,7 +9,7 @@ import { toast } from 'sonner';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import AetherFlowBackground from '@/components/ui/aether-flow-background';
 import adrLogo from '@/assets/adr-logo.jpeg.asset.json';
-import { Check, CreditCard, ShieldCheck, Sparkles } from 'lucide-react';
+import { Check, CreditCard, ShieldCheck } from 'lucide-react';
 
 const PLAN_FEATURES = [
   'Cotações ilimitadas com fornecedores',
@@ -89,59 +89,62 @@ const Login = () => {
   return (
     <div className="relative flex items-center justify-center min-h-screen overflow-hidden bg-background p-4 py-10">
       <AetherFlowBackground />
-      <div className="relative z-10 w-full max-w-4xl mx-auto grid md:grid-cols-2 gap-6 items-stretch">
-        {/* Plano: teste de 7 dias e assinatura */}
-        <aside className="order-2 md:order-1 rounded-3xl bg-card/70 backdrop-blur-2xl border border-border/60 shadow-2xl shadow-primary/5 p-8 flex flex-col">
-          <div className="inline-flex items-center gap-2 self-start rounded-full bg-primary/10 text-primary px-3 py-1 text-xs font-semibold">
-            <Sparkles className="h-3.5 w-3.5" />
-            7 dias grátis para novos usuários
+      <div className="relative z-10 w-full max-w-4xl mx-auto flex flex-col md:flex-row bg-card rounded-3xl border border-border/60 shadow-2xl shadow-primary/10 overflow-hidden min-h-[600px] animate-in fade-in slide-in-from-bottom-4 duration-700">
+        {/* Painel do plano */}
+        <aside className="order-2 md:order-1 w-full md:w-5/12 text-primary-foreground p-8 lg:p-10 flex flex-col justify-between relative overflow-hidden" style={{ background: 'var(--gradient-brand)' }}>
+          <div className="absolute top-0 right-0 -mr-16 -mt-16 w-64 h-64 bg-white/10 rounded-full blur-3xl pointer-events-none" />
+          <div className="relative z-10">
+            <div className="inline-flex items-center gap-2 rounded-full bg-white/10 border border-white/20 px-3 py-1 text-xs font-medium uppercase tracking-wide">
+              <span className="w-2 h-2 rounded-full bg-blue-300 animate-pulse" />
+              7 dias grátis para novos usuários
+            </div>
+
+            <div className="mt-6 flex items-center gap-3">
+              <img src={adrLogo.url} alt="ADR-SYSTEM" className="h-12 w-12 rounded-xl object-contain bg-white/95 p-1 shadow-sm" />
+              <h2 className="text-2xl font-display font-bold tracking-tight">ADR-SYSTEM</h2>
+            </div>
+            <p className="mt-3 text-sm text-primary-foreground/80 leading-relaxed">
+              Todas as funções, sem limites. Comece testando gratuitamente e mantenha o acesso
+              com a assinatura mensal — cancele quando quiser.
+            </p>
+
+            <div className="mt-6 rounded-2xl bg-white/10 backdrop-blur-sm border border-white/20 p-5">
+              <p className="text-3xl font-bold">
+                R$ 49,99
+                <span className="text-sm font-normal text-primary-foreground/70">/mês</span>
+              </p>
+              <p className="mt-1 flex items-center gap-1.5 text-xs text-primary-foreground/70">
+                <CreditCard className="h-3.5 w-3.5" />
+                Cartão, Pix ou boleto via Mercado Pago
+              </p>
+            </div>
+
+            <ul className="mt-6 space-y-3">
+              {PLAN_FEATURES.map((f) => (
+                <li key={f} className="flex items-start gap-2.5 text-sm">
+                  <span className="mt-0.5 p-0.5 rounded-md bg-white/10 shrink-0">
+                    <Check className="h-3.5 w-3.5 text-blue-200" />
+                  </span>
+                  {f}
+                </li>
+              ))}
+            </ul>
           </div>
 
-          <h2 className="mt-4 text-xl font-display font-bold text-foreground tracking-tight">
-            Todas as funções, sem limites
-          </h2>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Comece testando gratuitamente. Depois do período de teste, mantenha o acesso com a
-            assinatura mensal — cancele quando quiser.
-          </p>
-
-          <div className="mt-5 rounded-2xl border border-primary/20 bg-primary/5 p-5">
-            <p className="text-3xl font-bold text-foreground">
-              R$ 49,99
-              <span className="text-sm font-normal text-muted-foreground">/mês</span>
-            </p>
-            <p className="mt-1 flex items-center gap-1.5 text-xs text-muted-foreground">
-              <CreditCard className="h-3.5 w-3.5" />
-              Cartão, Pix ou boleto via Mercado Pago
-            </p>
-          </div>
-
-          <ul className="mt-5 space-y-2">
-            {PLAN_FEATURES.map((f) => (
-              <li key={f} className="flex items-start gap-2 text-sm text-foreground">
-                <Check className="h-4 w-4 text-primary shrink-0 mt-0.5" />
-                {f}
-              </li>
-            ))}
-          </ul>
-
-          <p className="mt-auto pt-6 flex items-center gap-1.5 text-xs text-muted-foreground">
-            <ShieldCheck className="h-3.5 w-3.5 text-primary" />
+          <p className="relative z-10 mt-8 pt-4 flex items-center gap-1.5 text-xs text-primary-foreground/70 border-t border-white/15">
+            <ShieldCheck className="h-3.5 w-3.5" />
             Sem cobrança durante o teste. Nenhum cartão é exigido para começar.
           </p>
         </aside>
 
         {/* Autenticação */}
-        <div className="order-1 md:order-2 rounded-3xl bg-card/80 backdrop-blur-2xl border border-border/60 shadow-2xl shadow-primary/5 p-8">
-        <div className="text-center mb-6">
-          <div className="flex items-center justify-center gap-3">
-            <img src={adrLogo.url} alt="ADR-SYSTEM" className="h-14 w-14 rounded-xl object-contain shadow-sm" />
-            <h1 className="text-2xl font-display font-bold text-foreground tracking-tight">
-              ADR-SYSTEM
-            </h1>
-          </div>
+        <div className="order-1 md:order-2 w-full md:w-7/12 p-8 sm:p-10 flex flex-col justify-center">
+        <div className="mb-8">
+          <h1 className="text-2xl font-display font-bold text-foreground tracking-tight">
+            {isSignUp ? 'Criar sua conta' : 'Bem-vindo de volta'}
+          </h1>
           <p className="text-sm text-muted-foreground mt-1">
-            {isSignUp ? 'Criar conta e iniciar o teste de 7 dias' : 'Entrar na sua conta'}
+            {isSignUp ? 'Cadastre-se e inicie o teste de 7 dias grátis' : 'Acesse sua conta para gerenciar suas cotações'}
           </p>
         </div>
 
@@ -151,6 +154,7 @@ const Login = () => {
             você escolhe assinar por <strong>R$ 49,99/mês</strong> para continuar.
           </div>
         )}
+
 
 
         <form onSubmit={isSignUp ? handleSignUp : handleLogin} className="space-y-4">
