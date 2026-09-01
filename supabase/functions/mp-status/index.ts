@@ -44,6 +44,25 @@ Deno.serve(async (req) => {
 
     if (atual?.status === 'lifetime') return json({ status: 'lifetime' })
 
+    // Primeiro verifica um pagamento unico do plano vitalicio
+    const payRes = await fetch(
+      `${MP_API}/v1/payments/search?external_reference=${encodeURIComponent(`${user.id}|lifetime`)}&sort=date_created&criteria=desc&limit=5`,
+      { headers: { Authorization: `Bearer ${mpToken}` } },
+    )
+    if (payRes.ok) {
+      const pays = await payRes.json()
+      const aprovado = (pays?.results ?? []).find((p: any) => p.status === 'approved')
+      if (aprovado) {
+        await admin.from('assinaturas').upsert({
+          user_id: user.id,
+          status: 'lifetime',
+          current_period_end: null,
+          updated_at: new Date().toISOString(),
+        }, { onConflict: 'user_id' })
+        return json({ status: 'lifetime', synced: true })
+      }
+    }
+
     // Busca o preapproval salvo ou o mais recente do usuario no MP
     let pre: any = null
     if (atual?.mp_preapproval_id) {
