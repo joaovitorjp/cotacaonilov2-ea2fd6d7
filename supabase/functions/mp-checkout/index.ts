@@ -40,6 +40,9 @@ Deno.serve(async (req) => {
       ? body.origin
       : 'https://cotacaonilov2.lovable.app'
 
+    // Webhook registrado por assinatura (dispensa cadastro manual no painel do MP)
+    const notificationUrl = `${Deno.env.get('SUPABASE_URL')}/functions/v1/mp-webhook`
+
     // Cria a assinatura (preapproval) no Mercado Pago
     const mpRes = await fetch(`${MP_API}/preapproval`, {
       method: 'POST',
@@ -51,6 +54,7 @@ Deno.serve(async (req) => {
         reason: 'ADR-SYSTEM - Assinatura Mensal',
         external_reference: user.id,
         payer_email: user.email,
+        notification_url: notificationUrl,
         auto_recurring: {
           frequency: 1,
           frequency_type: 'months',
