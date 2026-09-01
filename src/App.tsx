@@ -36,7 +36,17 @@ const App = () => (
               path="/"
               element={
                 <ProtectedRoute>
-                  <Index />
+                  <SubscriptionGate>
+                    <Index />
+                  </SubscriptionGate>
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/assinatura"
+              element={
+                <ProtectedRoute>
+                  <Assinatura />
                 </ProtectedRoute>
               }
             />
@@ -44,7 +54,9 @@ const App = () => (
               path="/perfil"
               element={
                 <ProtectedRoute>
-                  <Perfil />
+                  <SubscriptionGate>
+                    <Perfil />
+                  </SubscriptionGate>
                 </ProtectedRoute>
               }
             />
