@@ -100,29 +100,52 @@ Deno.serve(async (req) => {
     }
 
     // Pagamento avulso de assinatura: renova o periodo
-    if (topic.includes('payment')) {
+    if (topic.includes('payment') || topic === '') {
       const mpRes = await fetch(`${MP_API}/v1/payments/${id}`, {
         headers: { Authorization: `Bearer ${mpToken}` },
       })
       const pay = await mpRes.json()
       if (mpRes.ok && pay.status === 'approved') {
         const preId = pay.preapproval_id || pay.point_of_interaction?.transaction_data?.subscription_id
+        let userId: string | null = null
+
         if (preId) {
           const { data: assinatura } = await admin
             .from('assinaturas')
             .select('user_id, status')
             .eq('mp_preapproval_id', preId)
             .maybeSingle()
-          if (assinatura && assinatura.status !== 'lifetime') {
-            await admin
-              .from('assinaturas')
-              .update({
-                status: 'active',
-                current_period_end: new Date(Date.now() + 32 * 864e5).toISOString(),
-                updated_at: new Date().toISOString(),
+          if (assinatura) {
+            if (assinatura.status === 'lifetime') {
+              return new Response(JSON.stringify({ ok: true, ignored: 'vitalicio' }), {
+                status: 200,
+                headers: { ...corsHeaders, 'Content-Type': 'application/json' },
               })
-              .eq('user_id', assinatura.user_id)
+            }
+            userId = assinatura.user_id
           }
+        }
+
+        // Fallback: external_reference carrega o user_id
+        if (!userId && typeof pay.external_reference === 'string' && pay.external_reference.length === 36) {
+          const { data: porRef } = await admin
+            .from('assinaturas')
+            .select('user_id, status')
+            .eq('user_id', pay.external_reference)
+            .maybeSingle()
+          if (porRef && porRef.status !== 'lifetime') userId = porRef.user_id
+        }
+
+        if (userId) {
+          await admin
+            .from('assinaturas')
+            .update({
+              status: 'active',
+              mp_preapproval_id: preId ?? undefined,
+              current_period_end: new Date(Date.now() + 32 * 864e5).toISOString(),
+              updated_at: new Date().toISOString(),
+            })
+            .eq('user_id', userId)
         }
       }
       return new Response(JSON.stringify({ ok: true }), {
