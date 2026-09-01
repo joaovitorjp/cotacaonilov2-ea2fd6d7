@@ -10,7 +10,7 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const mpToken = Deno.env.get('MERCADO_PAGO_ACCESS_TOKEN')
+    const mpToken = Deno.env.get('MERCADO_PAGO_ACCESS_TOKEN')?.trim()
     if (!mpToken) throw new Error('MERCADO_PAGO_ACCESS_TOKEN nao configurado')
 
     // Valida o JWT do usuario logado
