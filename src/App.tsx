@@ -13,6 +13,8 @@ import OAuthInitiate from "./pages/OAuthInitiate.tsx";
 import OAuthConsent from "./pages/OAuthConsent.tsx";
 import Perfil from "./pages/Perfil.tsx";
 import AdminPanel from "./pages/AdminPanel.tsx";
+import Assinatura from "./pages/Assinatura.tsx";
+import SubscriptionGate from "./components/SubscriptionGate.tsx";
 import NotFound from "./pages/NotFound.tsx";
 
 const queryClient = new QueryClient();
@@ -34,7 +36,17 @@ const App = () => (
               path="/"
               element={
                 <ProtectedRoute>
-                  <Index />
+                  <SubscriptionGate>
+                    <Index />
+                  </SubscriptionGate>
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/assinatura"
+              element={
+                <ProtectedRoute>
+                  <Assinatura />
                 </ProtectedRoute>
               }
             />
@@ -42,7 +54,9 @@ const App = () => (
               path="/perfil"
               element={
                 <ProtectedRoute>
-                  <Perfil />
+                  <SubscriptionGate>
+                    <Perfil />
+                  </SubscriptionGate>
                 </ProtectedRoute>
               }
             />

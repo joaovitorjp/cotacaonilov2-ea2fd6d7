@@ -14,6 +14,39 @@ export type Database = {
   }
   public: {
     Tables: {
+      assinaturas: {
+        Row: {
+          created_at: string
+          current_period_end: string | null
+          id: string
+          mp_preapproval_id: string | null
+          status: string
+          trial_ends_at: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          current_period_end?: string | null
+          id?: string
+          mp_preapproval_id?: string | null
+          status?: string
+          trial_ends_at?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          current_period_end?: string | null
+          id?: string
+          mp_preapproval_id?: string | null
+          status?: string
+          trial_ends_at?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       audit_logs: {
         Row: {
           action: string
