@@ -191,8 +191,8 @@ const Login = () => {
           </div>
           <Button type="submit" className="w-full" disabled={loading}>
             {loading
-              ? isSignUp ? 'Cadastrando...' : 'Entrando...'
-              : isSignUp ? 'Cadastrar' : 'Entrar'}
+              ? isSignUp ? 'Criando conta...' : 'Entrando...'
+              : isSignUp ? 'Começar teste de 7 dias' : 'Entrar'}
           </Button>
         </form>
 
