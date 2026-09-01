@@ -44,9 +44,10 @@ Deno.serve(async (req) => {
       })
       const pre = await mpRes.json()
       if (!mpRes.ok) {
+        // Responde 200 para o MP nao entrar em loop de retentativas
         console.error('MP fetch error', pre)
-        return new Response(JSON.stringify({ error: 'falha ao consultar preapproval' }), {
-          status: 502,
+        return new Response(JSON.stringify({ ok: true, ignored: 'preapproval nao encontrado' }), {
+          status: 200,
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         })
       }
