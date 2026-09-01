@@ -22,6 +22,8 @@ const Assinatura = () => {
   const { assinatura, trialDaysLeft, hasAccess, refresh } = useAssinatura();
   const [loading, setLoading] = useState(false);
 
+  const [syncing, setSyncing] = useState(false);
+
   const handleSubscribe = async () => {
     setLoading(true);
     try {
@@ -35,6 +37,25 @@ const Assinatura = () => {
     } catch (err: any) {
       toast.error(`Erro ao iniciar pagamento: ${err?.message || 'tente novamente'}`);
       setLoading(false);
+    }
+  };
+
+  const handleSync = async () => {
+    setSyncing(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('mp-status');
+      if (error) throw new Error(error.message);
+      await refresh();
+      if (data?.status === 'active' || data?.status === 'lifetime') {
+        toast.success('Pagamento confirmado! Acesso liberado.');
+        setTimeout(() => (window.location.href = '/'), 800);
+      } else {
+        toast.info('Ainda não identificamos a confirmação do pagamento.');
+      }
+    } catch (err: any) {
+      toast.error(`Não foi possível verificar: ${err?.message || 'tente novamente'}`);
+    } finally {
+      setSyncing(false);
     }
   };
 
@@ -93,9 +114,9 @@ const Assinatura = () => {
           </Button>
         )}
 
-        {(assinatura?.status === 'active' || assinatura?.status === 'past_due') && (
-          <Button variant="ghost" className="w-full mt-2" onClick={() => void refresh()}>
-            Já paguei — atualizar status
+        {assinatura?.status !== 'lifetime' && (
+          <Button variant="ghost" className="w-full mt-2" onClick={() => void handleSync()} disabled={syncing}>
+            {syncing ? 'Verificando pagamento...' : 'Já paguei — verificar agora'}
           </Button>
         )}
 
