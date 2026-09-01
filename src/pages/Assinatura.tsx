@@ -12,8 +12,6 @@ const FEATURES = [
   'Cotações ilimitadas com fornecedores',
   'Links de resposta por estado (MT e GO)',
   'Análise comparativa de preços e exportação em PDF/Excel',
-  'Chat global entre a equipe',
-  'Controle de estoques e cobertura por loja',
   'Suporte prioritário',
 ];
 

@@ -12,7 +12,6 @@ import OAuthCallback from "./pages/OAuthCallback.tsx";
 import OAuthInitiate from "./pages/OAuthInitiate.tsx";
 import OAuthConsent from "./pages/OAuthConsent.tsx";
 import Perfil from "./pages/Perfil.tsx";
-import AdminPanel from "./pages/AdminPanel.tsx";
 import Assinatura from "./pages/Assinatura.tsx";
 import SubscriptionGate from "./components/SubscriptionGate.tsx";
 import NotFound from "./pages/NotFound.tsx";
@@ -57,14 +56,6 @@ const App = () => (
                   <SubscriptionGate>
                     <Perfil />
                   </SubscriptionGate>
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/admin"
-              element={
-                <ProtectedRoute>
-                  <AdminPanel />
                 </ProtectedRoute>
               }
             />

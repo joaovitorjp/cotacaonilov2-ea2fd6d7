@@ -8,8 +8,6 @@ import GerarLinkPanel from '@/components/GerarLinkPanel';
 import FornecedoresPanel from '@/components/FornecedoresPanel';
 import AnalisePrecosPanel from '@/components/AnalisePrecosPanel';
 import Dashboard from '@/components/Dashboard';
-import GlobalChat from '@/components/GlobalChat';
-import { useUnreadChat } from '@/hooks/useUnreadChat';
 import PerfilPanel from '@/components/PerfilPanel';
 import { useAvatar } from '@/hooks/useAvatar';
 import HeaderAvatarButton from '@/components/HeaderAvatarButton';
@@ -25,7 +23,7 @@ import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import { LogOut, Menu, X, Home, Upload, FolderOpen, Link2, CheckSquare, Users, BarChart3, Table, MessageCircle, User as UserIcon, Package } from 'lucide-react';
+import { LogOut, Menu, X, Home, Upload, FolderOpen, Link2, CheckSquare, Users, BarChart3, Table, User as UserIcon, Package } from 'lucide-react';
 
 interface Lista {
   id: string;
@@ -49,9 +47,7 @@ const Index = () => {
   const [finalizadasOpen, setFinalizadasOpen] = useState(false);
   const [gerarLinkOpen, setGerarLinkOpen] = useState(false);
   const [fornecedoresOpen, setFornecedoresOpen] = useState(false);
-  const [chatOpen, setChatOpen] = useState(false);
   const [perfilOpen, setPerfilOpen] = useState(false);
-  const unreadChat = useUnreadChat(chatOpen);
   const { avatarUrl } = useAvatar();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
@@ -593,7 +589,6 @@ const Index = () => {
     { label: 'Gerar Link', icon: Link2, action: () => { setGerarLinkOpen(true); setMobileMenuOpen(false); }, disabled: !currentLista || isFinalized },
     { label: 'Finalizadas', icon: CheckSquare, action: () => { setFinalizadasOpen(true); setMobileMenuOpen(false); } },
     { label: 'Fornecedores', icon: Users, action: () => { setFornecedoresOpen(true); setMobileMenuOpen(false); } },
-    { label: 'Chat Global', icon: MessageCircle, action: () => { setChatOpen(true); setMobileMenuOpen(false); }, badge: unreadChat },
     { label: 'Perfil', icon: UserIcon, action: () => { setPerfilOpen(true); setMobileMenuOpen(false); } },
   ];
 
@@ -968,7 +963,6 @@ const Index = () => {
       {currentLista && (
         <GerarLinkPanel open={gerarLinkOpen} onOpenChange={setGerarLinkOpen} listaId={currentLista.id} />
       )}
-      <GlobalChat open={chatOpen} onOpenChange={setChatOpen} hideBubble />
       <PerfilPanel open={perfilOpen} onOpenChange={setPerfilOpen} />
 
     </div>

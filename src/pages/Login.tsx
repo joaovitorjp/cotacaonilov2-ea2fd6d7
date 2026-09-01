@@ -15,8 +15,6 @@ const PLAN_FEATURES = [
   'Cotações ilimitadas com fornecedores',
   'Links de resposta por estado (MT e GO)',
   'Análise comparativa e exportação PDF/Excel',
-  'Chat global entre a equipe',
-  'Controle de estoques e cobertura por loja',
 ];
 
 
