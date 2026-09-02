@@ -9,7 +9,6 @@ import Index from "./pages/Index.tsx";
 import Login from "./pages/Login.tsx";
 import CotacaoResposta from "./pages/CotacaoResposta.tsx";
 import OAuthCallback from "./pages/OAuthCallback.tsx";
-import OAuthInitiate from "./pages/OAuthInitiate.tsx";
 import OAuthConsent from "./pages/OAuthConsent.tsx";
 import Perfil from "./pages/Perfil.tsx";
 import ResetPassword from "./pages/ResetPassword.tsx";
@@ -29,7 +28,6 @@ const App = () => (
           <Routes>
             <Route path="/login" element={<Login />} />
             <Route path="/reset-password" element={<ResetPassword />} />
-            <Route path="/~oauth/initiate" element={<OAuthInitiate />} />
             <Route path="/auth/callback" element={<OAuthCallback />} />
             <Route path="/.lovable/oauth/consent" element={<OAuthConsent />} />
             <Route path="/cotacao/:token" element={<CotacaoResposta />} />
