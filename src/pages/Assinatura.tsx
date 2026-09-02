@@ -80,10 +80,15 @@ const Assinatura = () => {
   };
 
 
+  const returnUrl = `${getAppOrigin()}/assinatura?checkout=success`;
+
   return (
-    <div className="relative flex items-center justify-center min-h-screen overflow-hidden bg-background p-4">
+    <div className="relative flex flex-col items-center justify-center min-h-screen overflow-hidden bg-background p-4">
       <AetherFlowBackground />
-      <div className="relative z-10 w-full max-w-lg mx-auto p-8 rounded-3xl bg-white/80 backdrop-blur-2xl border border-white/50 shadow-2xl shadow-primary/5">
+      <div className="relative z-10 w-full max-w-2xl mb-3 rounded-xl overflow-hidden">
+        <PaymentTestModeBanner />
+      </div>
+      <div className={`relative z-10 w-full ${checkoutAberto ? 'max-w-2xl' : 'max-w-lg'} mx-auto p-8 rounded-3xl bg-white/80 backdrop-blur-2xl border border-white/50 shadow-2xl shadow-primary/5`}>
         <div className="text-center mb-6">
           <div className="flex items-center justify-center gap-3">
             <img src={adrLogo} alt="COTARME" className="h-12 w-12 rounded-xl object-contain shadow-sm" />
@@ -94,58 +99,68 @@ const Assinatura = () => {
           </p>
         </div>
 
-        <div className="grid gap-3 mb-6">
-          <button
-            type="button"
-            onClick={() => setPlano('mensal')}
-            className={`text-left rounded-2xl border p-5 transition-colors ${
-              plano === 'mensal' ? 'border-primary bg-primary/5 ring-1 ring-primary/30' : 'border-border bg-card hover:border-primary/40'
-            }`}
-          >
-            <div className="flex items-center gap-2 mb-1">
-              <Crown className="h-5 w-5 text-primary" />
-              <span className="text-sm font-bold text-foreground">Assinatura mensal</span>
-            </div>
-            <p className="text-3xl font-bold text-foreground">
-              R$ 49,99<span className="text-base font-normal text-muted-foreground">/mês</span>
-            </p>
-            <p className="text-xs text-muted-foreground mt-1">Cobrança recorrente — cancele quando quiser</p>
-          </button>
-
-          <button
-            type="button"
-            onClick={() => setPlano('vitalicio')}
-            className={`text-left rounded-2xl border p-5 transition-colors relative ${
-              plano === 'vitalicio' ? 'border-primary bg-primary/5 ring-1 ring-primary/30' : 'border-border bg-card hover:border-primary/40'
-            }`}
-          >
-            <span className="absolute top-3 right-3 text-[10px] font-bold uppercase tracking-wider bg-primary text-primary-foreground px-2 py-0.5 rounded-full">
-              Melhor custo
-            </span>
-            <div className="flex items-center gap-2 mb-1">
-              <Infinity className="h-5 w-5 text-primary" />
-              <span className="text-sm font-bold text-foreground">Licença vitalícia</span>
-            </div>
-            <p className="text-3xl font-bold text-foreground">
-              R$ 159,90<span className="text-base font-normal text-muted-foreground"> à vista</span>
-            </p>
-            <p className="text-xs text-muted-foreground mt-1">Pagamento único por usuário — acesso para sempre</p>
-          </button>
-        </div>
-
-        {assinatura?.status === 'lifetime' ? (
-          <Button className="w-full" onClick={() => (window.location.href = '/')}>
-            Acessar o sistema
-          </Button>
+        {checkoutAberto ? (
+          <>
+            <StripeEmbeddedCheckout priceId={PRICE_IDS[plano]} returnUrl={returnUrl} />
+            <Button variant="ghost" className="w-full mt-4" onClick={() => setCheckoutAberto(false)}>
+              Voltar aos planos
+            </Button>
+          </>
         ) : (
-          <Button className="w-full" onClick={() => void handleSubscribe(plano)} disabled={loading}>
-            {loading
-              ? 'Abrindo checkout...'
-              : plano === 'vitalicio'
-                ? 'Comprar acesso vitalício — R$ 159,90'
-                : 'Assinar mensal — R$ 49,99/mês'}
-          </Button>
+          <>
+            <div className="grid gap-3 mb-6">
+              <button
+                type="button"
+                onClick={() => setPlano('mensal')}
+                className={`text-left rounded-2xl border p-5 transition-colors ${
+                  plano === 'mensal' ? 'border-primary bg-primary/5 ring-1 ring-primary/30' : 'border-border bg-card hover:border-primary/40'
+                }`}
+              >
+                <div className="flex items-center gap-2 mb-1">
+                  <Crown className="h-5 w-5 text-primary" />
+                  <span className="text-sm font-bold text-foreground">Assinatura mensal</span>
+                </div>
+                <p className="text-3xl font-bold text-foreground">
+                  R$ 49,99<span className="text-base font-normal text-muted-foreground">/mês</span>
+                </p>
+                <p className="text-xs text-muted-foreground mt-1">Cobrança recorrente — cancele quando quiser</p>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setPlano('vitalicio')}
+                className={`text-left rounded-2xl border p-5 transition-colors relative ${
+                  plano === 'vitalicio' ? 'border-primary bg-primary/5 ring-1 ring-primary/30' : 'border-border bg-card hover:border-primary/40'
+                }`}
+              >
+                <span className="absolute top-3 right-3 text-[10px] font-bold uppercase tracking-wider bg-primary text-primary-foreground px-2 py-0.5 rounded-full">
+                  Melhor custo
+                </span>
+                <div className="flex items-center gap-2 mb-1">
+                  <Infinity className="h-5 w-5 text-primary" />
+                  <span className="text-sm font-bold text-foreground">Licença vitalícia</span>
+                </div>
+                <p className="text-3xl font-bold text-foreground">
+                  R$ 159,90<span className="text-base font-normal text-muted-foreground"> à vista</span>
+                </p>
+                <p className="text-xs text-muted-foreground mt-1">Pagamento único por usuário — acesso para sempre</p>
+              </button>
+            </div>
+
+            {assinatura?.status === 'lifetime' ? (
+              <Button className="w-full" onClick={() => (window.location.href = '/')}>
+                Acessar o sistema
+              </Button>
+            ) : (
+              <Button className="w-full" onClick={() => setCheckoutAberto(true)}>
+                {plano === 'vitalicio'
+                  ? 'Comprar acesso vitalício — R$ 159,90'
+                  : 'Assinar mensal — R$ 49,99/mês'}
+              </Button>
+            )}
+          </>
         )}
+
 
         {hasAccess && assinatura?.status !== 'lifetime' && (
           <Button variant="outline" className="w-full mt-2" onClick={() => (window.location.href = '/')}>
