@@ -63,6 +63,7 @@ const Login = () => {
   const [googleLoading, setGoogleLoading] = useState(false);
   const [authOpen, setAuthOpen] = useState(false);
   const [isSignUp, setIsSignUp] = useState(false);
+  const [planoEscolhido, setPlanoEscolhido] = useState<'trial' | 'mensal' | 'vitalicio'>('trial');
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
 
@@ -75,10 +76,17 @@ const Login = () => {
 
   const rawNext = searchParams.get('next') || '';
   const safeNext = rawNext.startsWith('/') && !rawNext.startsWith('//') ? rawNext : '';
-  const goNext = () => navigate(safeNext || '/');
+  const goNext = () => {
+    if (planoEscolhido !== 'trial') {
+      navigate(`/assinatura?plano=${planoEscolhido}`);
+      return;
+    }
+    navigate(safeNext || '/');
+  };
 
-  const openAuth = (signUp: boolean) => {
+  const openAuth = (signUp: boolean, plano: 'trial' | 'mensal' | 'vitalicio' = 'trial') => {
     setIsSignUp(signUp);
+    setPlanoEscolhido(plano);
     setAuthOpen(true);
   };
 
@@ -121,7 +129,11 @@ const Login = () => {
     if (error) {
       toast.error(error.message);
     } else {
-      toast.success('Teste de 7 dias criado! Confirme seu email para liberar o acesso.');
+      toast.success(
+        planoEscolhido === 'trial'
+          ? 'Teste de 7 dias criado! Confirme seu email para liberar o acesso.'
+          : 'Conta criada! Confirme seu email e entre para concluir o pagamento.'
+      );
       setIsSignUp(false);
     }
   };
@@ -253,7 +265,7 @@ const Login = () => {
                 <span className="text-base font-normal text-muted-foreground">/mês</span>
               </p>
               <p className="mt-1 text-xs text-muted-foreground">Cancele quando quiser</p>
-              <Button className="mt-6 w-full" onClick={() => openAuth(true)}>Começar teste de 7 dias</Button>
+              <Button className="mt-6 w-full" onClick={() => openAuth(true, 'mensal')}>Assinar agora</Button>
             </div>
             <div className="relative rounded-3xl border-2 border-primary bg-background p-7">
               <span className="absolute -top-3 right-6 rounded-full bg-primary px-3 py-0.5 text-[11px] font-semibold uppercase tracking-wide text-primary-foreground">
@@ -272,7 +284,7 @@ const Login = () => {
                 <CreditCard className="h-3.5 w-3.5" />
                 Cartão, Pix ou boleto via Mercado Pago
               </p>
-              <Button className="mt-6 w-full" variant="outline" onClick={() => openAuth(true)}>Começar teste de 7 dias</Button>
+              <Button className="mt-6 w-full" onClick={() => openAuth(true, 'vitalicio')}>Comprar acesso vitalício</Button>
             </div>
           </div>
         </div>
@@ -298,15 +310,48 @@ const Login = () => {
             </DialogTitle>
             <DialogDescription>
               {isSignUp
-                ? 'Cadastre-se e inicie o teste de 7 dias grátis'
+                ? planoEscolhido === 'trial'
+                  ? 'Cadastre-se e inicie o teste de 7 dias grátis'
+                  : 'Cadastre-se e conclua o pagamento para liberar o acesso'
                 : 'Acesse sua conta para gerenciar suas cotações'}
             </DialogDescription>
           </DialogHeader>
 
           {isSignUp && (
-            <div className="rounded-2xl border border-primary/20 bg-primary/5 px-4 py-3 text-xs text-foreground">
-              Seu teste de <strong>7 dias</strong> começa assim que a conta for criada. Ao final,
-              você escolhe entre <strong>R$ 49,99/mês</strong> ou a licença vitalícia de <strong>R$ 159,90</strong>.
+            <div className="space-y-2">
+              <Label>Como você quer começar?</Label>
+              <div className="grid gap-2">
+                <button
+                  type="button"
+                  onClick={() => setPlanoEscolhido('trial')}
+                  className={`text-left rounded-xl border px-4 py-3 transition-colors ${
+                    planoEscolhido === 'trial' ? 'border-primary bg-primary/5 ring-1 ring-primary/30' : 'border-border hover:border-primary/40'
+                  }`}
+                >
+                  <span className="text-sm font-semibold">Teste de 7 dias grátis</span>
+                  <span className="block text-xs text-muted-foreground">Sem cobrança — escolha um plano ao final</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setPlanoEscolhido('mensal')}
+                  className={`text-left rounded-xl border px-4 py-3 transition-colors ${
+                    planoEscolhido === 'mensal' ? 'border-primary bg-primary/5 ring-1 ring-primary/30' : 'border-border hover:border-primary/40'
+                  }`}
+                >
+                  <span className="text-sm font-semibold">Assinatura mensal — R$ 49,99/mês</span>
+                  <span className="block text-xs text-muted-foreground">Pague agora e comece a usar imediatamente</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setPlanoEscolhido('vitalicio')}
+                  className={`text-left rounded-xl border px-4 py-3 transition-colors ${
+                    planoEscolhido === 'vitalicio' ? 'border-primary bg-primary/5 ring-1 ring-primary/30' : 'border-border hover:border-primary/40'
+                  }`}
+                >
+                  <span className="text-sm font-semibold">Licença vitalícia — R$ 159,90 à vista</span>
+                  <span className="block text-xs text-muted-foreground">Pagamento único, acesso para sempre</span>
+                </button>
+              </div>
             </div>
           )}
 
@@ -349,7 +394,10 @@ const Login = () => {
             <Button type="submit" className="w-full" disabled={loading}>
               {loading
                 ? isSignUp ? 'Criando conta...' : 'Entrando...'
-                : isSignUp ? 'Começar teste de 7 dias' : 'Entrar'}
+                : isSignUp
+                  ? planoEscolhido === 'trial' ? 'Começar teste de 7 dias'
+                    : planoEscolhido === 'mensal' ? 'Criar conta e assinar' : 'Criar conta e comprar'
+                  : planoEscolhido === 'trial' ? 'Entrar' : 'Entrar e pagar'}
             </Button>
           </form>
 

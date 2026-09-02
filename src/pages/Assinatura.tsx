@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useAssinatura } from '@/hooks/useAssinatura';
@@ -20,7 +21,10 @@ const Assinatura = () => {
   const { user, signOut } = useAuth();
   const { assinatura, trialDaysLeft, hasAccess, refresh } = useAssinatura();
   const [loading, setLoading] = useState(false);
-  const [plano, setPlano] = useState<'mensal' | 'vitalicio'>('mensal');
+  const [searchParams] = useSearchParams();
+  const planoParam = searchParams.get('plano');
+  const [plano, setPlano] = useState<'mensal' | 'vitalicio'>(planoParam === 'vitalicio' ? 'vitalicio' : 'mensal');
+  const autoCheckout = useRef(false);
 
   const [syncing, setSyncing] = useState(false);
 
@@ -39,6 +43,15 @@ const Assinatura = () => {
       setLoading(false);
     }
   };
+
+  // Usuário chegou do cadastro com plano pago escolhido: abre o checkout direto
+  useEffect(() => {
+    if (autoCheckout.current || !planoParam || !user) return;
+    if (assinatura?.status === 'active' || assinatura?.status === 'lifetime') return;
+    autoCheckout.current = true;
+    void handleSubscribe(planoParam === 'vitalicio' ? 'vitalicio' : 'mensal');
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user, assinatura, planoParam]);
 
   const handleSync = async () => {
     setSyncing(true);
