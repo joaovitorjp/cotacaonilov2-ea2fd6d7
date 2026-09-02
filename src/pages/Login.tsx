@@ -76,7 +76,13 @@ const Login = () => {
 
   const rawNext = searchParams.get('next') || '';
   const safeNext = rawNext.startsWith('/') && !rawNext.startsWith('//') ? rawNext : '';
-  const goNext = () => navigate(safeNext || '/');
+  const goNext = () => {
+    if (planoEscolhido !== 'trial') {
+      navigate(`/assinatura?plano=${planoEscolhido}`);
+      return;
+    }
+    navigate(safeNext || '/');
+  };
 
   const openAuth = (signUp: boolean, plano: 'trial' | 'mensal' | 'vitalicio' = 'trial') => {
     setIsSignUp(signUp);
