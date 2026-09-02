@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Route, Routes } from "react-router-dom";
+import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -19,19 +19,27 @@ import NotFound from "./pages/NotFound.tsx";
 
 const queryClient = new QueryClient();
 
+// Em hospedagens que servem o app em subpasta, o Vite injeta BASE_URL.
+const basename = import.meta.env.BASE_URL?.replace(/\/$/, "") || undefined;
+
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <TooltipProvider>
       <Toaster />
       <Sonner />
-      <BrowserRouter>
+      <BrowserRouter basename={basename}>
         <AuthProvider>
           <Routes>
+            {/* Rotas públicas */}
             <Route path="/login" element={<Login />} />
             <Route path="/reset-password" element={<ResetPassword />} />
             <Route path="/auth/callback" element={<OAuthCallback />} />
             <Route path="/.lovable/oauth/consent" element={<OAuthConsent />} />
             <Route path="/cotacao/:token" element={<CotacaoResposta />} />
+            {/* Painel administrativo tem login próprio */}
+            <Route path="/admin" element={<AdminChaves />} />
+
+            {/* Rotas protegidas */}
             <Route
               path="/"
               element={
@@ -50,10 +58,7 @@ const App = () => (
                 </ProtectedRoute>
               }
             />
-            <Route path="/admin" element={<AdminChaves />} />
-
             <Route
-
               path="/perfil"
               element={
                 <ProtectedRoute>
@@ -63,6 +68,17 @@ const App = () => (
                 </ProtectedRoute>
               }
             />
+
+            {/* Aliases legados / variações comuns de URL */}
+            <Route path="/index.html" element={<Navigate to="/" replace />} />
+            <Route path="/home" element={<Navigate to="/" replace />} />
+            <Route path="/dashboard" element={<Navigate to="/" replace />} />
+            <Route path="/entrar" element={<Navigate to="/login" replace />} />
+            <Route path="/signin" element={<Navigate to="/login" replace />} />
+            <Route path="/cadastro" element={<Navigate to="/login" replace />} />
+            <Route path="/perfil/*" element={<Navigate to="/perfil" replace />} />
+            <Route path="/admin/*" element={<Navigate to="/admin" replace />} />
+
             <Route path="*" element={<NotFound />} />
           </Routes>
         </AuthProvider>
