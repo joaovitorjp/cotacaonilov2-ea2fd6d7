@@ -36,14 +36,14 @@ const DeviceMockups = () => (
         <span className="h-2.5 w-2.5 rounded-full bg-success/50" />
       </div>
       <div className="aspect-[16/10] bg-white">
-        <img src={shotDashboard.url} alt="Painel de cotações do COTARME" className="h-full w-full object-cover object-top" />
+        <img src={shotPlanilha.url} alt="Planilha comparativa de preços" className="h-full w-full object-cover object-top" />
       </div>
     </div>
     <div className="mx-auto h-3 w-[96%] rounded-b-xl bg-muted border border-border" />
     {/* Tablet */}
     <div className="absolute -left-2 bottom-2 w-[34%] rounded-2xl border border-border bg-card shadow-xl shadow-primary/10 overflow-hidden">
       <div className="aspect-[3/4] bg-white">
-        <img src={shotPlanilha.url} alt="Planilha comparativa de preços" className="h-full w-full object-cover object-top" />
+        <img src={shotDashboard.url} alt="Painel de cotações do COTARME" className="h-full w-full object-cover object-top" />
       </div>
     </div>
     {/* Phone */}
