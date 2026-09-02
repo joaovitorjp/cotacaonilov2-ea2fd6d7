@@ -1,6 +1,8 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+import { markUserSignOut, saveSessionBackup, tryRecoverSession } from '@/lib/sessionResilience';
 import type { User, Session } from '@supabase/supabase-js';
+
 
 interface AuthContextType {
   user: User | null;
@@ -26,8 +28,24 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   useEffect(() => {
     let gotSession = false;
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      if (session) gotSession = true;
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      if (session) {
+        gotSession = true;
+        saveSessionBackup(session);
+      }
+
+      // Queda de sessão que o usuário não pediu (ex.: 429 no refresh em rede
+      // corporativa): tenta recuperar antes de derrubar o login.
+      if (event === 'SIGNED_OUT') {
+        tryRecoverSession().then((recovered) => {
+          if (recovered) return;
+          setSession(null);
+          setUser(null);
+          setLoading(false);
+        });
+        return;
+      }
+
       setSession(session);
       setUser(session?.user ?? null);
       setLoading(false);
@@ -40,7 +58,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setLoading(false);
         return;
       }
-      if (session) gotSession = true;
+      if (session) {
+        gotSession = true;
+        saveSessionBackup(session);
+      }
       setSession(session);
       setUser(session?.user ?? null);
       setLoading(false);
@@ -51,8 +72,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
 
   const signOut = async () => {
+    markUserSignOut();
     await supabase.auth.signOut();
+    setSession(null);
+    setUser(null);
   };
+
 
   return (
     <AuthContext.Provider value={{ user, session, loading, signOut }}>

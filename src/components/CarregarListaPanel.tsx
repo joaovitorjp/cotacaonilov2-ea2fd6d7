@@ -82,18 +82,28 @@ const CarregarListaPanel: React.FC<CarregarListaPanelProps> = ({
       setLoading(false);
       return;
     }
-    const { data, error } = await supabase
+
+    const query = () => supabase
       .from('listas')
       .select('*')
       .eq('user_id', user.id)
       .eq('status', statusFilter)
       .order('created_at', { ascending: false });
 
+    let { data, error } = await query();
+
+    // Falha transitória (429/401 por limite de requisições na rede): tenta de novo.
     if (error) {
-      toast.error('Erro ao carregar listas.');
+      await new Promise((r) => setTimeout(r, 1500));
+      ({ data, error } = await query());
+    }
+
+    if (error) {
+      toast.error('Erro ao carregar listas. Verifique a conexão e tente novamente.');
       setLoading(false);
       return;
     }
+
 
     const lists = (data ?? []).map((d: any) => ({ ...d, produtos: d.produtos as any[] }));
     setListas(lists);
