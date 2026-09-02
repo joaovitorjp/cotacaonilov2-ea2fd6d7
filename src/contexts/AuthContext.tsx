@@ -24,13 +24,23 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    let gotSession = false;
+
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (session) gotSession = true;
       setSession(session);
       setUser(session?.user ?? null);
       setLoading(false);
     });
 
     supabase.auth.getSession().then(({ data: { session } }) => {
+      // Nunca sobrescrever uma sessão já entregue pelo listener com null
+      // (o storage do preview é assíncrono e pode responder tarde/vazio).
+      if (!session && gotSession) {
+        setLoading(false);
+        return;
+      }
+      if (session) gotSession = true;
       setSession(session);
       setUser(session?.user ?? null);
       setLoading(false);
@@ -38,6 +48,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     return () => subscription.unsubscribe();
   }, []);
+
 
   const signOut = async () => {
     await supabase.auth.signOut();
