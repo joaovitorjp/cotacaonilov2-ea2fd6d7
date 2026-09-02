@@ -1,7 +1,5 @@
 import React, { useEffect, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { lovable } from '@/integrations/lovable';
-import { buildExternalGoogleOAuthUrl, getAppOrigin, isLovableHosted, rememberPostLogin } from '@/lib/oauth';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -62,7 +60,7 @@ const Login = () => {
   const [password, setPassword] = useState('');
   const [nome, setNome] = useState('');
   const [loading, setLoading] = useState(false);
-  const [googleLoading, setGoogleLoading] = useState(false);
+  
   const [authOpen, setAuthOpen] = useState(false);
   const [isSignUp, setIsSignUp] = useState(false);
   
@@ -165,43 +163,8 @@ const Login = () => {
     setIsSignUp(false);
   };
 
-  const handleGoogle = async () => {
-    setGoogleLoading(true);
-    rememberPostLogin(safeNext);
-    try {
-      // Fora da hospedagem Lovable (ex.: cPanel) o Google gerenciado só funciona
-      // via broker da Lovable: oauth.lovable.app -> ponte cotarme.lovable.app ->
-      // redireciona de volta para este domínio em /auth/callback com os tokens.
-      if (!isLovableHosted()) {
-        window.location.href = buildExternalGoogleOAuthUrl();
-        return;
-      }
 
-      const result = await lovable.auth.signInWithOAuth('google', {
-        redirect_uri: `${getAppOrigin()}/auth/callback`,
-      });
-      if (result.error) {
-        const msg = (result.error.message || '').toLowerCase();
-        if (msg.includes('cancel') || msg.includes('closed') || msg.includes('popup') || msg.includes('denied') || msg.includes('abort')) {
-          toast.error('Login com Google cancelado.');
-        } else if (msg.includes('network') || msg.includes('fetch')) {
-          toast.error('Erro de conexão. Verifique sua internet e tente novamente.');
-        } else if (msg.includes('unsupported provider') || msg.includes('provider')) {
-          toast.error('Provedor Google não está configurado. Contate o administrador.');
-        } else {
-          toast.error(`Falha ao entrar com Google: ${result.error.message || 'erro desconhecido'}`);
-        }
-        setGoogleLoading(false);
-        return;
-      }
-      // Fluxo com redirecionamento de página inteira: o retorno acontece em /auth/callback
-      if (result.redirected) return;
-      goNext();
-    } catch (err: any) {
-      toast.error(`Erro inesperado: ${err?.message || 'tente novamente'}`);
-      setGoogleLoading(false);
-    }
-  };
+
 
   const handleRecover = async (e: React.FormEvent) => {
     e.preventDefault();
