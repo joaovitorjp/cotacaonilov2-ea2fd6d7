@@ -111,6 +111,54 @@ const Perfil: React.FC = () => {
             {saving ? 'Salvando...' : 'Salvar alterações'}
           </Button>
         </div>
+
+        <div className="bg-card border border-border rounded-lg p-6 space-y-4 mt-6">
+          <div className="flex items-center gap-2">
+            <KeyRound className="w-4 h-4 text-primary" />
+            <h2 className="font-display font-bold text-foreground">Alterar senha</h2>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="senha-atual">Senha atual</Label>
+            <Input
+              id="senha-atual"
+              type="password"
+              value={senhaAtual}
+              onChange={e => setSenhaAtual(e.target.value)}
+              placeholder="••••••••"
+              autoComplete="current-password"
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="senha-nova">Nova senha</Label>
+            <Input
+              id="senha-nova"
+              type="password"
+              value={senhaNova}
+              onChange={e => setSenhaNova(e.target.value)}
+              placeholder="Mínimo de 6 caracteres"
+              autoComplete="new-password"
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="senha-confirma">Confirmar nova senha</Label>
+            <Input
+              id="senha-confirma"
+              type="password"
+              value={senhaConfirma}
+              onChange={e => setSenhaConfirma(e.target.value)}
+              placeholder="Repita a nova senha"
+              autoComplete="new-password"
+            />
+          </div>
+
+          <Button onClick={handleChangePassword} disabled={changingPassword} variant="secondary" className="w-full">
+            {changingPassword ? 'Alterando...' : 'Alterar senha'}
+          </Button>
+        </div>
+
       </div>
     </div>
   );
