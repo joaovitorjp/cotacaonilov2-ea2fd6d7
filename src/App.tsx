@@ -12,9 +12,6 @@ import OAuthCallback from "./pages/OAuthCallback.tsx";
 import OAuthConsent from "./pages/OAuthConsent.tsx";
 import Perfil from "./pages/Perfil.tsx";
 import ResetPassword from "./pages/ResetPassword.tsx";
-import Assinatura from "./pages/Assinatura.tsx";
-import AdminChaves from "./pages/AdminChaves.tsx";
-import SubscriptionGate from "./components/SubscriptionGate.tsx";
 import NotFound from "./pages/NotFound.tsx";
 
 const queryClient = new QueryClient();
@@ -36,25 +33,12 @@ const App = () => (
             <Route path="/auth/callback" element={<OAuthCallback />} />
             <Route path="/.lovable/oauth/consent" element={<OAuthConsent />} />
             <Route path="/cotacao/:token" element={<CotacaoResposta />} />
-            {/* Painel administrativo tem login próprio */}
-            <Route path="/admin" element={<AdminChaves />} />
-
             {/* Rotas protegidas */}
             <Route
               path="/"
               element={
                 <ProtectedRoute>
-                  <SubscriptionGate>
-                    <Index />
-                  </SubscriptionGate>
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/assinatura"
-              element={
-                <ProtectedRoute>
-                  <Assinatura />
+                  <Index />
                 </ProtectedRoute>
               }
             />
@@ -62,9 +46,7 @@ const App = () => (
               path="/perfil"
               element={
                 <ProtectedRoute>
-                  <SubscriptionGate>
-                    <Perfil />
-                  </SubscriptionGate>
+                  <Perfil />
                 </ProtectedRoute>
               }
             />
@@ -77,7 +59,9 @@ const App = () => (
             <Route path="/signin" element={<Navigate to="/login" replace />} />
             <Route path="/cadastro" element={<Navigate to="/login" replace />} />
             <Route path="/perfil/*" element={<Navigate to="/perfil" replace />} />
-            <Route path="/admin/*" element={<Navigate to="/admin" replace />} />
+            <Route path="/assinatura" element={<Navigate to="/" replace />} />
+            <Route path="/admin/*" element={<Navigate to="/" replace />} />
+            <Route path="/admin" element={<Navigate to="/" replace />} />
 
             <Route path="*" element={<NotFound />} />
           </Routes>
