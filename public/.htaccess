@@ -1,0 +1,12 @@
+<IfModule mod_rewrite.c>
+  RewriteEngine On
+  RewriteBase /
+
+  # Não reescreva requisições para arquivos, diretórios ou symlinks existentes
+  RewriteCond %{REQUEST_FILENAME} !-f
+  RewriteCond %{REQUEST_FILENAME} !-d
+  RewriteCond %{REQUEST_FILENAME} !-l
+
+  # Redireciona qualquer rota interna para o index.html
+  RewriteRule ^ index.html [QSA,L]
+</IfModule>
