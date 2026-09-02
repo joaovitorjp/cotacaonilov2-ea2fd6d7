@@ -373,6 +373,20 @@ const Login = () => {
         </div>
       </footer>
 
+      {/* Acesso administrativo — oculto até pressionar Alt + O */}
+      {adminVisivel && (
+        <button
+          type="button"
+          onClick={() => navigate('/admin')}
+          title="Painel administrativo"
+          aria-label="Painel administrativo"
+          className="fixed bottom-5 right-5 z-50 flex h-12 w-12 items-center justify-center rounded-full border border-border bg-card text-muted-foreground shadow-lg transition-colors hover:text-primary hover:border-primary animate-in fade-in zoom-in duration-200"
+        >
+          <Lock className="h-5 w-5" />
+        </button>
+      )}
+
+
       {/* Diálogo de autenticação */}
       <Dialog open={authOpen} onOpenChange={setAuthOpen}>
         <DialogContent className="sm:max-w-md">
