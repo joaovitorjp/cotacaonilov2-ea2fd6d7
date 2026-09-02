@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import {
   buildForwardUrl,
+  consumePostLoginTarget,
   isAllowedOAuthForwardTarget,
   OAUTH_STATE_STORAGE_KEY,
   readOAuthParams,
