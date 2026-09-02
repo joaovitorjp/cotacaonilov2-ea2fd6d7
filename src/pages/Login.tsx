@@ -14,10 +14,10 @@ import {
 } from '@/components/ui/dialog';
 import { toast } from 'sonner';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import adrLogo from '@/assets/adr-logo.jpeg.asset.json';
-import shotCotacoesFinalizadas from '@/assets/tablet-cotacoes-finalizadas.png.asset.json';
-import shotPlanilha from '@/assets/shot-planilha.png.asset.json';
-import shotFornecedores from '@/assets/shot-fornecedores.png.asset.json';
+import adrLogo from '@/assets/adr-logo.jpeg';
+import shotCotacoesFinalizadas from '@/assets/tablet-cotacoes-finalizadas.png';
+import shotPlanilha from '@/assets/shot-planilha.png';
+import shotFornecedores from '@/assets/shot-fornecedores.png';
 import { Check, CreditCard, Crown, Infinity as InfinityIcon, ShieldCheck } from 'lucide-react';
 
 const PLAN_FEATURES = [
@@ -36,20 +36,20 @@ const DeviceMockups = () => (
         <span className="h-2.5 w-2.5 rounded-full bg-success/50" />
       </div>
       <div className="aspect-[16/10] bg-white">
-        <img src={shotPlanilha.url} alt="Planilha comparativa de preços" className="h-full w-full object-cover object-top" />
+        <img src={shotPlanilha} alt="Planilha comparativa de preços" className="h-full w-full object-cover object-top" />
       </div>
     </div>
     <div className="mx-auto h-3 w-[96%] rounded-b-xl bg-muted border border-border" />
     {/* Tablet */}
     <div className="absolute -left-2 bottom-2 w-[34%] rounded-2xl border border-border bg-card shadow-xl shadow-primary/10 overflow-hidden">
       <div className="aspect-[3/4] bg-white">
-        <img src={shotCotacoesFinalizadas.url} alt="Cotações finalizadas no COTARME" className="h-full w-full object-cover object-top" />
+        <img src={shotCotacoesFinalizadas} alt="Cotações finalizadas no COTARME" className="h-full w-full object-cover object-top" />
       </div>
     </div>
     {/* Phone */}
     <div className="absolute -right-1 bottom-6 w-[20%] rounded-2xl border border-border bg-card shadow-xl shadow-primary/10 overflow-hidden">
       <div className="aspect-[9/18] bg-white">
-        <img src={shotFornecedores.url} alt="Cadastro de fornecedores" className="h-full w-full object-cover object-top" />
+        <img src={shotFornecedores} alt="Cadastro de fornecedores" className="h-full w-full object-cover object-top" />
       </div>
     </div>
   </div>
@@ -166,7 +166,7 @@ const Login = () => {
       <header className="sticky top-0 z-40 w-full border-b border-border/60 bg-background/80 backdrop-blur-md">
         <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-4 sm:px-6">
           <div className="flex items-center gap-2.5">
-            <img src={adrLogo.url} alt="COTARME" className="h-9 w-9 rounded-lg object-contain bg-white p-0.5 shadow-sm border border-border/60" />
+            <img src={adrLogo} alt="COTARME" className="h-9 w-9 rounded-lg object-contain bg-white p-0.5 shadow-sm border border-border/60" />
             <span className="font-display text-xl font-bold tracking-tight">COTARME</span>
           </div>
           <nav className="hidden md:flex items-center gap-8 text-sm font-medium text-muted-foreground">
@@ -282,7 +282,7 @@ const Login = () => {
       <footer className="border-t border-border py-8">
         <div className="mx-auto flex max-w-6xl items-center justify-between px-4 sm:px-6 text-xs text-muted-foreground">
           <div className="flex items-center gap-2">
-            <img src={adrLogo.url} alt="COTARME" className="h-6 w-6 rounded object-contain" />
+            <img src={adrLogo} alt="COTARME" className="h-6 w-6 rounded object-contain" />
             <span className="font-display font-bold text-foreground">COTARME</span>
           </div>
           <span>© {new Date().getFullYear()} COTARME. Todos os direitos reservados.</span>

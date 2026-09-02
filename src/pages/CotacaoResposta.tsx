@@ -7,7 +7,7 @@ import { CheckCircle2, AlertCircle, Loader2, Package, Send, Search, FileDown } f
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { drawHeader, drawChips, drawSectionTitle, drawFooter, tableStyles, PDF_COLORS } from '@/lib/pdf-theme';
-import adrLogo from '@/assets/adr-logo.jpeg.asset.json';
+import adrLogo from '@/assets/adr-logo.jpeg';
 import { condicoesFromLink, parseEstados, ufNome, buildPrecosPayload, getPrecoUF, type CondicaoEstado } from '@/lib/estados';
 
 interface Produto {
@@ -370,7 +370,7 @@ const CotacaoResposta = () => {
       )}
       <header className="bg-primary text-primary-foreground px-4 sm:px-6 py-4 shrink-0 shadow-md">
         <div className="max-w-3xl mx-auto flex items-center gap-3">
-          <img src={adrLogo.url} alt="COTARME" className="h-11 w-11 rounded-lg bg-white object-contain p-0.5 shrink-0" />
+          <img src={adrLogo} alt="COTARME" className="h-11 w-11 rounded-lg bg-white object-contain p-0.5 shrink-0" />
           <div>
             <h1 className="text-lg sm:text-xl font-bold tracking-tight">COTARME</h1>
             <p className="text-primary-foreground/80 text-xs sm:text-sm mt-0.5">

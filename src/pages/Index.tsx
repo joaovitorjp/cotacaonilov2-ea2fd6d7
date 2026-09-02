@@ -12,7 +12,7 @@ import PerfilPanel from '@/components/PerfilPanel';
 import { useAvatar } from '@/hooks/useAvatar';
 import HeaderAvatarButton from '@/components/HeaderAvatarButton';
 import SubscriptionTimerBadge from '@/components/SubscriptionTimerBadge';
-import adrLogo from '@/assets/adr-logo.jpeg.asset.json';
+import adrLogo from '@/assets/adr-logo.jpeg';
 import { toast } from 'sonner';
 import * as XLSX from 'xlsx';
 import ExcelJS from 'exceljs';
@@ -581,7 +581,7 @@ const Index = () => {
         <header className="sticky top-0 z-30 w-full bg-white/80 backdrop-blur-md border-b border-slate-200 px-4 sm:px-8 py-4 flex items-center justify-between shrink-0">
           <div className="flex items-center gap-3">
             <button onClick={handleBackToDashboard} className="p-1 rounded-xl" title="COTARME">
-              <img src={adrLogo.url} alt="COTARME" className="h-9 w-9 rounded-lg object-contain" />
+              <img src={adrLogo} alt="COTARME" className="h-9 w-9 rounded-lg object-contain" />
             </button>
             <div>
               <h1 className="text-lg font-display font-bold text-slate-900 tracking-tight cursor-pointer" onClick={handleBackToDashboard}>

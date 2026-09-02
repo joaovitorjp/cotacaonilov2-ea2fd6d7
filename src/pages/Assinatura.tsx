@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
 import { Check, Crown, Infinity, LogOut } from 'lucide-react';
 import AetherFlowBackground from '@/components/ui/aether-flow-background';
-import adrLogo from '@/assets/adr-logo.jpeg.asset.json';
+import adrLogo from '@/assets/adr-logo.jpeg';
 
 const FEATURES = [
   'Cotações ilimitadas com fornecedores',
@@ -72,7 +72,7 @@ const Assinatura = () => {
       <div className="relative z-10 w-full max-w-lg mx-auto p-8 rounded-3xl bg-white/80 backdrop-blur-2xl border border-white/50 shadow-2xl shadow-primary/5">
         <div className="text-center mb-6">
           <div className="flex items-center justify-center gap-3">
-            <img src={adrLogo.url} alt="COTARME" className="h-12 w-12 rounded-xl object-contain shadow-sm" />
+            <img src={adrLogo} alt="COTARME" className="h-12 w-12 rounded-xl object-contain shadow-sm" />
             <h1 className="text-2xl font-display font-bold text-foreground tracking-tight">COTARME</h1>
           </div>
           <p className="text-sm text-muted-foreground mt-2">
