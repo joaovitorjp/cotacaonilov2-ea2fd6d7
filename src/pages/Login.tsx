@@ -1,7 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { lovable } from '@/integrations/lovable';
-import { buildExternalGoogleOAuthUrl, getAppOrigin, isLovableHosted } from '@/lib/oauth';
+import { buildExternalGoogleOAuthUrl, getAppOrigin, isLovableHosted, rememberPostLogin } from '@/lib/oauth';
+import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -64,8 +65,12 @@ const Login = () => {
   const [authOpen, setAuthOpen] = useState(false);
   const [isSignUp, setIsSignUp] = useState(false);
   const [planoEscolhido, setPlanoEscolhido] = useState<'trial' | 'mensal' | 'vitalicio'>('trial');
+  const [recoverOpen, setRecoverOpen] = useState(false);
+  const [recoverEmail, setRecoverEmail] = useState('');
+  const [recovering, setRecovering] = useState(false);
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
+  const { user, loading: authLoading } = useAuth();
 
   useEffect(() => {
     const oauthError = searchParams.get('oauth_error');
@@ -84,6 +89,14 @@ const Login = () => {
     navigate(safeNext || '/');
   };
 
+  // Usuário já autenticado não deve ver a landing de login
+  useEffect(() => {
+    if (!authLoading && user) {
+      navigate(safeNext || '/', { replace: true });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [authLoading, user, safeNext]);
+
   const openAuth = (signUp: boolean, plano: 'trial' | 'mensal' | 'vitalicio' = 'trial') => {
     setIsSignUp(signUp);
     setPlanoEscolhido(plano);
@@ -100,7 +113,14 @@ const Login = () => {
     const { error } = await supabase.auth.signInWithPassword({ email, password });
     setLoading(false);
     if (error) {
-      toast.error('Credenciais inválidas.');
+      const msg = (error.message || '').toLowerCase();
+      if (msg.includes('not confirmed')) {
+        toast.error('Confirme seu email antes de entrar. Verifique sua caixa de entrada.');
+      } else if (msg.includes('invalid login')) {
+        toast.error('Email ou senha incorretos.');
+      } else {
+        toast.error(error.message || 'Não foi possível entrar.');
+      }
     } else {
       goNext();
     }
@@ -117,36 +137,52 @@ const Login = () => {
       return;
     }
     setLoading(true);
-    const { error } = await supabase.auth.signUp({
+    const { data, error } = await supabase.auth.signUp({
       email,
       password,
       options: {
         data: { nome },
-        emailRedirectTo: getAppOrigin() + (safeNext || ''),
+        emailRedirectTo: `${getAppOrigin()}/`,
       },
     });
     setLoading(false);
     if (error) {
-      toast.error(error.message);
-    } else {
-      toast.success(
-        planoEscolhido === 'trial'
-          ? 'Teste de 7 dias criado! Confirme seu email para liberar o acesso.'
-          : 'Conta criada! Confirme seu email e entre para concluir o pagamento.'
-      );
-      setIsSignUp(false);
+      const msg = (error.message || '').toLowerCase();
+      if (msg.includes('already registered') || msg.includes('already been registered') || msg.includes('user already')) {
+        toast.error('Este email já possui conta. Faça login.');
+        setIsSignUp(false);
+      } else {
+        toast.error(error.message);
+      }
+      return;
     }
+
+    // Auto-confirmação ativa: já existe sessão, segue direto
+    if (data.session) {
+      toast.success('Conta criada com sucesso!');
+      goNext();
+      return;
+    }
+
+    toast.success(
+      planoEscolhido === 'trial'
+        ? 'Teste de 7 dias criado! Confirme seu email para liberar o acesso.'
+        : 'Conta criada! Confirme seu email e entre para concluir o pagamento.'
+    );
+    setPassword('');
+    setIsSignUp(false);
   };
 
   const handleGoogle = async () => {
     setGoogleLoading(true);
+    rememberPostLogin(safeNext, planoEscolhido);
     try {
       if (!isLovableHosted()) {
         window.location.assign(buildExternalGoogleOAuthUrl());
         return;
       }
       const result = await lovable.auth.signInWithOAuth('google', {
-        redirect_uri: getAppOrigin() + (safeNext || ''),
+        redirect_uri: `${getAppOrigin()}/auth/callback`,
       });
       if (result.error) {
         const msg = (result.error.message || '').toLowerCase();
@@ -168,6 +204,26 @@ const Login = () => {
       toast.error(`Erro inesperado: ${err?.message || 'tente novamente'}`);
       setGoogleLoading(false);
     }
+  };
+
+  const handleRecover = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const target = recoverEmail.trim();
+    if (!target) {
+      toast.error('Informe seu email.');
+      return;
+    }
+    setRecovering(true);
+    const { error } = await supabase.auth.resetPasswordForEmail(target, {
+      redirectTo: `${getAppOrigin()}/reset-password`,
+    });
+    setRecovering(false);
+    if (error) {
+      toast.error(error.message || 'Não foi possível enviar o email.');
+      return;
+    }
+    toast.success('Enviamos um link de redefinição para seu email.');
+    setRecoverOpen(false);
   };
 
   const scrollTo = (id: string) => document.getElementById(id)?.scrollIntoView({ behavior: 'smooth' });
@@ -438,7 +494,20 @@ const Login = () => {
             )}
           </Button>
 
-          <div className="text-center">
+          <div className="text-center space-y-2">
+            {!isSignUp && (
+              <button
+                type="button"
+                className="block w-full text-sm text-muted-foreground hover:text-foreground underline transition-colors"
+                onClick={() => {
+                  setRecoverEmail(email);
+                  setAuthOpen(false);
+                  setRecoverOpen(true);
+                }}
+              >
+                Esqueci minha senha
+              </button>
+            )}
             <button
               type="button"
               className="text-sm text-muted-foreground hover:text-foreground underline transition-colors"
@@ -447,6 +516,41 @@ const Login = () => {
               {isSignUp ? 'Já tem acesso? Entrar' : 'Criar conta e testar 7 dias grátis'}
             </button>
           </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Recuperação de senha */}
+      <Dialog open={recoverOpen} onOpenChange={setRecoverOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="font-display text-2xl">Recuperar senha</DialogTitle>
+            <DialogDescription>
+              Informe seu email e enviaremos um link para criar uma nova senha.
+            </DialogDescription>
+          </DialogHeader>
+          <form onSubmit={handleRecover} className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="recover-email">Email</Label>
+              <Input
+                id="recover-email"
+                type="email"
+                autoComplete="email"
+                value={recoverEmail}
+                onChange={e => setRecoverEmail(e.target.value)}
+                placeholder="voce@empresa.com.br"
+              />
+            </div>
+            <Button type="submit" className="w-full" disabled={recovering}>
+              {recovering ? 'Enviando...' : 'Enviar link de redefinição'}
+            </Button>
+            <button
+              type="button"
+              className="w-full text-sm text-muted-foreground hover:text-foreground underline transition-colors"
+              onClick={() => { setRecoverOpen(false); setAuthOpen(true); }}
+            >
+              Voltar ao login
+            </button>
+          </form>
         </DialogContent>
       </Dialog>
     </div>

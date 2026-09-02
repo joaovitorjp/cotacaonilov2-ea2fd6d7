@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import {
   buildForwardUrl,
+  consumePostLoginTarget,
   isAllowedOAuthForwardTarget,
   OAUTH_STATE_STORAGE_KEY,
   readOAuthParams,
@@ -56,12 +57,15 @@ const OAuthCallback = () => {
           return;
         }
 
-        navigate('/', { replace: true });
+        navigate(consumePostLoginTarget(), { replace: true });
         return;
       }
 
       const { data } = await supabase.auth.getSession();
-      navigate(data.session ? '/' : '/login?oauth_error=Login%20nao%20foi%20concluido', { replace: true });
+      navigate(
+        data.session ? consumePostLoginTarget() : '/login?oauth_error=Login%20nao%20foi%20concluido',
+        { replace: true }
+      );
     };
 
     void finishLogin();

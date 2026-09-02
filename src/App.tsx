@@ -12,6 +12,7 @@ import OAuthCallback from "./pages/OAuthCallback.tsx";
 import OAuthInitiate from "./pages/OAuthInitiate.tsx";
 import OAuthConsent from "./pages/OAuthConsent.tsx";
 import Perfil from "./pages/Perfil.tsx";
+import ResetPassword from "./pages/ResetPassword.tsx";
 import Assinatura from "./pages/Assinatura.tsx";
 import SubscriptionGate from "./components/SubscriptionGate.tsx";
 import NotFound from "./pages/NotFound.tsx";
@@ -27,6 +28,7 @@ const App = () => (
         <AuthProvider>
           <Routes>
             <Route path="/login" element={<Login />} />
+            <Route path="/reset-password" element={<ResetPassword />} />
             <Route path="/~oauth/initiate" element={<OAuthInitiate />} />
             <Route path="/auth/callback" element={<OAuthCallback />} />
             <Route path="/.lovable/oauth/consent" element={<OAuthConsent />} />
