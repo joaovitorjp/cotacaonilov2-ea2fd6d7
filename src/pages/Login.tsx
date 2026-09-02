@@ -82,13 +82,7 @@ const Login = () => {
 
   const rawNext = searchParams.get('next') || '';
   const safeNext = rawNext.startsWith('/') && !rawNext.startsWith('//') ? rawNext : '';
-  const goNext = () => {
-    if (planoEscolhido !== 'trial') {
-      navigate(`/assinatura?plano=${planoEscolhido}`);
-      return;
-    }
-    navigate(safeNext || '/');
-  };
+  const goNext = () => navigate(safeNext || '/');
 
   // Usuário já autenticado não deve ver a landing de login
   useEffect(() => {
@@ -98,11 +92,23 @@ const Login = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [authLoading, user, safeNext]);
 
-  const openAuth = (signUp: boolean, plano: 'trial' | 'mensal' | 'vitalicio' = 'trial') => {
+  // Atalho secreto Alt + O revela o acesso administrativo
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.altKey && (e.key === 'o' || e.key === 'O' || e.code === 'KeyO')) {
+        e.preventDefault();
+        setAdminVisivel((v) => !v);
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, []);
+
+  const openAuth = (signUp: boolean) => {
     setIsSignUp(signUp);
-    setPlanoEscolhido(plano);
     setAuthOpen(true);
   };
+
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
