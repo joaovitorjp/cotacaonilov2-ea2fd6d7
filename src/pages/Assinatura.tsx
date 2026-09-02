@@ -1,65 +1,64 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useAssinatura } from '@/hooks/useAssinatura';
 import { getAppOrigin } from '@/lib/oauth';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
-import { Check, Crown, Infinity, LogOut } from 'lucide-react';
+import { Crown, Infinity, LogOut } from 'lucide-react';
 import AetherFlowBackground from '@/components/ui/aether-flow-background';
 import adrLogo from '@/assets/adr-logo.jpeg';
+import { StripeEmbeddedCheckout } from '@/components/StripeEmbeddedCheckout';
+import { PaymentTestModeBanner } from '@/components/PaymentTestModeBanner';
 
-const FEATURES = [
-  'Cotações ilimitadas com fornecedores',
-  'Links de resposta para os estados que você cadastrar',
-  'Análise comparativa de preços e exportação em PDF/Excel',
-  'Suporte prioritário',
-];
+const PRICE_IDS: Record<'mensal' | 'vitalicio', string> = {
+  mensal: 'cotarme_mensal',
+  vitalicio: 'cotarme_vitalicio',
+};
 
 const Assinatura = () => {
   const { user, signOut } = useAuth();
   const { assinatura, trialDaysLeft, hasAccess, refresh } = useAssinatura();
-  const [loading, setLoading] = useState(false);
   const [searchParams] = useSearchParams();
   const planoParam = searchParams.get('plano');
+  const checkoutParam = searchParams.get('checkout');
   const [plano, setPlano] = useState<'mensal' | 'vitalicio'>(planoParam === 'vitalicio' ? 'vitalicio' : 'mensal');
+  const [checkoutAberto, setCheckoutAberto] = useState(false);
   const autoCheckout = useRef(false);
-
   const [syncing, setSyncing] = useState(false);
-
-  const handleSubscribe = async (plano: 'mensal' | 'vitalicio' = 'mensal') => {
-    setLoading(true);
-    try {
-      const { data, error } = await supabase.functions.invoke('mp-checkout', {
-        body: { origin: getAppOrigin(), plano },
-      });
-      if (error || !data?.init_point) {
-        throw new Error(data?.error || error?.message || 'Falha ao iniciar checkout');
-      }
-      window.location.assign(data.init_point);
-    } catch (err: any) {
-      toast.error(`Erro ao iniciar pagamento: ${err?.message || 'tente novamente'}`);
-      setLoading(false);
-    }
-  };
 
   // Usuário chegou do cadastro com plano pago escolhido: abre o checkout direto
   useEffect(() => {
     if (autoCheckout.current || !planoParam || !user) return;
     if (assinatura?.status === 'active' || assinatura?.status === 'lifetime') return;
     autoCheckout.current = true;
-    void handleSubscribe(planoParam === 'vitalicio' ? 'vitalicio' : 'mensal');
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    setCheckoutAberto(true);
   }, [user, assinatura, planoParam]);
+
+  // Retorno do checkout: confirma o pagamento
+  useEffect(() => {
+    if (checkoutParam !== 'success') return;
+    let tentativas = 0;
+    const timer = setInterval(async () => {
+      tentativas += 1;
+      const atual = await refresh();
+      if (atual?.status === 'active' || atual?.status === 'lifetime') {
+        clearInterval(timer);
+        toast.success('Pagamento confirmado! Acesso liberado.');
+        setTimeout(() => (window.location.href = '/'), 800);
+      } else if (tentativas >= 10) {
+        clearInterval(timer);
+      }
+    }, 2000);
+    return () => clearInterval(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [checkoutParam]);
 
   const handleSync = async () => {
     setSyncing(true);
     try {
-      const { data, error } = await supabase.functions.invoke('mp-status');
-      if (error) throw new Error(error.message);
-      await refresh();
-      if (data?.status === 'active' || data?.status === 'lifetime') {
+      const atual = await refresh();
+      if (atual?.status === 'active' || atual?.status === 'lifetime') {
         toast.success('Pagamento confirmado! Acesso liberado.');
         setTimeout(() => (window.location.href = '/'), 800);
       } else {
@@ -79,6 +78,7 @@ const Assinatura = () => {
     past_due: 'Pagamento pendente',
     canceled: 'Assinatura cancelada',
   };
+
 
   return (
     <div className="relative flex items-center justify-center min-h-screen overflow-hidden bg-background p-4">
