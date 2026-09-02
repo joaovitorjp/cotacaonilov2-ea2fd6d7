@@ -165,11 +165,7 @@ const Login = () => {
       return;
     }
 
-    toast.success(
-      planoEscolhido === 'trial'
-        ? 'Teste de 7 dias criado! Confirme seu email para liberar o acesso.'
-        : 'Conta criada! Confirme seu email e entre para concluir o pagamento.'
-    );
+    toast.success('Teste de 7 dias criado! Confirme seu email para liberar o acesso.');
     setPassword('');
     setIsSignUp(false);
   };
