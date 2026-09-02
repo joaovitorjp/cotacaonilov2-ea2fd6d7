@@ -304,22 +304,25 @@ const Login = () => {
       {/* Planos */}
       <section id="planos" className="bg-card pb-24 pt-4">
         <div className="mx-auto max-w-4xl px-4 sm:px-6">
-          <h2 className="font-display text-2xl sm:text-3xl font-bold tracking-tight">Planos</h2>
+          <h2 className="font-display text-2xl sm:text-3xl font-bold tracking-tight">Chaves de acesso</h2>
           <p className="mt-2 text-sm text-muted-foreground">
-            Todas as funções, sem limites. Comece testando gratuitamente e escolha depois.
+            O acesso ao COTARME é liberado por uma chave única de 64 caracteres (SHA-256).
+            Fale com o suporte, escolha sua chave e ative na hora dentro do sistema.
           </p>
           <div className="mt-8 grid gap-5 sm:grid-cols-2">
             <div className="rounded-3xl border border-border bg-background p-7">
               <div className="flex items-center gap-2 text-primary">
                 <Crown className="h-5 w-5" />
-                <span className="text-sm font-semibold uppercase tracking-wide">Assinatura mensal</span>
+                <span className="text-sm font-semibold uppercase tracking-wide">Chave mensal</span>
               </div>
               <p className="mt-4 text-4xl font-bold">
-                R$ 49,99
+                {PRECOS.mensal}
                 <span className="text-base font-normal text-muted-foreground">/mês</span>
               </p>
-              <p className="mt-1 text-xs text-muted-foreground">Cancele quando quiser</p>
-              <Button className="mt-6 w-full" onClick={() => openAuth(true, 'mensal')}>Assinar agora</Button>
+              <p className="mt-1 text-xs text-muted-foreground">Renove a chave a cada 30 dias</p>
+              <a href={whatsappLink('Olá! Quero solicitar a chave MENSAL do COTARME (R$ 49,99).')} target="_blank" rel="noopener noreferrer">
+                <Button className="mt-6 w-full gap-2"><MessageCircle className="h-4 w-4" /> Solicitar chave</Button>
+              </a>
             </div>
             <div className="relative rounded-3xl border-2 border-primary bg-background p-7">
               <span className="absolute -top-3 right-6 rounded-full bg-primary px-3 py-0.5 text-[11px] font-semibold uppercase tracking-wide text-primary-foreground">
@@ -327,22 +330,35 @@ const Login = () => {
               </span>
               <div className="flex items-center gap-2 text-primary">
                 <InfinityIcon className="h-5 w-5" />
-                <span className="text-sm font-semibold uppercase tracking-wide">Licença vitalícia</span>
+                <span className="text-sm font-semibold uppercase tracking-wide">Chave vitalícia</span>
               </div>
               <p className="mt-4 text-4xl font-bold">
-                R$ 159,90
+                {PRECOS.vitalicio}
                 <span className="text-base font-normal text-muted-foreground"> à vista</span>
               </p>
-              <p className="mt-1 text-xs text-muted-foreground">Pagamento único por usuário</p>
-              <p className="mt-2 flex items-center gap-1.5 text-xs text-muted-foreground">
-                <CreditCard className="h-3.5 w-3.5" />
-                Cartão, Pix ou boleto via Mercado Pago
-              </p>
-              <Button className="mt-6 w-full" onClick={() => openAuth(true, 'vitalicio')}>Comprar acesso vitalício</Button>
+              <p className="mt-1 text-xs text-muted-foreground">Pagamento único — chave sem validade</p>
+              <a href={whatsappLink('Olá! Quero solicitar a chave VITALÍCIA do COTARME (R$ 159,99).')} target="_blank" rel="noopener noreferrer">
+                <Button className="mt-6 w-full gap-2"><MessageCircle className="h-4 w-4" /> Solicitar chave</Button>
+              </a>
             </div>
+          </div>
+
+          <div className="mt-8 flex flex-col items-center gap-3 rounded-3xl border border-border bg-background p-7 text-center">
+            <span className="rounded-xl bg-primary/10 p-2 text-primary"><KeyRound className="h-5 w-5" /></span>
+            <h3 className="font-display text-lg font-bold">Como conseguir sua chave</h3>
+            <p className="max-w-md text-sm text-muted-foreground">
+              Chame o suporte no WhatsApp {SUPORTE_WHATSAPP_LABEL}, escolha mensal ou vitalícia, faça o pagamento
+              e receba sua chave na hora. Depois é só criar sua conta e colar a chave na tela de ativação.
+            </p>
+            <a href={whatsappLink('Olá! Quero informações sobre as chaves de acesso do COTARME.')} target="_blank" rel="noopener noreferrer">
+              <Button size="lg" className="gap-2">
+                <MessageCircle className="h-4 w-4" /> Falar com o suporte no WhatsApp
+              </Button>
+            </a>
           </div>
         </div>
       </section>
+
 
       {/* Rodapé */}
       <footer className="border-t border-border py-8">
