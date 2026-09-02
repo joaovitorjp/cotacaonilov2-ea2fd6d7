@@ -105,7 +105,7 @@ Deno.serve(async (req) => {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        reason: 'COTARME - Assinatura Mensal',
+        reason: 'Assinatura COTARME',
         external_reference: user.id,
         payer_email: user.email,
         notification_url: notificationUrl,
@@ -118,6 +118,7 @@ Deno.serve(async (req) => {
         back_url: `${origin}/assinatura`,
         status: 'pending',
       }),
+
     })
 
     const mpData = await mpRes.json()
