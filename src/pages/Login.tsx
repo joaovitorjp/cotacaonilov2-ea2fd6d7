@@ -265,7 +265,7 @@ const Login = () => {
                 <span className="text-base font-normal text-muted-foreground">/mês</span>
               </p>
               <p className="mt-1 text-xs text-muted-foreground">Cancele quando quiser</p>
-              <Button className="mt-6 w-full" onClick={() => openAuth(true)}>Começar teste de 7 dias</Button>
+              <Button className="mt-6 w-full" onClick={() => openAuth(true, 'mensal')}>Assinar agora</Button>
             </div>
             <div className="relative rounded-3xl border-2 border-primary bg-background p-7">
               <span className="absolute -top-3 right-6 rounded-full bg-primary px-3 py-0.5 text-[11px] font-semibold uppercase tracking-wide text-primary-foreground">
@@ -284,7 +284,7 @@ const Login = () => {
                 <CreditCard className="h-3.5 w-3.5" />
                 Cartão, Pix ou boleto via Mercado Pago
               </p>
-              <Button className="mt-6 w-full" variant="outline" onClick={() => openAuth(true)}>Começar teste de 7 dias</Button>
+              <Button className="mt-6 w-full" onClick={() => openAuth(true, 'vitalicio')}>Comprar acesso vitalício</Button>
             </div>
           </div>
         </div>
