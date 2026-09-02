@@ -36,8 +36,12 @@ const fmt = (v: string | null) => (v ? new Date(v).toLocaleDateString('pt-BR') :
 
 const AdminChaves = () => {
   const { isAdmin, loading: roleLoading } = useUserRole();
-  const { user, signOut } = useAuth();
+  const { user, loading: authLoading, signOut } = useAuth();
   const navigate = useNavigate();
+
+  const [loginEmail, setLoginEmail] = useState('');
+  const [loginSenha, setLoginSenha] = useState('');
+  const [entrando, setEntrando] = useState(false);
 
   const [chaves, setChaves] = useState<Chave[]>([]);
   const [loading, setLoading] = useState(true);
@@ -65,13 +69,25 @@ const AdminChaves = () => {
   }, []);
 
   useEffect(() => {
-    if (roleLoading) return;
-    if (!isAdmin) {
-      navigate('/', { replace: true });
+    if (authLoading || roleLoading || !user || !isAdmin) return;
+    void carregar();
+  }, [authLoading, roleLoading, user, isAdmin, carregar]);
+
+  const entrar = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setEntrando(true);
+    const { error } = await supabase.auth.signInWithPassword({
+      email: loginEmail.trim(),
+      password: loginSenha,
+    });
+    setEntrando(false);
+    if (error) {
+      toast.error('E-mail ou senha inválidos.');
       return;
     }
-    void carregar();
-  }, [roleLoading, isAdmin, navigate, carregar]);
+    setLoginSenha('');
+  };
+
 
   const criar = async (e: React.FormEvent) => {
     e.preventDefault();
