@@ -1,6 +1,8 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+import { markUserSignOut, saveSessionBackup, tryRecoverSession } from '@/lib/sessionResilience';
 import type { User, Session } from '@supabase/supabase-js';
+
 
 interface AuthContextType {
   user: User | null;
