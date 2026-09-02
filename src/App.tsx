@@ -13,6 +13,7 @@ import OAuthConsent from "./pages/OAuthConsent.tsx";
 import Perfil from "./pages/Perfil.tsx";
 import ResetPassword from "./pages/ResetPassword.tsx";
 import Assinatura from "./pages/Assinatura.tsx";
+import AdminChaves from "./pages/AdminChaves.tsx";
 import SubscriptionGate from "./components/SubscriptionGate.tsx";
 import NotFound from "./pages/NotFound.tsx";
 
@@ -50,6 +51,15 @@ const App = () => (
               }
             />
             <Route
+              path="/admin"
+              element={
+                <ProtectedRoute>
+                  <AdminChaves />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+
               path="/perfil"
               element={
                 <ProtectedRoute>

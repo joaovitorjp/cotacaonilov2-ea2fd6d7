@@ -15,6 +15,13 @@
       "when": 1788295736380,
       "tag": "0001_estados_personalizados",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1788369592401,
+      "tag": "0002_create_access_keys",
+      "breakpoints": true
     }
   ]
 }

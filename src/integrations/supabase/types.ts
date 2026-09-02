@@ -14,6 +14,54 @@ export type Database = {
   }
   public: {
     Tables: {
+      access_keys: {
+        Row: {
+          chave: string
+          cliente_contato: string | null
+          cliente_nome: string | null
+          created_at: string
+          created_by: string | null
+          expires_at: string | null
+          id: string
+          observacao: string | null
+          redeemed_at: string | null
+          status: string
+          tipo: string
+          updated_at: string
+          user_id: string | null
+        }
+        Insert: {
+          chave: string
+          cliente_contato?: string | null
+          cliente_nome?: string | null
+          created_at?: string
+          created_by?: string | null
+          expires_at?: string | null
+          id?: string
+          observacao?: string | null
+          redeemed_at?: string | null
+          status?: string
+          tipo: string
+          updated_at?: string
+          user_id?: string | null
+        }
+        Update: {
+          chave?: string
+          cliente_contato?: string | null
+          cliente_nome?: string | null
+          created_at?: string
+          created_by?: string | null
+          expires_at?: string | null
+          id?: string
+          observacao?: string | null
+          redeemed_at?: string | null
+          status?: string
+          tipo?: string
+          updated_at?: string
+          user_id?: string | null
+        }
+        Relationships: []
+      }
       assinaturas: {
         Row: {
           created_at: string
@@ -861,6 +909,7 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      admin_cancelar_chave: { Args: { _id: string }; Returns: undefined }
       current_empresa_id: { Args: never; Returns: string }
       default_empresa_id: { Args: never; Returns: string }
       enviar_resposta_cotacao: {
@@ -883,6 +932,7 @@ export type Database = {
           user_id: string
         }[]
       }
+      resgatar_chave: { Args: { _chave: string }; Returns: Json }
     }
     Enums: {
       app_role: "admin" | "user"

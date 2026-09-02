@@ -19,7 +19,8 @@ import adrLogo from '@/assets/adr-logo.jpeg';
 import shotCotacoesFinalizadas from '@/assets/tablet-cotacoes-finalizadas.png';
 import shotPlanilha from '@/assets/shot-planilha.png';
 import shotFornecedores from '@/assets/shot-fornecedores.png';
-import { Check, CreditCard, Crown, Infinity as InfinityIcon, ShieldCheck } from 'lucide-react';
+import { Check, Crown, Infinity as InfinityIcon, KeyRound, Lock, MessageCircle, ShieldCheck } from 'lucide-react';
+import { PRECOS, SUPORTE_WHATSAPP_LABEL, whatsappLink } from '@/lib/chaves';
 
 const PLAN_FEATURES = [
   'Cotações ilimitadas com fornecedores',
@@ -64,7 +65,7 @@ const Login = () => {
   const [googleLoading, setGoogleLoading] = useState(false);
   const [authOpen, setAuthOpen] = useState(false);
   const [isSignUp, setIsSignUp] = useState(false);
-  const [planoEscolhido, setPlanoEscolhido] = useState<'trial' | 'mensal' | 'vitalicio'>('trial');
+  const [adminVisivel, setAdminVisivel] = useState(false);
   const [recoverOpen, setRecoverOpen] = useState(false);
   const [recoverEmail, setRecoverEmail] = useState('');
   const [recovering, setRecovering] = useState(false);
@@ -81,13 +82,7 @@ const Login = () => {
 
   const rawNext = searchParams.get('next') || '';
   const safeNext = rawNext.startsWith('/') && !rawNext.startsWith('//') ? rawNext : '';
-  const goNext = () => {
-    if (planoEscolhido !== 'trial') {
-      navigate(`/assinatura?plano=${planoEscolhido}`);
-      return;
-    }
-    navigate(safeNext || '/');
-  };
+  const goNext = () => navigate(safeNext || '/');
 
   // Usuário já autenticado não deve ver a landing de login
   useEffect(() => {
@@ -97,11 +92,23 @@ const Login = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [authLoading, user, safeNext]);
 
-  const openAuth = (signUp: boolean, plano: 'trial' | 'mensal' | 'vitalicio' = 'trial') => {
+  // Atalho secreto Alt + O revela o acesso administrativo
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.altKey && (e.key === 'o' || e.key === 'O' || e.code === 'KeyO')) {
+        e.preventDefault();
+        setAdminVisivel((v) => !v);
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, []);
+
+  const openAuth = (signUp: boolean) => {
     setIsSignUp(signUp);
-    setPlanoEscolhido(plano);
     setAuthOpen(true);
   };
+
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -164,18 +171,14 @@ const Login = () => {
       return;
     }
 
-    toast.success(
-      planoEscolhido === 'trial'
-        ? 'Teste de 7 dias criado! Confirme seu email para liberar o acesso.'
-        : 'Conta criada! Confirme seu email e entre para concluir o pagamento.'
-    );
+    toast.success('Teste de 7 dias criado! Confirme seu email para liberar o acesso.');
     setPassword('');
     setIsSignUp(false);
   };
 
   const handleGoogle = async () => {
     setGoogleLoading(true);
-    rememberPostLogin(safeNext, planoEscolhido);
+    rememberPostLogin(safeNext, 'trial');
     try {
       const result = await lovable.auth.signInWithOAuth('google', {
         redirect_uri: `${getAppOrigin()}/auth/callback`,
@@ -303,22 +306,25 @@ const Login = () => {
       {/* Planos */}
       <section id="planos" className="bg-card pb-24 pt-4">
         <div className="mx-auto max-w-4xl px-4 sm:px-6">
-          <h2 className="font-display text-2xl sm:text-3xl font-bold tracking-tight">Planos</h2>
+          <h2 className="font-display text-2xl sm:text-3xl font-bold tracking-tight">Chaves de acesso</h2>
           <p className="mt-2 text-sm text-muted-foreground">
-            Todas as funções, sem limites. Comece testando gratuitamente e escolha depois.
+            O acesso ao COTARME é liberado por uma chave única de 64 caracteres (SHA-256).
+            Fale com o suporte, escolha sua chave e ative na hora dentro do sistema.
           </p>
           <div className="mt-8 grid gap-5 sm:grid-cols-2">
             <div className="rounded-3xl border border-border bg-background p-7">
               <div className="flex items-center gap-2 text-primary">
                 <Crown className="h-5 w-5" />
-                <span className="text-sm font-semibold uppercase tracking-wide">Assinatura mensal</span>
+                <span className="text-sm font-semibold uppercase tracking-wide">Chave mensal</span>
               </div>
               <p className="mt-4 text-4xl font-bold">
-                R$ 49,99
+                {PRECOS.mensal}
                 <span className="text-base font-normal text-muted-foreground">/mês</span>
               </p>
-              <p className="mt-1 text-xs text-muted-foreground">Cancele quando quiser</p>
-              <Button className="mt-6 w-full" onClick={() => openAuth(true, 'mensal')}>Assinar agora</Button>
+              <p className="mt-1 text-xs text-muted-foreground">Renove a chave a cada 30 dias</p>
+              <a href={whatsappLink('Olá! Quero solicitar a chave MENSAL do COTARME (R$ 49,99).')} target="_blank" rel="noopener noreferrer">
+                <Button className="mt-6 w-full gap-2"><MessageCircle className="h-4 w-4" /> Solicitar chave</Button>
+              </a>
             </div>
             <div className="relative rounded-3xl border-2 border-primary bg-background p-7">
               <span className="absolute -top-3 right-6 rounded-full bg-primary px-3 py-0.5 text-[11px] font-semibold uppercase tracking-wide text-primary-foreground">
@@ -326,22 +332,35 @@ const Login = () => {
               </span>
               <div className="flex items-center gap-2 text-primary">
                 <InfinityIcon className="h-5 w-5" />
-                <span className="text-sm font-semibold uppercase tracking-wide">Licença vitalícia</span>
+                <span className="text-sm font-semibold uppercase tracking-wide">Chave vitalícia</span>
               </div>
               <p className="mt-4 text-4xl font-bold">
-                R$ 159,90
+                {PRECOS.vitalicio}
                 <span className="text-base font-normal text-muted-foreground"> à vista</span>
               </p>
-              <p className="mt-1 text-xs text-muted-foreground">Pagamento único por usuário</p>
-              <p className="mt-2 flex items-center gap-1.5 text-xs text-muted-foreground">
-                <CreditCard className="h-3.5 w-3.5" />
-                Cartão, Pix ou boleto via Mercado Pago
-              </p>
-              <Button className="mt-6 w-full" onClick={() => openAuth(true, 'vitalicio')}>Comprar acesso vitalício</Button>
+              <p className="mt-1 text-xs text-muted-foreground">Pagamento único — chave sem validade</p>
+              <a href={whatsappLink('Olá! Quero solicitar a chave VITALÍCIA do COTARME (R$ 159,99).')} target="_blank" rel="noopener noreferrer">
+                <Button className="mt-6 w-full gap-2"><MessageCircle className="h-4 w-4" /> Solicitar chave</Button>
+              </a>
             </div>
+          </div>
+
+          <div className="mt-8 flex flex-col items-center gap-3 rounded-3xl border border-border bg-background p-7 text-center">
+            <span className="rounded-xl bg-primary/10 p-2 text-primary"><KeyRound className="h-5 w-5" /></span>
+            <h3 className="font-display text-lg font-bold">Como conseguir sua chave</h3>
+            <p className="max-w-md text-sm text-muted-foreground">
+              Chame o suporte no WhatsApp {SUPORTE_WHATSAPP_LABEL}, escolha mensal ou vitalícia, faça o pagamento
+              e receba sua chave na hora. Depois é só criar sua conta e colar a chave na tela de ativação.
+            </p>
+            <a href={whatsappLink('Olá! Quero informações sobre as chaves de acesso do COTARME.')} target="_blank" rel="noopener noreferrer">
+              <Button size="lg" className="gap-2">
+                <MessageCircle className="h-4 w-4" /> Falar com o suporte no WhatsApp
+              </Button>
+            </a>
           </div>
         </div>
       </section>
+
 
       {/* Rodapé */}
       <footer className="border-t border-border py-8">
@@ -354,6 +373,20 @@ const Login = () => {
         </div>
       </footer>
 
+      {/* Acesso administrativo — oculto até pressionar Alt + O */}
+      {adminVisivel && (
+        <button
+          type="button"
+          onClick={() => navigate('/admin')}
+          title="Painel administrativo"
+          aria-label="Painel administrativo"
+          className="fixed bottom-5 right-5 z-50 flex h-12 w-12 items-center justify-center rounded-full border border-border bg-card text-muted-foreground shadow-lg transition-colors hover:text-primary hover:border-primary animate-in fade-in zoom-in duration-200"
+        >
+          <Lock className="h-5 w-5" />
+        </button>
+      )}
+
+
       {/* Diálogo de autenticação */}
       <Dialog open={authOpen} onOpenChange={setAuthOpen}>
         <DialogContent className="sm:max-w-md">
@@ -363,50 +396,18 @@ const Login = () => {
             </DialogTitle>
             <DialogDescription>
               {isSignUp
-                ? planoEscolhido === 'trial'
-                  ? 'Cadastre-se e inicie o teste de 7 dias grátis'
-                  : 'Cadastre-se e conclua o pagamento para liberar o acesso'
+                ? 'Cadastre-se e inicie o teste de 7 dias grátis — depois ative sua chave'
                 : 'Acesse sua conta para gerenciar suas cotações'}
             </DialogDescription>
           </DialogHeader>
 
           {isSignUp && (
-            <div className="space-y-2">
-              <Label>Como você quer começar?</Label>
-              <div className="grid gap-2">
-                <button
-                  type="button"
-                  onClick={() => setPlanoEscolhido('trial')}
-                  className={`text-left rounded-xl border px-4 py-3 transition-colors ${
-                    planoEscolhido === 'trial' ? 'border-primary bg-primary/5 ring-1 ring-primary/30' : 'border-border hover:border-primary/40'
-                  }`}
-                >
-                  <span className="text-sm font-semibold">Teste de 7 dias grátis</span>
-                  <span className="block text-xs text-muted-foreground">Sem cobrança — escolha um plano ao final</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setPlanoEscolhido('mensal')}
-                  className={`text-left rounded-xl border px-4 py-3 transition-colors ${
-                    planoEscolhido === 'mensal' ? 'border-primary bg-primary/5 ring-1 ring-primary/30' : 'border-border hover:border-primary/40'
-                  }`}
-                >
-                  <span className="text-sm font-semibold">Assinatura mensal — R$ 49,99/mês</span>
-                  <span className="block text-xs text-muted-foreground">Pague agora e comece a usar imediatamente</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setPlanoEscolhido('vitalicio')}
-                  className={`text-left rounded-xl border px-4 py-3 transition-colors ${
-                    planoEscolhido === 'vitalicio' ? 'border-primary bg-primary/5 ring-1 ring-primary/30' : 'border-border hover:border-primary/40'
-                  }`}
-                >
-                  <span className="text-sm font-semibold">Licença vitalícia — R$ 159,90 à vista</span>
-                  <span className="block text-xs text-muted-foreground">Pagamento único, acesso para sempre</span>
-                </button>
-              </div>
+            <div className="rounded-xl border border-border bg-muted/40 px-4 py-3 text-xs text-muted-foreground">
+              Após o teste, o acesso continua com uma chave: mensal {PRECOS.mensal} ou vitalícia {PRECOS.vitalicio}.
+              Solicite a sua no WhatsApp {SUPORTE_WHATSAPP_LABEL}.
             </div>
           )}
+
 
           <form onSubmit={isSignUp ? handleSignUp : handleLogin} className="space-y-4">
             {isSignUp && (
@@ -447,11 +448,9 @@ const Login = () => {
             <Button type="submit" className="w-full" disabled={loading}>
               {loading
                 ? isSignUp ? 'Criando conta...' : 'Entrando...'
-                : isSignUp
-                  ? planoEscolhido === 'trial' ? 'Começar teste de 7 dias'
-                    : planoEscolhido === 'mensal' ? 'Criar conta e assinar' : 'Criar conta e comprar'
-                  : planoEscolhido === 'trial' ? 'Entrar' : 'Entrar e pagar'}
+                : isSignUp ? 'Começar teste de 7 dias' : 'Entrar'}
             </Button>
+
           </form>
 
           <div className="relative my-2">
