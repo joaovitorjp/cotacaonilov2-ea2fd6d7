@@ -37,12 +37,21 @@ Deno.serve(async (req) => {
     }
 
     const body = await req.json().catch(() => ({}))
-    const origin = typeof body.origin === 'string' && body.origin.startsWith('http')
-      ? body.origin
+
+    // O Mercado Pago recusa URLs de retorno que nao sejam https publicas
+    // (preview/localhost caem em "invalid or disallowed content").
+    const ALLOWED_ORIGINS = [
+      'https://cotarme.com',
+      'https://www.cotarme.com',
+      'https://cotarme.lovable.app',
+    ]
+    const origin = typeof body.origin === 'string' && ALLOWED_ORIGINS.includes(body.origin.replace(/\/$/, ''))
+      ? body.origin.replace(/\/$/, '')
       : 'https://cotarme.com'
 
     // Webhook registrado por assinatura (dispensa cadastro manual no painel do MP)
     const notificationUrl = `${Deno.env.get('SUPABASE_URL')}/functions/v1/mp-webhook`
+
 
     const plano = body.plano === 'vitalicio' ? 'vitalicio' : 'mensal'
 
