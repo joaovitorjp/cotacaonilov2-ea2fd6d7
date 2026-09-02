@@ -1,7 +1,11 @@
 const LOVABLE_PROJECT_ID = '9333e97f-3e48-4994-8e42-a35466d60151';
 const LOVABLE_OAUTH_BROKER_URL = 'https://oauth.lovable.app/initiate';
 const LOVABLE_OAUTH_BRIDGE_ORIGIN = 'https://cotarme.lovable.app';
-const NETLIFY_PRODUCTION_ORIGIN = 'https://nilo-cotacao.netlify.app';
+const PRODUCTION_ORIGINS = [
+  'https://nilo-cotacao.netlify.app',
+  'https://cotarme.com.br',
+  'https://www.cotarme.com.br',
+];
 
 export const OAUTH_STATE_STORAGE_KEY = 'nilo_google_oauth_state';
 
