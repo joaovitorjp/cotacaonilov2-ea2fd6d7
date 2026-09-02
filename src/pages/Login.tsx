@@ -63,6 +63,7 @@ const Login = () => {
   const [googleLoading, setGoogleLoading] = useState(false);
   const [authOpen, setAuthOpen] = useState(false);
   const [isSignUp, setIsSignUp] = useState(false);
+  const [planoEscolhido, setPlanoEscolhido] = useState<'trial' | 'mensal' | 'vitalicio'>('trial');
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
 
@@ -77,8 +78,9 @@ const Login = () => {
   const safeNext = rawNext.startsWith('/') && !rawNext.startsWith('//') ? rawNext : '';
   const goNext = () => navigate(safeNext || '/');
 
-  const openAuth = (signUp: boolean) => {
+  const openAuth = (signUp: boolean, plano: 'trial' | 'mensal' | 'vitalicio' = 'trial') => {
     setIsSignUp(signUp);
+    setPlanoEscolhido(plano);
     setAuthOpen(true);
   };
 
