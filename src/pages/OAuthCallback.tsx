@@ -41,8 +41,25 @@ const OAuthCallback = () => {
         return;
       }
 
+      // Fluxo PKCE nativo do Supabase (?code=...)
+      const code = params.get('code');
+      if (code) {
+        const { error: exchangeError } = await supabase.auth.exchangeCodeForSession(code);
+        sessionStorage.removeItem(OAUTH_STATE_STORAGE_KEY);
+        if (exchangeError) {
+          const { data: existing } = await supabase.auth.getSession();
+          if (!existing.session) {
+            navigate(`/login?oauth_error=${encodeURIComponent(exchangeError.message)}`, { replace: true });
+            return;
+          }
+        }
+        navigate(consumePostLoginTarget(), { replace: true });
+        return;
+      }
+
       const accessToken = params.get('access_token');
       const refreshToken = params.get('refresh_token');
+
 
       if (accessToken && refreshToken) {
         const { error: sessionError } = await supabase.auth.setSession({
