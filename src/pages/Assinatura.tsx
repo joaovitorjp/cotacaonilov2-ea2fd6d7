@@ -28,7 +28,7 @@ const Assinatura = () => {
     setLoading(true);
     try {
       const { data, error } = await supabase.functions.invoke('mp-checkout', {
-        body: { origin: window.location.origin, plano },
+        body: { origin: getAppOrigin(), plano },
       });
       if (error || !data?.init_point) {
         throw new Error(data?.error || error?.message || 'Falha ao iniciar checkout');
