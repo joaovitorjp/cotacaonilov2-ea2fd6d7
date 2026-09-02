@@ -36,7 +36,7 @@ export const buildExternalGoogleOAuthUrl = (stateOverride?: string) => {
   const state = stateOverride || createState();
   sessionStorage.setItem(OAUTH_STATE_STORAGE_KEY, state);
 
-  const finalCallbackUrl = new URL('/auth/callback', window.location.origin);
+  const finalCallbackUrl = new URL('/auth/callback', getAppOrigin());
   const bridgeCallbackUrl = new URL('/auth/callback', LOVABLE_OAUTH_BRIDGE_ORIGIN);
   bridgeCallbackUrl.searchParams.set('next', finalCallbackUrl.toString());
 
