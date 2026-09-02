@@ -36,7 +36,7 @@ const Perfil: React.FC = () => {
     setChangingPassword(true);
     const { error } = await supabase.auth.updateUser({
       password: senhaNova,
-      // @ts-expect-error current_password é aceito pelo backend
+      // current_password é aceito pelo backend
       current_password: senhaAtual,
     });
     setChangingPassword(false);
