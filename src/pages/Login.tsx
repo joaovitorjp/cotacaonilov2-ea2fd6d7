@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { lovable } from '@/integrations/lovable';
-import { buildExternalGoogleOAuthUrl, isLovableHosted } from '@/lib/oauth';
+import { buildExternalGoogleOAuthUrl, getAppOrigin, isLovableHosted } from '@/lib/oauth';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -114,7 +114,7 @@ const Login = () => {
       password,
       options: {
         data: { nome },
-        emailRedirectTo: window.location.origin + (safeNext || ''),
+        emailRedirectTo: getAppOrigin() + (safeNext || ''),
       },
     });
     setLoading(false);
@@ -134,7 +134,7 @@ const Login = () => {
         return;
       }
       const result = await lovable.auth.signInWithOAuth('google', {
-        redirect_uri: window.location.origin + (safeNext || ''),
+        redirect_uri: getAppOrigin() + (safeNext || ''),
       });
       if (result.error) {
         const msg = (result.error.message || '').toLowerCase();

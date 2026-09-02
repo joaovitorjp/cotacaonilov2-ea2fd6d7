@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useAssinatura } from '@/hooks/useAssinatura';
+import { getAppOrigin } from '@/lib/oauth';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
 import { Check, Crown, Infinity, LogOut } from 'lucide-react';
@@ -27,7 +28,7 @@ const Assinatura = () => {
     setLoading(true);
     try {
       const { data, error } = await supabase.functions.invoke('mp-checkout', {
-        body: { origin: window.location.origin, plano },
+        body: { origin: getAppOrigin(), plano },
       });
       if (error || !data?.init_point) {
         throw new Error(data?.error || error?.message || 'Falha ao iniciar checkout');
