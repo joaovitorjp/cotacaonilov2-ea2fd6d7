@@ -39,7 +39,7 @@ Deno.serve(async (req) => {
     const body = await req.json().catch(() => ({}))
     const origin = typeof body.origin === 'string' && body.origin.startsWith('http')
       ? body.origin
-      : 'https://cotacaonilov2.lovable.app'
+      : 'https://cotarme.lovable.app'
 
     // Webhook registrado por assinatura (dispensa cadastro manual no painel do MP)
     const notificationUrl = `${Deno.env.get('SUPABASE_URL')}/functions/v1/mp-webhook`
