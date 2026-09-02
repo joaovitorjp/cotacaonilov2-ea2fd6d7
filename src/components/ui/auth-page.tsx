@@ -9,6 +9,7 @@ import {
 } from "lucide-react";
 import { Input } from "./input";
 import { cn } from "@/lib/utils";
+import { getAppOrigin } from "@/lib/oauth";
 
 interface AuthPageProps {
   onGoogleSignIn: () => void;
