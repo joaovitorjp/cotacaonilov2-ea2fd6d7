@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { toast } from 'sonner';
-import { ArrowLeft, LogOut, User as UserIcon } from 'lucide-react';
+import { ArrowLeft, KeyRound, LogOut, User as UserIcon } from 'lucide-react';
 
 const Perfil: React.FC = () => {
   const { user, signOut } = useAuth();
@@ -15,6 +15,41 @@ const Perfil: React.FC = () => {
   const [emailLocal, setEmailLocal] = useState('');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [senhaAtual, setSenhaAtual] = useState('');
+  const [senhaNova, setSenhaNova] = useState('');
+  const [senhaConfirma, setSenhaConfirma] = useState('');
+  const [changingPassword, setChangingPassword] = useState(false);
+
+  const handleChangePassword = async () => {
+    if (senhaNova.length < 6) {
+      toast.error('A nova senha deve ter pelo menos 6 caracteres.');
+      return;
+    }
+    if (senhaNova !== senhaConfirma) {
+      toast.error('A confirmação da nova senha não confere.');
+      return;
+    }
+    if (!senhaAtual) {
+      toast.error('Informe sua senha atual.');
+      return;
+    }
+    setChangingPassword(true);
+    const { error } = await supabase.auth.updateUser({
+      password: senhaNova,
+      // current_password é aceito pelo backend
+      current_password: senhaAtual,
+    });
+    setChangingPassword(false);
+    if (error) {
+      toast.error(error.message || 'Não foi possível alterar a senha.');
+      return;
+    }
+    setSenhaAtual('');
+    setSenhaNova('');
+    setSenhaConfirma('');
+    toast.success('Senha alterada com sucesso!');
+  };
+
 
   useEffect(() => {
     if (!user) return;
@@ -111,6 +146,54 @@ const Perfil: React.FC = () => {
             {saving ? 'Salvando...' : 'Salvar alterações'}
           </Button>
         </div>
+
+        <div className="bg-card border border-border rounded-lg p-6 space-y-4 mt-6">
+          <div className="flex items-center gap-2">
+            <KeyRound className="w-4 h-4 text-primary" />
+            <h2 className="font-display font-bold text-foreground">Alterar senha</h2>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="senha-atual">Senha atual</Label>
+            <Input
+              id="senha-atual"
+              type="password"
+              value={senhaAtual}
+              onChange={e => setSenhaAtual(e.target.value)}
+              placeholder="••••••••"
+              autoComplete="current-password"
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="senha-nova">Nova senha</Label>
+            <Input
+              id="senha-nova"
+              type="password"
+              value={senhaNova}
+              onChange={e => setSenhaNova(e.target.value)}
+              placeholder="Mínimo de 6 caracteres"
+              autoComplete="new-password"
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="senha-confirma">Confirmar nova senha</Label>
+            <Input
+              id="senha-confirma"
+              type="password"
+              value={senhaConfirma}
+              onChange={e => setSenhaConfirma(e.target.value)}
+              placeholder="Repita a nova senha"
+              autoComplete="new-password"
+            />
+          </div>
+
+          <Button onClick={handleChangePassword} disabled={changingPassword} variant="secondary" className="w-full">
+            {changingPassword ? 'Alterando...' : 'Alterar senha'}
+          </Button>
+        </div>
+
       </div>
     </div>
   );
