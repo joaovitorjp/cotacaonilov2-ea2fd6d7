@@ -114,7 +114,7 @@ const Login = () => {
       password,
       options: {
         data: { nome },
-        emailRedirectTo: window.location.origin + (safeNext || ''),
+        emailRedirectTo: getAppOrigin() + (safeNext || ''),
       },
     });
     setLoading(false);
