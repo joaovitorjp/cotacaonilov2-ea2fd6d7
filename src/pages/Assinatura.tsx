@@ -44,6 +44,15 @@ const Assinatura = () => {
     }
   };
 
+  // Usuário chegou do cadastro com plano pago escolhido: abre o checkout direto
+  useEffect(() => {
+    if (autoCheckout.current || !planoParam || !user) return;
+    if (assinatura?.status === 'active' || assinatura?.status === 'lifetime') return;
+    autoCheckout.current = true;
+    void handleSubscribe(planoParam === 'vitalicio' ? 'vitalicio' : 'mensal');
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user, assinatura, planoParam]);
+
   const handleSync = async () => {
     setSyncing(true);
     try {
