@@ -310,15 +310,48 @@ const Login = () => {
             </DialogTitle>
             <DialogDescription>
               {isSignUp
-                ? 'Cadastre-se e inicie o teste de 7 dias grátis'
+                ? planoEscolhido === 'trial'
+                  ? 'Cadastre-se e inicie o teste de 7 dias grátis'
+                  : 'Cadastre-se e conclua o pagamento para liberar o acesso'
                 : 'Acesse sua conta para gerenciar suas cotações'}
             </DialogDescription>
           </DialogHeader>
 
           {isSignUp && (
-            <div className="rounded-2xl border border-primary/20 bg-primary/5 px-4 py-3 text-xs text-foreground">
-              Seu teste de <strong>7 dias</strong> começa assim que a conta for criada. Ao final,
-              você escolhe entre <strong>R$ 49,99/mês</strong> ou a licença vitalícia de <strong>R$ 159,90</strong>.
+            <div className="space-y-2">
+              <Label>Como você quer começar?</Label>
+              <div className="grid gap-2">
+                <button
+                  type="button"
+                  onClick={() => setPlanoEscolhido('trial')}
+                  className={`text-left rounded-xl border px-4 py-3 transition-colors ${
+                    planoEscolhido === 'trial' ? 'border-primary bg-primary/5 ring-1 ring-primary/30' : 'border-border hover:border-primary/40'
+                  }`}
+                >
+                  <span className="text-sm font-semibold">Teste de 7 dias grátis</span>
+                  <span className="block text-xs text-muted-foreground">Sem cobrança — escolha um plano ao final</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setPlanoEscolhido('mensal')}
+                  className={`text-left rounded-xl border px-4 py-3 transition-colors ${
+                    planoEscolhido === 'mensal' ? 'border-primary bg-primary/5 ring-1 ring-primary/30' : 'border-border hover:border-primary/40'
+                  }`}
+                >
+                  <span className="text-sm font-semibold">Assinatura mensal — R$ 49,99/mês</span>
+                  <span className="block text-xs text-muted-foreground">Pague agora e comece a usar imediatamente</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setPlanoEscolhido('vitalicio')}
+                  className={`text-left rounded-xl border px-4 py-3 transition-colors ${
+                    planoEscolhido === 'vitalicio' ? 'border-primary bg-primary/5 ring-1 ring-primary/30' : 'border-border hover:border-primary/40'
+                  }`}
+                >
+                  <span className="text-sm font-semibold">Licença vitalícia — R$ 159,90 à vista</span>
+                  <span className="block text-xs text-muted-foreground">Pagamento único, acesso para sempre</span>
+                </button>
+              </div>
             </div>
           )}
 
