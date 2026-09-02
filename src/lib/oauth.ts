@@ -1,11 +1,20 @@
 const LOVABLE_PROJECT_ID = '9333e97f-3e48-4994-8e42-a35466d60151';
 const LOVABLE_OAUTH_BROKER_URL = 'https://oauth.lovable.app/initiate';
 const LOVABLE_OAUTH_BRIDGE_ORIGIN = 'https://cotarme.lovable.app';
+export const APP_ORIGIN = 'https://cotarme.com.br';
 const PRODUCTION_ORIGINS = [
   'https://nilo-cotacao.netlify.app',
-  'https://cotarme.com.br',
+  APP_ORIGIN,
   'https://www.cotarme.com.br',
 ];
+
+export const getAppOrigin = () => {
+  const hostname = window.location.hostname;
+  if (hostname === 'cotarme.com.br' || hostname === 'www.cotarme.com.br') {
+    return APP_ORIGIN;
+  }
+  return window.location.origin;
+};
 
 export const OAUTH_STATE_STORAGE_KEY = 'nilo_google_oauth_state';
 
