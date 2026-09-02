@@ -134,7 +134,7 @@ const Login = () => {
         return;
       }
       const result = await lovable.auth.signInWithOAuth('google', {
-        redirect_uri: window.location.origin + (safeNext || ''),
+        redirect_uri: getAppOrigin() + (safeNext || ''),
       });
       if (result.error) {
         const msg = (result.error.message || '').toLowerCase();
