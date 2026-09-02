@@ -26,7 +26,6 @@ const PLAN_FEATURES = [
   'Análise comparativa e exportação PDF/Excel',
 ];
 
-// Mockups em branco — os prints reais do sistema serão encaixados aqui depois.
 const DeviceMockups = () => (
   <div className="relative w-full max-w-xl mx-auto select-none" aria-hidden>
     {/* Laptop */}
