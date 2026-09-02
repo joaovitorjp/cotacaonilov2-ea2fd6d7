@@ -36,8 +36,12 @@ const fmt = (v: string | null) => (v ? new Date(v).toLocaleDateString('pt-BR') :
 
 const AdminChaves = () => {
   const { isAdmin, loading: roleLoading } = useUserRole();
-  const { user, signOut } = useAuth();
+  const { user, loading: authLoading, signOut } = useAuth();
   const navigate = useNavigate();
+
+  const [loginEmail, setLoginEmail] = useState('');
+  const [loginSenha, setLoginSenha] = useState('');
+  const [entrando, setEntrando] = useState(false);
 
   const [chaves, setChaves] = useState<Chave[]>([]);
   const [loading, setLoading] = useState(true);
@@ -65,13 +69,25 @@ const AdminChaves = () => {
   }, []);
 
   useEffect(() => {
-    if (roleLoading) return;
-    if (!isAdmin) {
-      navigate('/', { replace: true });
+    if (authLoading || roleLoading || !user || !isAdmin) return;
+    void carregar();
+  }, [authLoading, roleLoading, user, isAdmin, carregar]);
+
+  const entrar = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setEntrando(true);
+    const { error } = await supabase.auth.signInWithPassword({
+      email: loginEmail.trim(),
+      password: loginSenha,
+    });
+    setEntrando(false);
+    if (error) {
+      toast.error('E-mail ou senha inválidos.');
       return;
     }
-    void carregar();
-  }, [roleLoading, isAdmin, navigate, carregar]);
+    setLoginSenha('');
+  };
+
 
   const criar = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -135,13 +151,62 @@ const AdminChaves = () => {
     cancelada: chaves.filter((c) => c.status === 'cancelada').length,
   }), [chaves]);
 
-  if (roleLoading) {
+  if (authLoading || (user && roleLoading)) {
     return (
       <div className="flex h-screen items-center justify-center text-muted-foreground">
         <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Carregando...
       </div>
     );
   }
+
+  if (!user) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-background p-4">
+        <form onSubmit={entrar} className="w-full max-w-sm space-y-4 rounded-3xl border border-border bg-card p-8 shadow-xl">
+          <div className="flex items-center gap-3">
+            <span className="rounded-xl bg-primary/10 p-2 text-primary"><ShieldCheck className="h-5 w-5" /></span>
+            <div>
+              <h1 className="font-display text-xl font-bold tracking-tight">Acesso administrativo</h1>
+              <p className="text-xs text-muted-foreground">Restrito à administração do COTARME</p>
+            </div>
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="admin-email">E-mail</Label>
+            <Input id="admin-email" type="email" autoComplete="email" value={loginEmail} onChange={(e) => setLoginEmail(e.target.value)} placeholder="voce@email.com" />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="admin-senha">Senha</Label>
+            <Input id="admin-senha" type="password" autoComplete="current-password" value={loginSenha} onChange={(e) => setLoginSenha(e.target.value)} placeholder="••••••••" />
+          </div>
+          <Button type="submit" className="w-full" disabled={entrando}>
+            {entrando ? 'Entrando...' : 'Entrar no painel'}
+          </Button>
+          <Button type="button" variant="ghost" className="w-full" onClick={() => navigate('/login')}>
+            Voltar ao site
+          </Button>
+        </form>
+      </div>
+    );
+  }
+
+  if (!isAdmin) {
+    return (
+      <div className="flex min-h-screen flex-col items-center justify-center gap-4 bg-background p-4 text-center">
+        <span className="rounded-xl bg-destructive/10 p-3 text-destructive"><ShieldCheck className="h-6 w-6" /></span>
+        <div>
+          <h1 className="font-display text-xl font-bold">Acesso não autorizado</h1>
+          <p className="text-sm text-muted-foreground">Esta conta não tem permissão de administrador.</p>
+        </div>
+        <div className="flex gap-2">
+          <Button variant="outline" onClick={() => navigate('/')}>Ir ao sistema</Button>
+          <Button variant="ghost" onClick={() => void signOut()}>
+            <LogOut className="mr-2 h-4 w-4" /> Sair
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
 
   return (
     <div className="min-h-screen bg-background p-4 sm:p-8">
