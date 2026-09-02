@@ -65,7 +65,7 @@ const Login = () => {
   const [googleLoading, setGoogleLoading] = useState(false);
   const [authOpen, setAuthOpen] = useState(false);
   const [isSignUp, setIsSignUp] = useState(false);
-  const [planoEscolhido, setPlanoEscolhido] = useState<'trial' | 'mensal' | 'vitalicio'>('trial');
+  const [adminVisivel, setAdminVisivel] = useState(false);
   const [recoverOpen, setRecoverOpen] = useState(false);
   const [recoverEmail, setRecoverEmail] = useState('');
   const [recovering, setRecovering] = useState(false);
