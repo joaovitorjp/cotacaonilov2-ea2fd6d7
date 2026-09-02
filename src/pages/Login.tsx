@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { lovable } from '@/integrations/lovable';
-import { getAppOrigin, isLovableHosted, rememberPostLogin } from '@/lib/oauth';
+import { buildExternalGoogleOAuthUrl, getAppOrigin, isLovableHosted, rememberPostLogin } from '@/lib/oauth';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -169,21 +169,11 @@ const Login = () => {
     setGoogleLoading(true);
     rememberPostLogin(safeNext);
     try {
-      // Fora da hospedagem Lovable (ex.: cPanel) não existe a rota ponte
-      // /~oauth/initiate — usar o OAuth nativo do Supabase direto.
+      // Fora da hospedagem Lovable (ex.: cPanel) o Google gerenciado só funciona
+      // via broker da Lovable: oauth.lovable.app -> ponte cotarme.lovable.app ->
+      // redireciona de volta para este domínio em /auth/callback com os tokens.
       if (!isLovableHosted()) {
-        const { error } = await supabase.auth.signInWithOAuth({
-          provider: 'google',
-          options: {
-            redirectTo: `${getAppOrigin()}/auth/callback`,
-            queryParams: { access_type: 'offline', prompt: 'consent' },
-          },
-        });
-        if (error) {
-          toast.error(`Falha ao entrar com Google: ${error.message || 'erro desconhecido'}`);
-          setGoogleLoading(false);
-        }
-        // Sucesso: o navegador é redirecionado para o Google
+        window.location.href = buildExternalGoogleOAuthUrl();
         return;
       }
 
