@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useAssinatura } from '@/hooks/useAssinatura';
+import { getAppOrigin } from '@/lib/oauth';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
 import { Check, Crown, Infinity, LogOut } from 'lucide-react';
