@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { lovable } from '@/integrations/lovable';
-import { buildExternalGoogleOAuthUrl, getAppOrigin, isLovableHosted, rememberPostLogin } from '@/lib/oauth';
+import { getAppOrigin, rememberPostLogin } from '@/lib/oauth';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -177,10 +177,6 @@ const Login = () => {
     setGoogleLoading(true);
     rememberPostLogin(safeNext, planoEscolhido);
     try {
-      if (!isLovableHosted()) {
-        window.location.assign(buildExternalGoogleOAuthUrl());
-        return;
-      }
       const result = await lovable.auth.signInWithOAuth('google', {
         redirect_uri: `${getAppOrigin()}/auth/callback`,
       });
@@ -198,6 +194,7 @@ const Login = () => {
         setGoogleLoading(false);
         return;
       }
+      // Fluxo com redirecionamento de página inteira: o retorno acontece em /auth/callback
       if (result.redirected) return;
       goNext();
     } catch (err: any) {
