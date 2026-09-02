@@ -19,7 +19,8 @@ import adrLogo from '@/assets/adr-logo.jpeg';
 import shotCotacoesFinalizadas from '@/assets/tablet-cotacoes-finalizadas.png';
 import shotPlanilha from '@/assets/shot-planilha.png';
 import shotFornecedores from '@/assets/shot-fornecedores.png';
-import { Check, CreditCard, Crown, Infinity as InfinityIcon, ShieldCheck } from 'lucide-react';
+import { Check, Crown, Infinity as InfinityIcon, KeyRound, Lock, MessageCircle, ShieldCheck } from 'lucide-react';
+import { PRECOS, SUPORTE_WHATSAPP_LABEL, whatsappLink } from '@/lib/chaves';
 
 const PLAN_FEATURES = [
   'Cotações ilimitadas com fornecedores',
