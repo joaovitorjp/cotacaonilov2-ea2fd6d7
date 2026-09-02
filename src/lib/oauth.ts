@@ -59,7 +59,7 @@ export const isAllowedOAuthForwardTarget = (target: string) => {
     if (url.protocol !== 'https:' && url.hostname !== 'localhost') return false;
 
     const allowedOrigins = [
-      NETLIFY_PRODUCTION_ORIGIN,
+      ...PRODUCTION_ORIGINS,
       LOVABLE_OAUTH_BRIDGE_ORIGIN,
       window.location.origin,
     ];
