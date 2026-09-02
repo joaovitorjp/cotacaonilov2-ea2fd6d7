@@ -464,11 +464,9 @@ const Login = () => {
             <Button type="submit" className="w-full" disabled={loading}>
               {loading
                 ? isSignUp ? 'Criando conta...' : 'Entrando...'
-                : isSignUp
-                  ? planoEscolhido === 'trial' ? 'Começar teste de 7 dias'
-                    : planoEscolhido === 'mensal' ? 'Criar conta e assinar' : 'Criar conta e comprar'
-                  : planoEscolhido === 'trial' ? 'Entrar' : 'Entrar e pagar'}
+                : isSignUp ? 'Começar teste de 7 dias' : 'Entrar'}
             </Button>
+
           </form>
 
           <div className="relative my-2">
