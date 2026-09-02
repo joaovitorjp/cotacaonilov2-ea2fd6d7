@@ -15,11 +15,11 @@ export const useAssinatura = () => {
   const [assinatura, setAssinatura] = useState<Assinatura | null>(null);
   const [loading, setLoading] = useState(true);
 
-  const load = useCallback(async () => {
+  const load = useCallback(async (): Promise<Assinatura | null> => {
     if (!user) {
       setAssinatura(null);
       setLoading(false);
-      return;
+      return null;
     }
     setLoading(true);
     const { data } = await supabase
@@ -27,9 +27,12 @@ export const useAssinatura = () => {
       .select('status, trial_ends_at, current_period_end')
       .eq('user_id', user.id)
       .maybeSingle();
-    setAssinatura((data as Assinatura) ?? null);
+    const atual = (data as Assinatura) ?? null;
+    setAssinatura(atual);
     setLoading(false);
+    return atual;
   }, [user]);
+
 
   useEffect(() => {
     if (authLoading) return;
