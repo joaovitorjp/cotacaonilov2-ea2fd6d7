@@ -16,6 +16,7 @@ import {
 } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useEstadosUsuario } from '@/hooks/useEstadosUsuario';
+import { getAppOrigin } from '@/lib/oauth';
 import {
   UF_LIST, ufNome, TIPO_LABELS, FRETE_LABELS, serializeEstados,
   type CondicaoEstado, type TipoPreco as TipoPrecoT, type Frete as FreteT,
