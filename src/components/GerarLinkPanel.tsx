@@ -69,7 +69,7 @@ interface GerarLinkPanelProps {
 const getPublicBaseUrl = () => {
   const origin = window.location.origin;
   if (origin.includes('preview--') && origin.includes('.lovable.app')) {
-    return 'https://cotacaonilov2.lovable.app';
+    return 'https://cotarme.lovable.app';
   }
   return origin;
 };

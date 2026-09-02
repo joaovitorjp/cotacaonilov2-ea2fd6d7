@@ -77,7 +77,7 @@ export function AuthPage({
       {/* Form Side (Right on Desktop) */}
       <div className="relative z-10 flex-1 flex flex-col bg-white/40 backdrop-blur-md lg:bg-transparent">
         <div className="p-6 lg:p-12 flex justify-end">
-          <Button variant="ghost" className="gap-2 text-slate-600" onClick={() => window.location.assign('https://cotacaonilov2.lovable.app')}>
+          <Button variant="ghost" className="gap-2 text-slate-600" onClick={() => window.location.assign('https://cotarme.lovable.app')}>
             <ChevronLeftIcon className="w-4 h-4" />
             Voltar
           </Button>
