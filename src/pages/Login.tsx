@@ -129,7 +129,11 @@ const Login = () => {
     if (error) {
       toast.error(error.message);
     } else {
-      toast.success('Teste de 7 dias criado! Confirme seu email para liberar o acesso.');
+      toast.success(
+        planoEscolhido === 'trial'
+          ? 'Teste de 7 dias criado! Confirme seu email para liberar o acesso.'
+          : 'Conta criada! Confirme seu email e entre para concluir o pagamento.'
+      );
       setIsSignUp(false);
     }
   };
