@@ -96,3 +96,38 @@ export const buildForwardUrl = (target: string, params: URLSearchParams) => {
   url.hash = forwardParams.toString();
   return url.toString();
 };
+// Destino e plano escolhidos antes de sair para o provedor OAuth.
+export const POST_LOGIN_NEXT_KEY = 'cotarme_post_login_next';
+export const POST_LOGIN_PLAN_KEY = 'cotarme_post_login_plan';
+
+export const rememberPostLogin = (next: string, plano: string) => {
+  try {
+    if (next && next.startsWith('/') && !next.startsWith('//')) {
+      sessionStorage.setItem(POST_LOGIN_NEXT_KEY, next);
+    } else {
+      sessionStorage.removeItem(POST_LOGIN_NEXT_KEY);
+    }
+    if (plano && plano !== 'trial') {
+      sessionStorage.setItem(POST_LOGIN_PLAN_KEY, plano);
+    } else {
+      sessionStorage.removeItem(POST_LOGIN_PLAN_KEY);
+    }
+  } catch {
+    /* sessionStorage indisponível */
+  }
+};
+
+export const consumePostLoginTarget = () => {
+  let next = '';
+  let plano = '';
+  try {
+    next = sessionStorage.getItem(POST_LOGIN_NEXT_KEY) || '';
+    plano = sessionStorage.getItem(POST_LOGIN_PLAN_KEY) || '';
+    sessionStorage.removeItem(POST_LOGIN_NEXT_KEY);
+    sessionStorage.removeItem(POST_LOGIN_PLAN_KEY);
+  } catch {
+    /* ignora */
+  }
+  if (plano === 'mensal' || plano === 'vitalicio') return `/assinatura?plano=${plano}`;
+  return next.startsWith('/') && !next.startsWith('//') ? next : '/';
+};
