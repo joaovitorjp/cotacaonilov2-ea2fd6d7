@@ -176,7 +176,7 @@ const Login = () => {
 
   const handleGoogle = async () => {
     setGoogleLoading(true);
-    rememberPostLogin(safeNext, planoEscolhido);
+    rememberPostLogin(safeNext, 'trial');
     try {
       const result = await lovable.auth.signInWithOAuth('google', {
         redirect_uri: `${getAppOrigin()}/auth/callback`,
