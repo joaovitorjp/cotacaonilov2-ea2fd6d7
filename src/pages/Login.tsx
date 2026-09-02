@@ -15,6 +15,9 @@ import {
 import { toast } from 'sonner';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import adrLogo from '@/assets/adr-logo.jpeg.asset.json';
+import shotDashboard from '@/assets/shot-dashboard.png.asset.json';
+import shotPlanilha from '@/assets/shot-planilha.png.asset.json';
+import shotFornecedores from '@/assets/shot-fornecedores.png.asset.json';
 import { Check, CreditCard, Crown, Infinity as InfinityIcon, ShieldCheck } from 'lucide-react';
 
 const PLAN_FEATURES = [
@@ -33,16 +36,22 @@ const DeviceMockups = () => (
         <span className="h-2.5 w-2.5 rounded-full bg-amber-400/50" />
         <span className="h-2.5 w-2.5 rounded-full bg-success/50" />
       </div>
-      <div className="aspect-[16/10] bg-white" />
+      <div className="aspect-[16/10] bg-white">
+        <img src={shotDashboard.url} alt="Painel de cotações do COTARME" className="h-full w-full object-cover object-top" />
+      </div>
     </div>
     <div className="mx-auto h-3 w-[96%] rounded-b-xl bg-muted border border-border" />
     {/* Tablet */}
     <div className="absolute -left-2 bottom-2 w-[34%] rounded-2xl border border-border bg-card shadow-xl shadow-primary/10 overflow-hidden">
-      <div className="aspect-[3/4] bg-white" />
+      <div className="aspect-[3/4] bg-white">
+        <img src={shotPlanilha.url} alt="Planilha comparativa de preços" className="h-full w-full object-cover object-top" />
+      </div>
     </div>
     {/* Phone */}
     <div className="absolute -right-1 bottom-6 w-[20%] rounded-2xl border border-border bg-card shadow-xl shadow-primary/10 overflow-hidden">
-      <div className="aspect-[9/18] bg-white" />
+      <div className="aspect-[9/18] bg-white">
+        <img src={shotFornecedores.url} alt="Cadastro de fornecedores" className="h-full w-full object-cover object-top" />
+      </div>
     </div>
   </div>
 );
