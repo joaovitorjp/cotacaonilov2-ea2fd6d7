@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
@@ -11,7 +11,7 @@ import {
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
-import { Trash2, Copy, Pencil, Download, FileSpreadsheet, Package, Users, Calendar } from 'lucide-react';
+import { Trash2, Copy, Pencil, Download, FileSpreadsheet, Package, Users, Calendar, Search } from 'lucide-react';
 import { ufsDaResposta, getPrecoUF, buildPrecosPayload } from '@/lib/estados';
 
 interface Lista {
@@ -58,6 +58,7 @@ const CarregarListaPanel: React.FC<CarregarListaPanelProps> = ({
   const [csvTarget, setCsvTarget] = useState<{ lista: Lista; formato: 'ciss' | 'consinco' } | null>(null);
   const [csvEmpresas, setCsvEmpresas] = useState<string[]>([]);
   const [csvEmpresaSel, setCsvEmpresaSel] = useState<string>('__todos__');
+  const [searchTerm, setSearchTerm] = useState('');
 
   const openCsvDialog = async (lista: Lista, formato: 'ciss' | 'consinco') => {
     setCsvTarget({ lista, formato });
@@ -247,6 +248,12 @@ const CarregarListaPanel: React.FC<CarregarListaPanelProps> = ({
     return { total, responded, links };
   };
 
+  const filteredListas = useMemo(() => {
+    if (!searchTerm.trim()) return listas;
+    const term = searchTerm.trim().toLowerCase();
+    return listas.filter(l => l.nome.toLowerCase().includes(term));
+  }, [listas, searchTerm]);
+
   return (
     <>
       <Sheet open={open} onOpenChange={onOpenChange}>
@@ -260,19 +267,35 @@ const CarregarListaPanel: React.FC<CarregarListaPanelProps> = ({
                   : 'Visualize e exporte cotações finalizadas.'}
               </SheetDescription>
             </SheetHeader>
+
+            {statusFilter === 'finalizada' && (
+              <div className="relative mt-4">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                <Input
+                  value={searchTerm}
+                  onChange={e => setSearchTerm(e.target.value)}
+                  placeholder="Pesquisar cotação finalizada..."
+                  className="pl-9"
+                />
+              </div>
+            )}
           </div>
 
           <div className="flex-1 overflow-auto p-6 pt-4 space-y-3">
             {loading ? (
               <p className="text-muted-foreground text-sm text-center py-8">Carregando...</p>
-            ) : listas.length === 0 ? (
+            ) : filteredListas.length === 0 ? (
               <div className="text-center py-12 border border-dashed border-border rounded-lg">
                 <p className="text-muted-foreground text-sm">
-                  {statusFilter === 'aberta' ? 'Nenhuma lista aberta encontrada.' : 'Nenhuma cotação finalizada.'}
+                  {statusFilter === 'aberta'
+                    ? 'Nenhuma lista aberta encontrada.'
+                    : searchTerm.trim()
+                      ? 'Nenhuma cotação finalizada encontrada para essa pesquisa.'
+                      : 'Nenhuma cotação finalizada.'}
                 </p>
               </div>
             ) : (
-              listas.map(lista => {
+              filteredListas.map(lista => {
                 const progress = getProgressInfo(lista.id);
                 const respostas = respostasCount[lista.id] || 0;
 
