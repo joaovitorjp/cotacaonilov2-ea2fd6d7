@@ -1,5 +1,5 @@
 import React, { useState, useCallback, useRef, useEffect, useMemo } from 'react';
-import { AlignLeft, AlignCenter, AlignRight, ArrowUp, ArrowDown, ArrowLeft, ArrowRight, Copy, ClipboardPaste, Bold, Italic, Paintbrush, X, Save, Percent, Search, MapPin, Trash2, Plus, Swords, Trash, Filter } from 'lucide-react';
+import { AlignLeft, AlignCenter, AlignRight, ArrowUp, ArrowDown, ArrowLeft, ArrowRight, Copy, ClipboardPaste, Bold, Italic, Paintbrush, X, Save, Percent, Search, MapPin, Trash2, Plus, Swords, Trash, Filter, Check } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useEstadosUsuario } from '@/hooks/useEstadosUsuario';
@@ -971,6 +971,34 @@ const SpreadsheetTable: React.FC<SpreadsheetTableProps> = ({
     else await supabase.from('price_markups').upsert({ lista_id: listaId, empresa, markup_percent: percent, updated_at: new Date().toISOString(), user_id: user?.id }, { onConflict: 'lista_id,empresa' });
   };
 
+  // Tipo de preço definido manualmente por coluna (empresa + UF)
+  const [tipoPrecoOverrides, setTipoPrecoOverrides] = useState<Record<string, string>>({});
+
+  useEffect(() => {
+    if (!listaId) return;
+    (async () => {
+      const { data } = await supabase.from('price_types').select('empresa, estado, tipo').eq('lista_id', listaId).eq('user_id', user?.id ?? '');
+      const loaded: Record<string, string> = {};
+      (data ?? []).forEach((row: any) => { loaded[`${row.empresa}_${row.estado}`] = row.tipo; });
+      setTipoPrecoOverrides(loaded);
+    })();
+  }, [listaId, user?.id]);
+
+  const getTipoPreco = useCallback((empresa: string, state: string) =>
+    tipoPrecoOverrides[`${empresa}_${state}`] ?? tipoPrecoMap[`${empresa}_${state}`] ?? (state === 'GO' ? 'NOTA' : 'IPI_ST'),
+    [tipoPrecoOverrides, tipoPrecoMap]);
+
+  const setTipoPreco = async (empresa: string, estado: string, tipo: string) => {
+    setTipoPrecoOverrides(prev => ({ ...prev, [`${empresa}_${estado}`]: tipo }));
+    setContextMenu(null);
+    if (!listaId) return;
+    await supabase.from('price_types').upsert(
+      { lista_id: listaId, empresa, estado, tipo, user_id: user?.id, updated_at: new Date().toISOString() },
+      { onConflict: 'lista_id,empresa,estado' }
+    );
+  };
+
+
   useEffect(() => { if (markupDialog) setTimeout(() => markupInputRef.current?.focus(), 50); }, [markupDialog]);
 
   const applyMarkup = () => {
@@ -1427,7 +1455,7 @@ const SpreadsheetTable: React.FC<SpreadsheetTableProps> = ({
                     ) : null}
                     {col.empresa && col.state ? (
                       <div className="text-[8px] leading-tight font-bold opacity-80 uppercase tracking-wide">
-                        {tipoPrecoLabel(tipoPrecoMap[`${col.empresa}_${col.state}`] ?? (col.state === 'GO' ? 'NOTA' : 'IPI_ST'))}
+                        {tipoPrecoLabel(getTipoPreco(col.empresa, col.state))}
                         {' · '}
                         {tipoPrecoMap[`${col.empresa}_${col.state}_FRETE`] ?? 'CIF'}
                       </div>
@@ -1515,6 +1543,24 @@ const SpreadsheetTable: React.FC<SpreadsheetTableProps> = ({
                     className="flex items-center gap-2 w-full px-3 py-1.5 text-xs hover:bg-accent transition-colors text-foreground">
                     <Swords className="w-3.5 h-3.5" /> Cobrir concorrentes
                   </button>
+                  {(() => {
+                    const cd = orderedColDefs.find(c => c.orderIdx === contextMenu.colIdx);
+                    const st = cd?.state as string | undefined;
+                    if (!st) return null;
+                    const atual = getTipoPreco(emp, st);
+                    return (
+                      <>
+                        <div className="px-3 py-1.5 text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Tipo de preço ({st})</div>
+                        {(['IPI_ST', 'NOTA'] as const).map(t => (
+                          <button key={t} onClick={() => setTipoPreco(emp, st, t)}
+                            className={`flex items-center gap-2 w-full px-3 py-1.5 text-xs hover:bg-accent transition-colors ${atual === t ? 'font-bold text-primary' : 'text-foreground'}`}>
+                            <Check className={`w-3.5 h-3.5 ${atual === t ? 'opacity-100' : 'opacity-0'}`} /> {tipoPrecoLabel(t)}
+                          </button>
+                        ))}
+                      </>
+                    );
+                  })()}
+
                   {(() => {
                     const cd = orderedColDefs.find(c => c.orderIdx === contextMenu.colIdx);
                     const st = cd?.state as string | undefined;

@@ -735,6 +735,36 @@ export type Database = {
           },
         ]
       }
+      price_types: {
+        Row: {
+          empresa: string
+          estado: string
+          id: string
+          lista_id: string
+          tipo: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          empresa: string
+          estado: string
+          id?: string
+          lista_id: string
+          tipo?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Update: {
+          empresa?: string
+          estado?: string
+          id?: string
+          lista_id?: string
+          tipo?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           avatar_url: string | null
