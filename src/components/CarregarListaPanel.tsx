@@ -58,6 +58,7 @@ const CarregarListaPanel: React.FC<CarregarListaPanelProps> = ({
   const [csvTarget, setCsvTarget] = useState<{ lista: Lista; formato: 'ciss' | 'consinco' } | null>(null);
   const [csvEmpresas, setCsvEmpresas] = useState<string[]>([]);
   const [csvEmpresaSel, setCsvEmpresaSel] = useState<string>('__todos__');
+  const [searchTerm, setSearchTerm] = useState('');
 
   const openCsvDialog = async (lista: Lista, formato: 'ciss' | 'consinco') => {
     setCsvTarget({ lista, formato });
