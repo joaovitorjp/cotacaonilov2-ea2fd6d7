@@ -37,8 +37,12 @@ interface SpreadsheetTableProps {
 
 const parsePrice = (val: string | number): number => {
   if (typeof val === 'number') return val;
-  if (!val || val === '') return Infinity;
-  const normalized = val.replace(/\./g, '').replace(',', '.');
+  if (!val || String(val).trim() === '') return Infinity;
+  // Aceita "3,89", "3.89", "1.234,56", "R$ 3,89" etc.
+  const clean = String(val).replace(/[^\d.,-]/g, '');
+  const normalized = clean.includes(',')
+    ? clean.replace(/\./g, '').replace(',', '.')
+    : clean;
   const num = parseFloat(normalized);
   return isNaN(num) ? Infinity : num;
 };
@@ -501,9 +505,8 @@ const SpreadsheetTable: React.FC<SpreadsheetTableProps> = ({
         const currentItems: any[] = existingResp ? [...existingResp.resposta] : [];
         for (const edit of edits) {
           const prod = produtos[edit.rowIdx];
-          const normalized = edit.value.replace(/\./g, '').replace(',', '.');
-          const numVal = parseFloat(normalized);
-          const preco = isNaN(numVal) ? 0 : numVal;
+          const numParsed = parsePrice(edit.value);
+          const preco = numParsed === Infinity ? 0 : numParsed;
           const existingIdx = currentItems.findIndex((i: any) => i.codigo_interno === prod.codigo_interno);
           const payload = buildPrecosPayload({ [edit.state]: String(preco) });
           const mergedPrecos = { ...(existingIdx >= 0 ? currentItems[existingIdx]?.precos : undefined), ...payload.precos };
