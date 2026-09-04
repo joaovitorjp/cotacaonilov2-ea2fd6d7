@@ -971,6 +971,34 @@ const SpreadsheetTable: React.FC<SpreadsheetTableProps> = ({
     else await supabase.from('price_markups').upsert({ lista_id: listaId, empresa, markup_percent: percent, updated_at: new Date().toISOString(), user_id: user?.id }, { onConflict: 'lista_id,empresa' });
   };
 
+  // Tipo de preço definido manualmente por coluna (empresa + UF)
+  const [tipoPrecoOverrides, setTipoPrecoOverrides] = useState<Record<string, string>>({});
+
+  useEffect(() => {
+    if (!listaId) return;
+    (async () => {
+      const { data } = await supabase.from('price_types').select('empresa, estado, tipo').eq('lista_id', listaId).eq('user_id', user?.id ?? '');
+      const loaded: Record<string, string> = {};
+      (data ?? []).forEach((row: any) => { loaded[`${row.empresa}_${row.estado}`] = row.tipo; });
+      setTipoPrecoOverrides(loaded);
+    })();
+  }, [listaId, user?.id]);
+
+  const getTipoPreco = useCallback((empresa: string, state: string) =>
+    tipoPrecoOverrides[`${empresa}_${state}`] ?? tipoPrecoMap[`${empresa}_${state}`] ?? (state === 'GO' ? 'NOTA' : 'IPI_ST'),
+    [tipoPrecoOverrides, tipoPrecoMap]);
+
+  const setTipoPreco = async (empresa: string, estado: string, tipo: string) => {
+    setTipoPrecoOverrides(prev => ({ ...prev, [`${empresa}_${estado}`]: tipo }));
+    setContextMenu(null);
+    if (!listaId) return;
+    await supabase.from('price_types').upsert(
+      { lista_id: listaId, empresa, estado, tipo, user_id: user?.id, updated_at: new Date().toISOString() },
+      { onConflict: 'lista_id,empresa,estado' }
+    );
+  };
+
+
   useEffect(() => { if (markupDialog) setTimeout(() => markupInputRef.current?.focus(), 50); }, [markupDialog]);
 
   const applyMarkup = () => {
