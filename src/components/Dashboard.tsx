@@ -54,11 +54,47 @@ const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
       abertas,
       finalizadas,
       totalProdutos: listas.reduce((sum, l) => sum + (Array.isArray(l.produtos) ? l.produtos.length : 0), 0),
-      totalRespostas: respostasRes.count ?? 0,
+      totalRespostas: (respostasRes.data ?? []).length,
     });
     setRecentes(listas);
     setLoading(false);
   };
+
+  // Cotações criadas por mês (últimos 6 meses)
+  const dadosMensais = useMemo(() => {
+    const meses: { key: string; label: string; abertas: number; finalizadas: number }[] = [];
+    const now = new Date();
+    for (let i = 5; i >= 0; i--) {
+      const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      meses.push({
+        key: `${d.getFullYear()}-${d.getMonth()}`,
+        label: d.toLocaleDateString('pt-BR', { month: 'short' }).replace('.', ''),
+        abertas: 0,
+        finalizadas: 0,
+      });
+    }
+    const mapa = new Map(meses.map(m => [m.key, m]));
+    recentes.forEach(l => {
+      const d = new Date(l.created_at);
+      const m = mapa.get(`${d.getFullYear()}-${d.getMonth()}`);
+      if (m) {
+        if (l.status === 'finalizada') m.finalizadas += 1;
+        else m.abertas += 1;
+      }
+    });
+    return meses;
+  }, [recentes]);
+
+  const dadosStatus = useMemo(() => ([
+    { name: 'Em Aberto', value: stats.abertas, color: '#2563eb' },
+    { name: 'Finalizadas', value: stats.finalizadas, color: '#059669' },
+  ]), [stats]);
+
+  const dadosRespostas = useMemo(() =>
+    recentes.slice(0, 8).reverse().map(l => ({
+      nome: l.nome.length > 18 ? l.nome.slice(0, 18) + '…' : l.nome,
+      respostas: respostasPorLista[l.id] || 0,
+    })), [recentes, respostasPorLista]);
 
   if (loading) {
     return (
