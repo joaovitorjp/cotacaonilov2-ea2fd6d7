@@ -1,7 +1,11 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Package, Clock, CheckCircle2, Users } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
+import {
+  ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid,
+  PieChart, Pie, Cell, Legend,
+} from 'recharts';
 
 interface DashboardStats {
   abertas: number;
@@ -18,6 +22,7 @@ const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
   const { user } = useAuth();
   const [stats, setStats] = useState<DashboardStats>({ abertas: 0, finalizadas: 0, totalProdutos: 0, totalRespostas: 0 });
   const [recentes, setRecentes] = useState<{ id: string; nome: string; status: string; created_at: string; produtos: any[] }[]>([]);
+  const [respostasPorLista, setRespostasPorLista] = useState<Record<string, number>>({});
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -31,10 +36,16 @@ const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
     }
     const [listasRes, respostasRes] = await Promise.all([
       supabase.from('listas').select('id, nome, status, created_at, produtos').eq('user_id', user.id).order('created_at', { ascending: false }),
-      supabase.from('respostas').select('id', { count: 'exact', head: true }).eq('user_id', user.id),
+      supabase.from('respostas').select('id, lista_id').eq('user_id', user.id),
     ]);
 
     const listas = (listasRes.data ?? []) as any[];
+
+    const porLista: Record<string, number> = {};
+    ((respostasRes.data ?? []) as any[]).forEach(r => {
+      if (r.lista_id) porLista[r.lista_id] = (porLista[r.lista_id] || 0) + 1;
+    });
+    setRespostasPorLista(porLista);
 
     const abertas = listas.filter(l => l.status === 'aberta').length;
     const finalizadas = listas.filter(l => l.status === 'finalizada').length;
@@ -43,11 +54,47 @@ const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
       abertas,
       finalizadas,
       totalProdutos: listas.reduce((sum, l) => sum + (Array.isArray(l.produtos) ? l.produtos.length : 0), 0),
-      totalRespostas: respostasRes.count ?? 0,
+      totalRespostas: (respostasRes.data ?? []).length,
     });
     setRecentes(listas);
     setLoading(false);
   };
+
+  // Cotações criadas por mês (últimos 6 meses)
+  const dadosMensais = useMemo(() => {
+    const meses: { key: string; label: string; abertas: number; finalizadas: number }[] = [];
+    const now = new Date();
+    for (let i = 5; i >= 0; i--) {
+      const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      meses.push({
+        key: `${d.getFullYear()}-${d.getMonth()}`,
+        label: d.toLocaleDateString('pt-BR', { month: 'short' }).replace('.', ''),
+        abertas: 0,
+        finalizadas: 0,
+      });
+    }
+    const mapa = new Map(meses.map(m => [m.key, m]));
+    recentes.forEach(l => {
+      const d = new Date(l.created_at);
+      const m = mapa.get(`${d.getFullYear()}-${d.getMonth()}`);
+      if (m) {
+        if (l.status === 'finalizada') m.finalizadas += 1;
+        else m.abertas += 1;
+      }
+    });
+    return meses;
+  }, [recentes]);
+
+  const dadosStatus = useMemo(() => ([
+    { name: 'Em Aberto', value: stats.abertas, color: '#2563eb' },
+    { name: 'Finalizadas', value: stats.finalizadas, color: '#059669' },
+  ]), [stats]);
+
+  const dadosRespostas = useMemo(() =>
+    recentes.slice(0, 8).reverse().map(l => ({
+      nome: l.nome.length > 18 ? l.nome.slice(0, 18) + '…' : l.nome,
+      respostas: respostasPorLista[l.id] || 0,
+    })), [recentes, respostasPorLista]);
 
   if (loading) {
     return (
@@ -96,6 +143,64 @@ const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
           </div>
           <p className="text-2xl font-black text-slate-900">{stats.totalRespostas}</p>
           <p className="text-[10px] uppercase font-bold text-slate-400 tracking-widest">Respostas</p>
+        </div>
+      </div>
+
+      {/* Gráficos */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-8">
+        <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm lg:col-span-2">
+          <h3 className="text-xs font-black uppercase tracking-widest text-slate-400 mb-4">Cotações por Mês</h3>
+          <div className="h-56">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={dadosMensais} barGap={4}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" vertical={false} />
+                <XAxis dataKey="label" tick={{ fontSize: 11, fill: '#64748b' }} axisLine={false} tickLine={false} />
+                <YAxis allowDecimals={false} tick={{ fontSize: 11, fill: '#64748b' }} axisLine={false} tickLine={false} width={28} />
+                <Tooltip cursor={{ fill: '#f1f5f9' }} contentStyle={{ borderRadius: 12, border: '1px solid #e2e8f0', fontSize: 12 }} />
+                <Legend wrapperStyle={{ fontSize: 11 }} />
+                <Bar dataKey="abertas" name="Em Aberto" fill="#2563eb" radius={[6, 6, 0, 0]} maxBarSize={28} />
+                <Bar dataKey="finalizadas" name="Finalizadas" fill="#059669" radius={[6, 6, 0, 0]} maxBarSize={28} />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+
+        <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
+          <h3 className="text-xs font-black uppercase tracking-widest text-slate-400 mb-4">Status das Cotações</h3>
+          <div className="h-56">
+            {stats.abertas + stats.finalizadas === 0 ? (
+              <div className="h-full flex items-center justify-center text-slate-400 text-sm">Sem dados.</div>
+            ) : (
+              <ResponsiveContainer width="100%" height="100%">
+                <PieChart>
+                  <Pie data={dadosStatus} dataKey="value" nameKey="name" innerRadius={50} outerRadius={75} paddingAngle={3}>
+                    {dadosStatus.map(d => <Cell key={d.name} fill={d.color} />)}
+                  </Pie>
+                  <Tooltip contentStyle={{ borderRadius: 12, border: '1px solid #e2e8f0', fontSize: 12 }} />
+                  <Legend wrapperStyle={{ fontSize: 11 }} />
+                </PieChart>
+              </ResponsiveContainer>
+            )}
+          </div>
+        </div>
+
+        <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm lg:col-span-3">
+          <h3 className="text-xs font-black uppercase tracking-widest text-slate-400 mb-4">Respostas de Fornecedores por Cotação</h3>
+          <div className="h-52">
+            {dadosRespostas.length === 0 ? (
+              <div className="h-full flex items-center justify-center text-slate-400 text-sm">Sem dados.</div>
+            ) : (
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={dadosRespostas}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" vertical={false} />
+                  <XAxis dataKey="nome" tick={{ fontSize: 10, fill: '#64748b' }} axisLine={false} tickLine={false} />
+                  <YAxis allowDecimals={false} tick={{ fontSize: 11, fill: '#64748b' }} axisLine={false} tickLine={false} width={28} />
+                  <Tooltip cursor={{ fill: '#f1f5f9' }} contentStyle={{ borderRadius: 12, border: '1px solid #e2e8f0', fontSize: 12 }} />
+                  <Bar dataKey="respostas" name="Respostas" fill="#0ea5e9" radius={[6, 6, 0, 0]} maxBarSize={40} />
+                </BarChart>
+              </ResponsiveContainer>
+            )}
+          </div>
         </div>
       </div>
 
