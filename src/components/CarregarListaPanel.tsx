@@ -267,6 +267,18 @@ const CarregarListaPanel: React.FC<CarregarListaPanelProps> = ({
                   : 'Visualize e exporte cotações finalizadas.'}
               </SheetDescription>
             </SheetHeader>
+
+            {statusFilter === 'finalizada' && (
+              <div className="relative mt-4">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                <Input
+                  value={searchTerm}
+                  onChange={e => setSearchTerm(e.target.value)}
+                  placeholder="Pesquisar cotação finalizada..."
+                  className="pl-9"
+                />
+              </div>
+            )}
           </div>
 
           <div className="flex-1 overflow-auto p-6 pt-4 space-y-3">
