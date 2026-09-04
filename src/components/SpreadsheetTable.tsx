@@ -96,6 +96,12 @@ const SpreadsheetTable: React.FC<SpreadsheetTableProps> = ({
     const set = new Set<string>();
     for (const r of respostas) {
       for (const uf of ufsDaResposta(r.resposta as any)) set.add(uf);
+      // Fornecedores adicionados manualmente: UFs vêm do marcador __manual_states
+      for (const item of r.resposta as any[]) {
+        if (Array.isArray(item?.__manual_states)) {
+          for (const uf of item.__manual_states) set.add(String(uf).toUpperCase());
+        }
+      }
     }
     if (set.size === 0) {
       for (const uf of userEstados) set.add(uf);
