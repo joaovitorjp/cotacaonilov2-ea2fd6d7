@@ -37,8 +37,12 @@ interface SpreadsheetTableProps {
 
 const parsePrice = (val: string | number): number => {
   if (typeof val === 'number') return val;
-  if (!val || val === '') return Infinity;
-  const normalized = val.replace(/\./g, '').replace(',', '.');
+  if (!val || String(val).trim() === '') return Infinity;
+  // Aceita "3,89", "3.89", "1.234,56", "R$ 3,89" etc.
+  const clean = String(val).replace(/[^\d.,-]/g, '');
+  const normalized = clean.includes(',')
+    ? clean.replace(/\./g, '').replace(',', '.')
+    : clean;
   const num = parseFloat(normalized);
   return isNaN(num) ? Infinity : num;
 };
