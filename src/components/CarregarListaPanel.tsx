@@ -248,6 +248,12 @@ const CarregarListaPanel: React.FC<CarregarListaPanelProps> = ({
     return { total, responded, links };
   };
 
+  const filteredListas = useMemo(() => {
+    if (!searchTerm.trim()) return listas;
+    const term = searchTerm.trim().toLowerCase();
+    return listas.filter(l => l.nome.toLowerCase().includes(term));
+  }, [listas, searchTerm]);
+
   return (
     <>
       <Sheet open={open} onOpenChange={onOpenChange}>
