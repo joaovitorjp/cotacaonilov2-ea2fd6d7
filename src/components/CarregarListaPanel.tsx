@@ -284,14 +284,18 @@ const CarregarListaPanel: React.FC<CarregarListaPanelProps> = ({
           <div className="flex-1 overflow-auto p-6 pt-4 space-y-3">
             {loading ? (
               <p className="text-muted-foreground text-sm text-center py-8">Carregando...</p>
-            ) : listas.length === 0 ? (
+            ) : filteredListas.length === 0 ? (
               <div className="text-center py-12 border border-dashed border-border rounded-lg">
                 <p className="text-muted-foreground text-sm">
-                  {statusFilter === 'aberta' ? 'Nenhuma lista aberta encontrada.' : 'Nenhuma cotação finalizada.'}
+                  {statusFilter === 'aberta'
+                    ? 'Nenhuma lista aberta encontrada.'
+                    : searchTerm.trim()
+                      ? 'Nenhuma cotação finalizada encontrada para essa pesquisa.'
+                      : 'Nenhuma cotação finalizada.'}
                 </p>
               </div>
             ) : (
-              listas.map(lista => {
+              filteredListas.map(lista => {
                 const progress = getProgressInfo(lista.id);
                 const respostas = respostasCount[lista.id] || 0;
 
