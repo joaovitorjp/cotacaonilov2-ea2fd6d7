@@ -505,9 +505,8 @@ const SpreadsheetTable: React.FC<SpreadsheetTableProps> = ({
         const currentItems: any[] = existingResp ? [...existingResp.resposta] : [];
         for (const edit of edits) {
           const prod = produtos[edit.rowIdx];
-          const normalized = edit.value.replace(/\./g, '').replace(',', '.');
-          const numVal = parseFloat(normalized);
-          const preco = isNaN(numVal) ? 0 : numVal;
+          const numParsed = parsePrice(edit.value);
+          const preco = numParsed === Infinity ? 0 : numParsed;
           const existingIdx = currentItems.findIndex((i: any) => i.codigo_interno === prod.codigo_interno);
           const payload = buildPrecosPayload({ [edit.state]: String(preco) });
           const mergedPrecos = { ...(existingIdx >= 0 ? currentItems[existingIdx]?.precos : undefined), ...payload.precos };
