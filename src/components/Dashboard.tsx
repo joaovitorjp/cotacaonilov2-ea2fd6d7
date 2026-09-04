@@ -36,10 +36,16 @@ const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
     }
     const [listasRes, respostasRes] = await Promise.all([
       supabase.from('listas').select('id, nome, status, created_at, produtos').eq('user_id', user.id).order('created_at', { ascending: false }),
-      supabase.from('respostas').select('id', { count: 'exact', head: true }).eq('user_id', user.id),
+      supabase.from('respostas').select('id, lista_id').eq('user_id', user.id),
     ]);
 
     const listas = (listasRes.data ?? []) as any[];
+
+    const porLista: Record<string, number> = {};
+    ((respostasRes.data ?? []) as any[]).forEach(r => {
+      if (r.lista_id) porLista[r.lista_id] = (porLista[r.lista_id] || 0) + 1;
+    });
+    setRespostasPorLista(porLista);
 
     const abertas = listas.filter(l => l.status === 'aberta').length;
     const finalizadas = listas.filter(l => l.status === 'finalizada').length;
