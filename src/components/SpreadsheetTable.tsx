@@ -1547,6 +1547,24 @@ const SpreadsheetTable: React.FC<SpreadsheetTableProps> = ({
                     const cd = orderedColDefs.find(c => c.orderIdx === contextMenu.colIdx);
                     const st = cd?.state as string | undefined;
                     if (!st) return null;
+                    const atual = getTipoPreco(emp, st);
+                    return (
+                      <>
+                        <div className="px-3 py-1.5 text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Tipo de preço ({st})</div>
+                        {(['IPI_ST', 'NOTA'] as const).map(t => (
+                          <button key={t} onClick={() => setTipoPreco(emp, st, t)}
+                            className={`flex items-center gap-2 w-full px-3 py-1.5 text-xs hover:bg-accent transition-colors ${atual === t ? 'font-bold text-primary' : 'text-foreground'}`}>
+                            <Check className={`w-3.5 h-3.5 ${atual === t ? 'opacity-100' : 'opacity-0'}`} /> {tipoPrecoLabel(t)}
+                          </button>
+                        ))}
+                      </>
+                    );
+                  })()}
+
+                  {(() => {
+                    const cd = orderedColDefs.find(c => c.orderIdx === contextMenu.colIdx);
+                    const st = cd?.state as string | undefined;
+                    if (!st) return null;
                     const isActive = winnerFilter?.empresa === emp && winnerFilter?.state === st;
                     return (
                       <button onClick={() => { setWinnerFilter(isActive ? null : { empresa: emp, state: st }); setContextMenu(null); }}
