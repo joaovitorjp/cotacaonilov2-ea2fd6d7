@@ -146,6 +146,64 @@ const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
         </div>
       </div>
 
+      {/* Gráficos */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-8">
+        <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm lg:col-span-2">
+          <h3 className="text-xs font-black uppercase tracking-widest text-slate-400 mb-4">Cotações por Mês</h3>
+          <div className="h-56">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={dadosMensais} barGap={4}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" vertical={false} />
+                <XAxis dataKey="label" tick={{ fontSize: 11, fill: '#64748b' }} axisLine={false} tickLine={false} />
+                <YAxis allowDecimals={false} tick={{ fontSize: 11, fill: '#64748b' }} axisLine={false} tickLine={false} width={28} />
+                <Tooltip cursor={{ fill: '#f1f5f9' }} contentStyle={{ borderRadius: 12, border: '1px solid #e2e8f0', fontSize: 12 }} />
+                <Legend wrapperStyle={{ fontSize: 11 }} />
+                <Bar dataKey="abertas" name="Em Aberto" fill="#2563eb" radius={[6, 6, 0, 0]} maxBarSize={28} />
+                <Bar dataKey="finalizadas" name="Finalizadas" fill="#059669" radius={[6, 6, 0, 0]} maxBarSize={28} />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+
+        <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
+          <h3 className="text-xs font-black uppercase tracking-widest text-slate-400 mb-4">Status das Cotações</h3>
+          <div className="h-56">
+            {stats.abertas + stats.finalizadas === 0 ? (
+              <div className="h-full flex items-center justify-center text-slate-400 text-sm">Sem dados.</div>
+            ) : (
+              <ResponsiveContainer width="100%" height="100%">
+                <PieChart>
+                  <Pie data={dadosStatus} dataKey="value" nameKey="name" innerRadius={50} outerRadius={75} paddingAngle={3}>
+                    {dadosStatus.map(d => <Cell key={d.name} fill={d.color} />)}
+                  </Pie>
+                  <Tooltip contentStyle={{ borderRadius: 12, border: '1px solid #e2e8f0', fontSize: 12 }} />
+                  <Legend wrapperStyle={{ fontSize: 11 }} />
+                </PieChart>
+              </ResponsiveContainer>
+            )}
+          </div>
+        </div>
+
+        <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm lg:col-span-3">
+          <h3 className="text-xs font-black uppercase tracking-widest text-slate-400 mb-4">Respostas de Fornecedores por Cotação</h3>
+          <div className="h-52">
+            {dadosRespostas.length === 0 ? (
+              <div className="h-full flex items-center justify-center text-slate-400 text-sm">Sem dados.</div>
+            ) : (
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={dadosRespostas}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" vertical={false} />
+                  <XAxis dataKey="nome" tick={{ fontSize: 10, fill: '#64748b' }} axisLine={false} tickLine={false} />
+                  <YAxis allowDecimals={false} tick={{ fontSize: 11, fill: '#64748b' }} axisLine={false} tickLine={false} width={28} />
+                  <Tooltip cursor={{ fill: '#f1f5f9' }} contentStyle={{ borderRadius: 12, border: '1px solid #e2e8f0', fontSize: 12 }} />
+                  <Bar dataKey="respostas" name="Respostas" fill="#0ea5e9" radius={[6, 6, 0, 0]} maxBarSize={40} />
+                </BarChart>
+              </ResponsiveContainer>
+            )}
+          </div>
+        </div>
+      </div>
+
       {/* Recentes */}
       <div>
         <h2 className="text-sm font-bold text-slate-900 mb-4 flex items-center justify-between">
