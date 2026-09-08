@@ -1258,7 +1258,7 @@ const SpreadsheetTable: React.FC<SpreadsheetTableProps> = ({
             const editKey = `${idx}-${origIdx}`;
             const hasEdit = cellEdits[editKey] !== undefined;
             return (
-              <td key={col.key} className={`${cellBaseClass} px-1 whitespace-nowrap text-xs ${isEditable ? 'bg-primary/5' : isLowest ? 'bg-success/10 text-success font-bold' : ''}`}
+              <td key={col.key} className={`${cellBaseClass} px-1 whitespace-nowrap text-xs ${isEditable ? 'bg-primary/5' : isLowest ? 'bg-success/10 text-success font-bold' : isSecond ? 'bg-warning/25 text-warning-foreground font-bold' : ''}`}
                 style={{ borderColor: 'hsl(var(--border))', minWidth: getColWidth(visualColIdx), width: getColWidth(visualColIdx), ...cellBgStyle }}
                 {...cellEvents} onDoubleClick={() => handleCellDoubleClick(idx, visualColIdx, origIdx)}>
                 {isEditable && !readOnly ? (
