@@ -160,6 +160,21 @@ const SpreadsheetTable: React.FC<SpreadsheetTableProps> = ({
     return lowestEmp;
   }, [highlightLowest, empresas, getPreco]);
 
+  const [highlightSecond, setHighlightSecond] = useState(false);
+
+  const getSecondEmpresa = useCallback((codigoInterno: string, state: string): string | null => {
+    if (!highlightSecond || empresas.length < 2) return null;
+    const list: { emp: string; val: number }[] = [];
+    for (const emp of empresas) {
+      const val = parsePrice(getPreco(emp, state, codigoInterno) as string | number);
+      if (val > 0 && Number.isFinite(val)) list.push({ emp, val });
+    }
+    if (list.length < 2) return null;
+    list.sort((a, b) => a.val - b.val);
+    const second = list.find(x => x.val > list[0].val);
+    return second ? second.emp : null;
+  }, [highlightSecond, empresas, getPreco]);
+
   const [colWidths, setColWidths] = useState<Record<number, number>>({});
   const [rowHeights, setRowHeights] = useState<Record<number, number>>({});
   const [activeColResize, setActiveColResize] = useState<number | null>(null);
