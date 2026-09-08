@@ -1290,7 +1290,7 @@ const SpreadsheetTable: React.FC<SpreadsheetTableProps> = ({
         })}
       </tr>
     );
-  }, [orderedColDefs, getColWidth, getLowestEmpresa, editingCell, editingValue, cellEdits, getPreco, getMarkedUpPrice,
+  }, [orderedColDefs, getColWidth, getLowestEmpresa, getSecondEmpresa, editingCell, editingValue, cellEdits, getPreco, getMarkedUpPrice,
       isCellSelected, isCellActive, getSelectionBorders, editableColumn, editPrices, readOnly, rowHeights,
       dragOverRow, dragRow, activeRowResize, produtos, getDisplayValue, handleCellClick, handleCellMouseDown,
       handleCellMouseEnter, handleCellDoubleClick, commitEdit, cancelEdit, onPriceChange, ufs]);
