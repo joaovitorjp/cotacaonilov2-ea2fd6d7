@@ -1413,6 +1413,15 @@ const SpreadsheetTable: React.FC<SpreadsheetTableProps> = ({
           </>
         )}
 
+        {/* Segundo menor preço */}
+        <div className="w-px h-5 bg-border mx-1" />
+        <button onClick={() => setHighlightSecond(v => !v)}
+          className={`p-1.5 rounded transition-colors flex items-center gap-1 text-xs ${highlightSecond ? 'bg-warning/25 text-warning-foreground font-bold' : 'hover:bg-accent'}`}
+          title="Destacar o segundo menor preço de cada item">
+          <span className="w-3 h-3 rounded-sm bg-warning inline-block" />
+          <span className="hidden sm:inline">Ganhador secundário</span>
+        </button>
+
         {winnerFilter && (
           <>
             <div className="w-px h-5 bg-border mx-1" />
