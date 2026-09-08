@@ -1253,6 +1253,7 @@ const SpreadsheetTable: React.FC<SpreadsheetTableProps> = ({
             const state = col.state;
             const lowestEmp = lowestEmpByUf[state] ?? null;
             const isLowest = lowestEmp === emp;
+            const isSecond = !isLowest && (secondEmpByUf[state] ?? null) === emp;
             const isEditable = editableColumn === emp;
             const editKey = `${idx}-${origIdx}`;
             const hasEdit = cellEdits[editKey] !== undefined;
