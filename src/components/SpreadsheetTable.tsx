@@ -160,6 +160,21 @@ const SpreadsheetTable: React.FC<SpreadsheetTableProps> = ({
     return lowestEmp;
   }, [highlightLowest, empresas, getPreco]);
 
+  const [highlightSecond, setHighlightSecond] = useState(false);
+
+  const getSecondEmpresa = useCallback((codigoInterno: string, state: string): string | null => {
+    if (!highlightSecond || empresas.length < 2) return null;
+    const list: { emp: string; val: number }[] = [];
+    for (const emp of empresas) {
+      const val = parsePrice(getPreco(emp, state, codigoInterno) as string | number);
+      if (val > 0 && Number.isFinite(val)) list.push({ emp, val });
+    }
+    if (list.length < 2) return null;
+    list.sort((a, b) => a.val - b.val);
+    const second = list.find(x => x.val > list[0].val);
+    return second ? second.emp : null;
+  }, [highlightSecond, empresas, getPreco]);
+
   const [colWidths, setColWidths] = useState<Record<number, number>>({});
   const [rowHeights, setRowHeights] = useState<Record<number, number>>({});
   const [activeColResize, setActiveColResize] = useState<number | null>(null);
@@ -1136,7 +1151,13 @@ const SpreadsheetTable: React.FC<SpreadsheetTableProps> = ({
   // Render row
   const renderRow = useCallback((prod: Produto | null, idx: number, isEmpty: boolean, displayIdx: number) => {
     const lowestEmpByUf: Record<string, string | null> = {};
-    if (prod) { for (const uf of ufs) lowestEmpByUf[uf] = getLowestEmpresa(prod.codigo_interno, uf); }
+    const secondEmpByUf: Record<string, string | null> = {};
+    if (prod) {
+      for (const uf of ufs) {
+        lowestEmpByUf[uf] = getLowestEmpresa(prod.codigo_interno, uf);
+        secondEmpByUf[uf] = getSecondEmpresa(prod.codigo_interno, uf);
+      }
+    }
     const h = rowHeights[idx] || DEFAULT_ROW_HEIGHT;
     const isDragOver = dragOverRow === idx;
 
@@ -1232,11 +1253,12 @@ const SpreadsheetTable: React.FC<SpreadsheetTableProps> = ({
             const state = col.state;
             const lowestEmp = lowestEmpByUf[state] ?? null;
             const isLowest = lowestEmp === emp;
+            const isSecond = !isLowest && (secondEmpByUf[state] ?? null) === emp;
             const isEditable = editableColumn === emp;
             const editKey = `${idx}-${origIdx}`;
             const hasEdit = cellEdits[editKey] !== undefined;
             return (
-              <td key={col.key} className={`${cellBaseClass} px-1 whitespace-nowrap text-xs ${isEditable ? 'bg-primary/5' : isLowest ? 'bg-success/10 text-success font-bold' : ''}`}
+              <td key={col.key} className={`${cellBaseClass} px-1 whitespace-nowrap text-xs ${isEditable ? 'bg-primary/5' : isLowest ? 'bg-success/10 text-success font-bold' : isSecond ? 'bg-warning/25 text-warning-foreground font-bold' : ''}`}
                 style={{ borderColor: 'hsl(var(--border))', minWidth: getColWidth(visualColIdx), width: getColWidth(visualColIdx), ...cellBgStyle }}
                 {...cellEvents} onDoubleClick={() => handleCellDoubleClick(idx, visualColIdx, origIdx)}>
                 {isEditable && !readOnly ? (
@@ -1268,7 +1290,7 @@ const SpreadsheetTable: React.FC<SpreadsheetTableProps> = ({
         })}
       </tr>
     );
-  }, [orderedColDefs, getColWidth, getLowestEmpresa, editingCell, editingValue, cellEdits, getPreco, getMarkedUpPrice,
+  }, [orderedColDefs, getColWidth, getLowestEmpresa, getSecondEmpresa, editingCell, editingValue, cellEdits, getPreco, getMarkedUpPrice,
       isCellSelected, isCellActive, getSelectionBorders, editableColumn, editPrices, readOnly, rowHeights,
       dragOverRow, dragRow, activeRowResize, produtos, getDisplayValue, handleCellClick, handleCellMouseDown,
       handleCellMouseEnter, handleCellDoubleClick, commitEdit, cancelEdit, onPriceChange, ufs]);
@@ -1390,6 +1412,15 @@ const SpreadsheetTable: React.FC<SpreadsheetTableProps> = ({
             </button>
           </>
         )}
+
+        {/* Segundo menor preço */}
+        <div className="w-px h-5 bg-border mx-1" />
+        <button onClick={() => setHighlightSecond(v => !v)}
+          className={`p-1.5 rounded transition-colors flex items-center gap-1 text-xs ${highlightSecond ? 'bg-warning/25 text-warning-foreground font-bold' : 'hover:bg-accent'}`}
+          title="Destacar o segundo menor preço de cada item">
+          <span className="w-3 h-3 rounded-sm bg-warning inline-block" />
+          <span className="hidden sm:inline">Ganhador secundário</span>
+        </button>
 
         {winnerFilter && (
           <>
