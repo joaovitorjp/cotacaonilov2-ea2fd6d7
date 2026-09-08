@@ -1151,7 +1151,13 @@ const SpreadsheetTable: React.FC<SpreadsheetTableProps> = ({
   // Render row
   const renderRow = useCallback((prod: Produto | null, idx: number, isEmpty: boolean, displayIdx: number) => {
     const lowestEmpByUf: Record<string, string | null> = {};
-    if (prod) { for (const uf of ufs) lowestEmpByUf[uf] = getLowestEmpresa(prod.codigo_interno, uf); }
+    const secondEmpByUf: Record<string, string | null> = {};
+    if (prod) {
+      for (const uf of ufs) {
+        lowestEmpByUf[uf] = getLowestEmpresa(prod.codigo_interno, uf);
+        secondEmpByUf[uf] = getSecondEmpresa(prod.codigo_interno, uf);
+      }
+    }
     const h = rowHeights[idx] || DEFAULT_ROW_HEIGHT;
     const isDragOver = dragOverRow === idx;
 
