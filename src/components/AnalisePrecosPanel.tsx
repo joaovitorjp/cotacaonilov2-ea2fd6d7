@@ -32,7 +32,14 @@ interface AnalisePrecosPanelProps {
 
 const parsePreco = (raw: number | string): number => {
   if (typeof raw === 'number') return raw;
-  if (typeof raw === 'string' && raw !== '') return parseFloat(raw.replace(/\./g, '').replace(',', '.'));
+  if (typeof raw === 'string' && raw !== '') {
+    const s = raw.trim();
+    // Formato pt-BR "1.234,56": ponto é milhar e vírgula é decimal.
+    // Sem vírgula ("13.17" ou "13,17"), tratar o separador como decimal.
+    return s.includes(',')
+      ? parseFloat(s.replace(/\./g, '').replace(',', '.'))
+      : parseFloat(s);
+  }
   return NaN;
 };
 
