@@ -29,32 +29,50 @@ const PLAN_FEATURES = [
 
 const DeviceMockups = () => (
   <div className="relative w-full max-w-xl mx-auto select-none" aria-hidden>
-    {/* Laptop */}
-    <div className="relative mx-auto w-[88%] rounded-t-2xl border border-border bg-card shadow-2xl shadow-primary/10 overflow-hidden">
-      <div className="flex items-center gap-1.5 px-3 py-2 border-b border-border bg-muted/60">
-        <span className="h-2.5 w-2.5 rounded-full bg-destructive/40" />
-        <span className="h-2.5 w-2.5 rounded-full bg-amber-400/50" />
-        <span className="h-2.5 w-2.5 rounded-full bg-success/50" />
+    {/* Notebook */}
+    <div className="relative mx-auto w-[88%] z-10">
+      <div className="relative w-full rounded-t-2xl bg-gradient-to-b from-slate-700 to-slate-800 p-2.5 pb-0 shadow-2xl ring-1 ring-slate-900/20">
+        {/* Câmera */}
+        <div className="absolute top-1 left-1/2 -translate-x-1/2 h-1.5 w-1.5 rounded-full bg-slate-600 ring-1 ring-slate-900/40" />
+        <div className="relative aspect-[16/10] w-full overflow-hidden rounded-lg bg-white">
+          <img src={shotPlanilha} alt="Planilha comparativa de preços" className="h-full w-full object-cover object-top" />
+          <div className="pointer-events-none absolute inset-0 bg-gradient-to-tr from-white/0 via-white/5 to-white/20" />
+        </div>
       </div>
-      <div className="aspect-[16/10] bg-white">
-        <img src={shotPlanilha} alt="Planilha comparativa de preços" className="h-full w-full object-cover object-top" />
+      {/* Base do teclado */}
+      <div className="relative -left-[4%] h-4 w-[108%] rounded-b-xl border-t border-slate-500/60 bg-gradient-to-b from-slate-600 to-slate-700 shadow-xl">
+        <div className="absolute top-0 left-1/2 h-1 w-20 -translate-x-1/2 rounded-b-lg bg-slate-800" />
       </div>
     </div>
-    <div className="mx-auto h-3 w-[96%] rounded-b-xl bg-muted border border-border" />
+
     {/* Tablet */}
-    <div className="absolute -left-2 bottom-2 w-[34%] rounded-2xl border border-border bg-card shadow-xl shadow-primary/10 overflow-hidden">
-      <div className="aspect-[3/4] bg-white">
-        <img src={shotCotacoesFinalizadas} alt="Cotações finalizadas no COTARME" className="h-full w-full object-cover object-top" />
+    <div className="absolute -left-6 top-[22%] z-20 w-[34%]">
+      <div className="relative w-full rounded-[2rem] bg-gradient-to-b from-slate-800 to-slate-900 p-2.5 shadow-2xl ring-1 ring-white/20">
+        <div className="absolute top-3 left-1/2 h-1.5 w-1.5 -translate-x-1/2 rounded-full bg-slate-700" />
+        <div className="relative aspect-[3/4] w-full overflow-hidden rounded-[1.4rem] bg-white">
+          <img src={shotCotacoesFinalizadas} alt="Cotações finalizadas no COTARME" className="h-full w-full object-cover object-top" />
+          <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-white/10 to-transparent" />
+        </div>
       </div>
     </div>
-    {/* Phone */}
-    <div className="absolute -right-1 bottom-6 w-[20%] rounded-2xl border border-border bg-card shadow-xl shadow-primary/10 overflow-hidden">
-      <div className="aspect-[9/18] bg-white">
-        <img src={shotFornecedores} alt="Cadastro de fornecedores" className="h-full w-full object-cover object-top" />
+
+    {/* Celular */}
+    <div className="absolute -right-4 bottom-[8%] z-30 w-[20%]">
+      <div className="relative w-full rounded-[1.75rem] bg-gradient-to-b from-slate-800 to-slate-950 p-1.5 shadow-2xl ring-1 ring-white/20">
+        {/* Dynamic island */}
+        <div className="absolute top-2.5 left-1/2 z-10 h-2.5 w-8 -translate-x-1/2 rounded-full bg-black" />
+        {/* Botões laterais */}
+        <div className="absolute -left-0.5 top-10 h-5 w-0.5 rounded-r-sm bg-slate-700" />
+        <div className="absolute -left-0.5 top-[4.5rem] h-8 w-0.5 rounded-r-sm bg-slate-700" />
+        <div className="relative aspect-[9/18] w-full overflow-hidden rounded-[1.35rem] bg-white">
+          <img src={shotFornecedores} alt="Cadastro de fornecedores" className="h-full w-full object-cover object-top" />
+          <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-white/10 to-transparent" />
+        </div>
       </div>
     </div>
   </div>
 );
+
 
 const Login = () => {
   const [email, setEmail] = useState('');
