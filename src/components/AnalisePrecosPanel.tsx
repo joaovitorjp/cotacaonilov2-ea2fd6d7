@@ -199,7 +199,7 @@ const AnalisePrecosPanel: React.FC<AnalisePrecosPanelProps> = ({ produtos, respo
     ufsExibidas.forEach(uf => { totais[uf] = { total: 0, count: 0 }; });
     const body = produtos.map((prod, idx) => {
       const item: any = findRespItem(resp.resposta as any[], prod);
-      const row: string[] = [String(idx + 1), prod.codigo_interno, prod.descricao.substring(0, 60), prod.codigo_barras || '—'];
+      const row: string[] = [String(idx + 1), prod.codigo_barras || '—', prod.descricao.substring(0, 60)];
       ufsExibidas.forEach(uf => {
         const preco = item ? getPrecoUF(item, uf) : undefined;
         const num = preco === undefined ? NaN : parsePreco(preco);
@@ -216,7 +216,7 @@ const AnalisePrecosPanel: React.FC<AnalisePrecosPanelProps> = ({ produtos, respo
     y0 = drawChips(doc, y0, chips);
     y0 = drawSectionTitle(doc, y0 + 2, 'Itens Precificados');
 
-    const head: string[] = ['#', 'Código', 'Descrição', 'Cód. Barras', ...ufsExibidas];
+    const head: string[] = ['#', 'Cód. Barras', 'Descrição', ...ufsExibidas];
 
     autoTable(doc, {
       ...tableStyles,
@@ -225,12 +225,11 @@ const AnalisePrecosPanel: React.FC<AnalisePrecosPanelProps> = ({ produtos, respo
       body,
       columnStyles: {
         0: { cellWidth: 9, halign: 'center', textColor: PDF_COLORS.muted as any },
-        1: { cellWidth: 24, fontStyle: 'bold', textColor: PDF_COLORS.ink as any },
-        3: { cellWidth: 28, textColor: PDF_COLORS.muted as any },
+        1: { cellWidth: 28, fontStyle: 'bold', textColor: PDF_COLORS.ink as any },
       },
       didParseCell: (data: any) => {
         if (data.section !== 'body') return;
-        if (data.column.index >= 4) {
+        if (data.column.index >= 3) {
           data.cell.styles.halign = 'right';
           data.cell.styles.fontStyle = 'bold';
           data.cell.styles.textColor = PDF_COLORS.ink;
@@ -297,7 +296,7 @@ const AnalisePrecosPanel: React.FC<AnalisePrecosPanelProps> = ({ produtos, respo
 
 
     // --- Table ---
-    const colHeaders = ['#', 'Código', 'Descrição', empresaSelecionada, ...outrasEmpresas.map(r => nomesConcorrentes[r.empresa]), 'Diferença'];
+    const colHeaders = ['#', 'Cód. Barras', 'Descrição', empresaSelecionada, ...outrasEmpresas.map(r => nomesConcorrentes[r.empresa]), 'Diferença'];
 
     // Pre-compute numeric prices and filter out wins / no-price items
     const allRowData = produtos.map((prod, idx) => {
@@ -331,7 +330,7 @@ const AnalisePrecosPanel: React.FC<AnalisePrecosPanelProps> = ({ produtos, respo
       return {
         row: [
           '', // placeholder for sequential #
-          prod.codigo_interno,
+          prod.codigo_barras || '—',
           prod.descricao.substring(0, 42),
           fmt(selPrice),
           ...concPrices.map(v => fmt(v)),
@@ -584,10 +583,10 @@ const AnalisePrecosPanel: React.FC<AnalisePrecosPanelProps> = ({ produtos, respo
     let y1 = ((doc as any).lastAutoTable?.finalY || 80) + 8;
     y1 = drawSectionTitle(doc, y1, 'Comparativo por Produto', 'accent');
 
-    const tableHead = ['Código', 'Descrição', ...empresas, 'Economia'];
+    const tableHead = ['Cód. Barras', 'Descrição', ...empresas, 'Economia'];
     const savingsColIdx = 2 + empresas.length;
     const tableBody = analysis.prodAnalysis.map(item => [
-      item.prod.codigo_interno,
+      item.prod.codigo_barras || '—',
       item.prod.descricao.substring(0, 40),
       ...empresas.map(emp => {
         const p = item.prices.find(pr => pr.empresa === emp);
