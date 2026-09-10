@@ -16,6 +16,7 @@ interface Produto {
 interface RespostaEmpresa {
   empresa: string;
   resposta: { codigo_interno: string; preco?: number | string; preco_mt?: number | string; preco_go?: number | string; precos?: Record<string, number | string>; __manual_states?: string[] }[];
+  created_at?: string;
 }
 
 interface SpreadsheetTableProps {
@@ -90,6 +91,18 @@ const SpreadsheetTable: React.FC<SpreadsheetTableProps> = ({
   const { user } = useAuth();
   const { estados: userEstados } = useEstadosUsuario();
   const empresas = useMemo(() => respostas.map(r => r.empresa), [respostas]);
+
+  // Data/hora formatada da resposta de cada fornecedor
+  const respostaDates = useMemo(() => {
+    const map: Record<string, string> = {};
+    for (const r of respostas) {
+      if (!r.created_at) continue;
+      const d = new Date(r.created_at);
+      if (isNaN(d.getTime())) continue;
+      map[r.empresa] = d.toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', year: '2-digit', hour: '2-digit', minute: '2-digit' });
+    }
+    return map;
+  }, [respostas]);
 
   // Dynamic UFs: union of UFs present in respostas, ordered by user preference; fallback to user's configured states
   const ufs = useMemo(() => {
@@ -1489,6 +1502,11 @@ const SpreadsheetTable: React.FC<SpreadsheetTableProps> = ({
                         {tipoPrecoLabel(getTipoPreco(col.empresa, col.state))}
                         {' · '}
                         {tipoPrecoMap[`${col.empresa}_${col.state}_FRETE`] ?? 'CIF'}
+                      </div>
+                    ) : null}
+                    {col.empresa && respostaDates[col.empresa] ? (
+                      <div className="text-[8px] leading-tight font-normal opacity-70 normal-case tracking-normal">
+                        {respostaDates[col.empresa]}
                       </div>
                     ) : null}
 
