@@ -1492,6 +1492,11 @@ const SpreadsheetTable: React.FC<SpreadsheetTableProps> = ({
                         {tipoPrecoMap[`${col.empresa}_${col.state}_FRETE`] ?? 'CIF'}
                       </div>
                     ) : null}
+                    {col.empresa && respostaDates[col.empresa] ? (
+                      <div className="text-[8px] leading-tight font-normal opacity-70 normal-case tracking-normal">
+                        {respostaDates[col.empresa]}
+                      </div>
+                    ) : null}
 
                     <div
                       className={`absolute top-0 bottom-0 w-[4px] cursor-col-resize z-30 ${activeColResize === i ? 'bg-primary' : 'hover:bg-primary/50'}`}
