@@ -92,6 +92,18 @@ const SpreadsheetTable: React.FC<SpreadsheetTableProps> = ({
   const { estados: userEstados } = useEstadosUsuario();
   const empresas = useMemo(() => respostas.map(r => r.empresa), [respostas]);
 
+  // Data/hora formatada da resposta de cada fornecedor
+  const respostaDates = useMemo(() => {
+    const map: Record<string, string> = {};
+    for (const r of respostas) {
+      if (!r.created_at) continue;
+      const d = new Date(r.created_at);
+      if (isNaN(d.getTime())) continue;
+      map[r.empresa] = d.toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', year: '2-digit', hour: '2-digit', minute: '2-digit' });
+    }
+    return map;
+  }, [respostas]);
+
   // Dynamic UFs: union of UFs present in respostas, ordered by user preference; fallback to user's configured states
   const ufs = useMemo(() => {
     const set = new Set<string>();
