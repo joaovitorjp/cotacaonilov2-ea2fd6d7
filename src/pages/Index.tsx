@@ -37,6 +37,7 @@ interface Lista {
 interface RespostaEmpresa {
   empresa: string;
   resposta: { codigo_interno: string; preco?: number | string; preco_mt?: number | string; preco_go?: number | string }[];
+  created_at?: string;
 }
 
 const Index = () => {
@@ -113,10 +114,10 @@ const Index = () => {
     }
     const { data } = await supabase
       .from('respostas')
-      .select('empresa, resposta')
+      .select('empresa, resposta, created_at')
       .eq('user_id', user.id)
       .eq('lista_id', listaId);
-    setRespostas((data ?? []).map((d: any) => ({ empresa: d.empresa, resposta: d.resposta as any[] })));
+    setRespostas((data ?? []).map((d: any) => ({ empresa: d.empresa, resposta: d.resposta as any[], created_at: d.created_at })));
 
     const { data: links } = await supabase
       .from('links_cotacao')
