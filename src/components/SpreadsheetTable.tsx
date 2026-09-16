@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { useAuth } from '@/contexts/AuthContext';
 import { useEstadosUsuario } from '@/hooks/useEstadosUsuario';
 import { ufNome, getPrecoUF, hasPrecoUF, buildPrecosPayload, ufsDaResposta, ordenarUFs, TIPO_LABELS, FRETE_LABELS } from '@/lib/estados';
+import { isFormula, isFormulaError, evaluateFormula, ERR_CIRC } from '@/lib/spreadsheet-formula';
 
 interface Produto {
   codigo_interno: string;
@@ -657,6 +658,32 @@ const SpreadsheetTable: React.FC<SpreadsheetTableProps> = ({
     return '';
   }, [cellEdits, produtos, allColDefs, getPreco]);
 
+  // ---- Fórmulas (=SOMA(A1:A10), =A1*2, =SE(...), ...) ----
+  const evalStackRef = useRef<Set<string>>(new Set());
+  const evalRaw = useCallback((raw: string, key: string): string => {
+    if (!isFormula(raw)) return raw;
+    if (evalStackRef.current.has(key)) return ERR_CIRC;
+    evalStackRef.current.add(key);
+    try {
+      return evaluateFormula(raw, (r, c) => {
+        const def = orderedColDefs[c];
+        if (!def) return '';
+        return evalRaw(getCellValue(r, c), `${r}-${def.originalIdx}`);
+      });
+    } finally {
+      evalStackRef.current.delete(key);
+    }
+  }, [getCellValue, orderedColDefs]);
+
+  const computeDisplayValue = useCallback((row: number, origIdx: number): string =>
+    evalRaw(getDisplayValue(row, origIdx), `${row}-${origIdx}`), [evalRaw, getDisplayValue]);
+
+  const resolveStoredValue = useCallback((row: number, origIdx: number, value: string): string => {
+    if (!isFormula(value)) return value;
+    const result = evalRaw(value, `${row}-${origIdx}`);
+    return isFormulaError(result) ? '' : result;
+  }, [evalRaw]);
+
   // Save handler
   const handleSave = useCallback(async (silent = false) => {
     if (saveInProgressRef.current || !hasUnsavedChanges) return;
@@ -664,9 +691,9 @@ const SpreadsheetTable: React.FC<SpreadsheetTableProps> = ({
     setSaveStatus('saving');
     const updated = produtos.map((prod, rowIdx) => ({
       ...prod,
-      codigo_interno: cellEdits[`${rowIdx}-1`] ?? prod.codigo_interno,
-      descricao: cellEdits[`${rowIdx}-2`] ?? prod.descricao,
-      codigo_barras: cellEdits[`${rowIdx}-3`] ?? prod.codigo_barras,
+      codigo_interno: cellEdits[`${rowIdx}-1`] !== undefined ? resolveStoredValue(rowIdx, 1, cellEdits[`${rowIdx}-1`]) : prod.codigo_interno,
+      descricao: cellEdits[`${rowIdx}-2`] !== undefined ? resolveStoredValue(rowIdx, 2, cellEdits[`${rowIdx}-2`]) : prod.descricao,
+      codigo_barras: cellEdits[`${rowIdx}-3`] !== undefined ? resolveStoredValue(rowIdx, 3, cellEdits[`${rowIdx}-3`]) : prod.codigo_barras,
     }));
     try {
       if (onSave) await onSave(updated, { silent });
@@ -682,7 +709,7 @@ const SpreadsheetTable: React.FC<SpreadsheetTableProps> = ({
         if (colDef?.state && colDef?.empresa) {
           const emp = colDef.empresa;
           if (!priceEditsByEmpresa[emp]) priceEditsByEmpresa[emp] = [];
-          priceEditsByEmpresa[emp].push({ rowIdx, value, state: colDef.state });
+          priceEditsByEmpresa[emp].push({ rowIdx, value: resolveStoredValue(rowIdx, origIdx, value), state: colDef.state });
         }
       }
 
@@ -724,7 +751,7 @@ const SpreadsheetTable: React.FC<SpreadsheetTableProps> = ({
     } finally {
       saveInProgressRef.current = false;
     }
-  }, [onSave, produtos, cellEdits, allColDefs, respostas, listaId, onAfterSave, user?.id, hasUnsavedChanges]);
+  }, [onSave, produtos, cellEdits, allColDefs, respostas, listaId, onAfterSave, user?.id, hasUnsavedChanges, resolveStoredValue]);
 
   useEffect(() => {
     if (!hasUnsavedChanges || saveStatus === 'saving') return;
@@ -1614,7 +1641,7 @@ const SpreadsheetTable: React.FC<SpreadsheetTableProps> = ({
 
           const origIdx = col.originalIdx;
           if (origIdx >= 1 && origIdx <= 3) {
-            const displayVal = getDisplayValue(idx, origIdx);
+            const displayVal = computeDisplayValue(idx, origIdx);
             const stickyClass = origIdx === 1 ? 'sticky left-[36px] bg-background z-[5]' : '';
             const extraClass = origIdx === 2 ? 'overflow-hidden text-ellipsis' : '';
             const frozenStyle = visualColIdx <= frozenCols ? { position: 'sticky' as const, left: `${getFrozenLeft(visualColIdx)}px`, zIndex: displayIdx < frozenRows ? 9 : 6, backgroundColor: 'hsl(var(--background))' } : {};
@@ -1654,8 +1681,10 @@ const SpreadsheetTable: React.FC<SpreadsheetTableProps> = ({
                     onBlur={() => commitEdit(origIdx)} onKeyDown={e => { if (e.key === 'Enter') commitEdit(origIdx); if (e.key === 'Escape') cancelEdit(); }} placeholder="0,00" />
                 ) : (() => {
                   if (hasEdit) {
-                    const editVal = cellEdits[editKey];
+                    const rawEdit = cellEdits[editKey];
+                    const editVal = isFormula(rawEdit) ? evalRaw(rawEdit, editKey) : rawEdit;
                     if (!editVal || editVal === '') return 'R$ -';
+                    if (isFormulaError(editVal)) return editVal;
                     const num = parsePrice(editVal);
                     return num === Infinity ? editVal : `R$ ${Number(num).toFixed(2).replace('.', ',')}`;
                   }
@@ -1676,7 +1705,7 @@ const SpreadsheetTable: React.FC<SpreadsheetTableProps> = ({
     );
   }, [orderedColDefs, getColWidth, getFrozenLeft, getLowestEmpresa, getSecondEmpresa, editingCell, editingValue, cellEdits, getPreco, getMarkedUpPrice,
       isCellSelected, isCellActive, getSelectionBorders, editableColumn, editPrices, readOnly, rowHeights,
-      dragOverRow, dragRow, activeRowResize, produtos, getDisplayValue, handleCellClick, handleCellMouseDown,
+      dragOverRow, dragRow, activeRowResize, produtos, computeDisplayValue, evalRaw, handleCellClick, handleCellMouseDown,
       handleCellMouseEnter, handleCellDoubleClick, commitEdit, cancelEdit, onPriceChange, ufs, frozenRows, frozenCols]);
 
   // Filtered rows
@@ -1696,7 +1725,10 @@ const SpreadsheetTable: React.FC<SpreadsheetTableProps> = ({
         const origIdx = Number(origIdxText);
         const visualCol = orderedColDefs.findIndex(col => col.originalIdx === origIdx);
         if (visualCol < 0) return true;
-        const value = getCellValue(row.idx, visualCol);
+        const rawValue = getCellValue(row.idx, visualCol);
+        const value = isFormula(rawValue)
+          ? evalRaw(rawValue, `${row.idx}-${orderedColDefs[visualCol]?.originalIdx ?? visualCol}`)
+          : rawValue;
         const empty = value.trim() === '' || value === 'R$ -';
         if (filter.emptyOnly && !empty) return false;
         if (filter.text && !value.toLocaleLowerCase('pt-BR').includes(filter.text.toLocaleLowerCase('pt-BR'))) return false;
@@ -1710,7 +1742,7 @@ const SpreadsheetTable: React.FC<SpreadsheetTableProps> = ({
         return true;
       });
     });
-  }, [sortedRows, winnerFilter, getLowestEmpresa, columnFilters, orderedColDefs, getCellValue]);
+  }, [sortedRows, winnerFilter, getLowestEmpresa, columnFilters, orderedColDefs, getCellValue, evalRaw]);
 
 
   return (
@@ -1890,7 +1922,7 @@ const SpreadsheetTable: React.FC<SpreadsheetTableProps> = ({
           disabled={!activeCell || readOnly}
           className="h-8 min-w-0 flex-1 bg-background px-3 text-xs outline-none focus:ring-1 focus:ring-inset focus:ring-primary disabled:opacity-60"
           aria-label="Conteúdo da célula selecionada"
-          placeholder="Selecione uma célula para visualizar ou editar o conteúdo"
+          placeholder="Digite um valor ou uma fórmula, ex.: =SOMA(D1:D10)"
         />
       </div>
 
