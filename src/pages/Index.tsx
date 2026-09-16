@@ -23,7 +23,8 @@ import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import { LogOut, Menu, X, Home, Upload, FolderOpen, Link2, CheckSquare, Users, BarChart3, Table, User as UserIcon, Package } from 'lucide-react';
+import { useUserRole } from '@/hooks/useUserRole';
+import { LogOut, Menu, X, Home, Upload, FolderOpen, Link2, CheckSquare, Users, BarChart3, Table, User as UserIcon, Package, Shield } from 'lucide-react';
 
 interface Lista {
   id: string;
@@ -42,6 +43,7 @@ interface RespostaEmpresa {
 
 const Index = () => {
   const { user, signOut } = useAuth();
+  const { isAdmin } = useUserRole();
   const navigate = useNavigate();
   const [importOpen, setImportOpen] = useState(false);
   const [carregarOpen, setCarregarOpen] = useState(false);
