@@ -676,7 +676,9 @@ export type Database = {
           blocked_at: string | null
           config: Json | null
           created_at: string | null
+          display_name: string | null
           id: string
+          logo_url: string | null
           name: string
           slug: string
           updated_at: string | null
@@ -686,7 +688,9 @@ export type Database = {
           blocked_at?: string | null
           config?: Json | null
           created_at?: string | null
+          display_name?: string | null
           id?: string
+          logo_url?: string | null
           name: string
           slug: string
           updated_at?: string | null
@@ -696,7 +700,9 @@ export type Database = {
           blocked_at?: string | null
           config?: Json | null
           created_at?: string | null
+          display_name?: string | null
           id?: string
+          logo_url?: string | null
           name?: string
           slug?: string
           updated_at?: string | null
