@@ -1922,7 +1922,7 @@ const SpreadsheetTable: React.FC<SpreadsheetTableProps> = ({
           disabled={!activeCell || readOnly}
           className="h-8 min-w-0 flex-1 bg-background px-3 text-xs outline-none focus:ring-1 focus:ring-inset focus:ring-primary disabled:opacity-60"
           aria-label="Conteúdo da célula selecionada"
-          placeholder="Selecione uma célula para visualizar ou editar o conteúdo"
+          placeholder="Digite um valor ou uma fórmula, ex.: =SOMA(D1:D10)"
         />
       </div>
 
