@@ -836,6 +836,7 @@ const SpreadsheetTable: React.FC<SpreadsheetTableProps> = ({
 
   const toggleBold = () => {
     if (!contextMenu) return;
+    pushUndo();
     const { type, colIdx, rowIdx } = contextMenu;
     if (type === 'cell' && colIdx !== undefined && rowIdx !== undefined) { const key = `${rowIdx}-${colIdx}`; setCellBold(prev => ({ ...prev, [key]: !prev[key] })); }
     else if (type === 'column' && colIdx !== undefined) setColBold(prev => ({ ...prev, [colIdx]: !prev[colIdx] }));
