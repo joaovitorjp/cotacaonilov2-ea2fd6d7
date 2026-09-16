@@ -13,6 +13,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { toast } from 'sonner';
+import LanguageSwitcher from '@/components/LanguageSwitcher';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import adrLogo from '@/assets/adr-logo.jpeg';
 import shotCotacoesFinalizadas from '@/assets/tablet-cotacoes-finalizadas.png';
@@ -232,7 +233,10 @@ const Login = () => {
             <button onClick={() => scrollTo('funcionalidades')} className="hover:text-foreground transition-colors">Funcionalidades</button>
             
           </nav>
-          <Button onClick={() => openAuth(false)} className="px-6">Login</Button>
+          <div className="flex items-center gap-2">
+            <LanguageSwitcher />
+            <Button onClick={() => openAuth(false)} className="px-6">Login</Button>
+          </div>
         </div>
       </header>
 

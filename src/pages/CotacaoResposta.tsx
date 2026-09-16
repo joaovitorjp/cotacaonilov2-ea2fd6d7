@@ -9,6 +9,7 @@ import autoTable from 'jspdf-autotable';
 import { drawHeader, drawChips, drawSectionTitle, drawFooter, tableStyles, PDF_COLORS } from '@/lib/pdf-theme';
 import adrLogo from '@/assets/adr-logo.jpeg';
 import { setBrand, DEFAULT_BRAND } from '@/lib/branding';
+import LanguageSwitcher from '@/components/LanguageSwitcher';
 import { condicoesFromLink, parseEstados, ufNome, buildPrecosPayload, getPrecoUF, type CondicaoEstado } from '@/lib/estados';
 
 interface Produto {
@@ -386,6 +387,9 @@ const CotacaoResposta = () => {
             <p className="text-primary-foreground/80 text-xs sm:text-sm mt-0.5">
               Cotação: {listaNome}
             </p>
+          </div>
+          <div className="ml-auto shrink-0">
+            <LanguageSwitcher className="bg-white/10 border-white/20 text-primary-foreground hover:bg-white/20" />
           </div>
         </div>
       </header>
