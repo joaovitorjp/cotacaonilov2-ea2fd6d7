@@ -807,7 +807,7 @@ const Index = () => {
               toast.success(`Dados de "${empresa}" excluídos com sucesso.`);
             }
           } : undefined}
-          onSave={currentLista ? async (updatedProdutos) => {
+          onSave={currentLista ? async (updatedProdutos, options) => {
             const { error } = await supabase
               .from('listas')
               .update({ produtos: updatedProdutos as any })
@@ -815,9 +815,10 @@ const Index = () => {
               .eq('user_id', user?.id ?? '');
             if (error) {
               toast.error('Erro ao salvar alterações.');
+              throw error;
             } else {
               setCurrentLista({ ...currentLista, produtos: updatedProdutos });
-              toast.success('Alterações salvas com sucesso!');
+              if (!options?.silent) toast.success('Alterações salvas com sucesso!');
             }
           } : undefined}
           onAfterSave={currentLista ? () => loadRespostas(currentLista.id) : undefined}
