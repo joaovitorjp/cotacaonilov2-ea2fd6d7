@@ -1,5 +1,5 @@
 import React, { useState, useCallback, useRef, useEffect, useMemo } from 'react';
-import { AlignLeft, AlignCenter, AlignRight, ArrowUp, ArrowDown, ArrowLeft, ArrowRight, Copy, ClipboardPaste, Bold, Italic, Paintbrush, X, Save, Percent, Search, MapPin, Trash2, Plus, Swords, Trash, Filter, Check, Undo2, CheckCircle2, Loader2, AlertCircle } from 'lucide-react';
+import { AlignLeft, AlignCenter, AlignRight, ArrowUp, ArrowDown, ArrowLeft, ArrowRight, Copy, ClipboardPaste, Bold, Italic, Paintbrush, X, Save, Percent, Search, Trash2, Plus, Swords, Trash, Filter, Check, Undo2, CheckCircle2, Loader2, AlertCircle, Scissors, Eraser, Rows3, Columns3, Snowflake, Scaling } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/contexts/AuthContext';
@@ -93,6 +93,14 @@ interface ColDef {
   isSeparator?: boolean;
   state?: string;
   empresa?: string;
+}
+
+interface ColumnFilter {
+  text?: string;
+  min?: string;
+  max?: string;
+  emptyOnly?: boolean;
+  winnerOnly?: boolean;
 }
 
 const SpreadsheetTable: React.FC<SpreadsheetTableProps> = ({
@@ -263,6 +271,11 @@ const SpreadsheetTable: React.FC<SpreadsheetTableProps> = ({
 
   const [sortCol, setSortCol] = useState<number | null>(null);
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc');
+  const [columnFilters, setColumnFilters] = useState<Record<number, ColumnFilter>>({});
+  const [filterEditor, setFilterEditor] = useState<number | null>(null);
+  const [filterDraft, setFilterDraft] = useState<ColumnFilter>({});
+  const [frozenRows, setFrozenRows] = useState(0);
+  const [frozenCols, setFrozenCols] = useState(0);
 
   const tableRef = useRef<HTMLTableElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -464,6 +477,65 @@ const SpreadsheetTable: React.FC<SpreadsheetTableProps> = ({
       maxCol: Math.max(selectionAnchor.col, selectionEnd.col),
     };
   }, [selectionAnchor, selectionEnd, activeCell]);
+
+  const authorizeRangeEdit = useCallback((range: { minRow: number; maxRow: number; minCol: number; maxCol: number }) => {
+    const protectedColumns = new Map<string, { empresa: string; state: string; rows: number[] }>();
+    for (let c = range.minCol; c <= range.maxCol; c++) {
+      const col = orderedColDefs[c];
+      if (!col?.empresa || !col.state) continue;
+      protectedColumns.set(`${col.empresa}_${col.state}`, {
+        empresa: col.empresa,
+        state: col.state,
+        rows: Array.from({ length: range.maxRow - range.minRow + 1 }, (_, i) => range.minRow + i).filter(row => row < produtos.length),
+      });
+    }
+    return [...protectedColumns.values()].every(item => authorizeOriginalPriceEdit(item.empresa, item.state, item.rows));
+  }, [orderedColDefs, produtos.length, authorizeOriginalPriceEdit]);
+
+  const updateSelectedCells = useCallback((valueFor: (row: number, col: number, range: { minRow: number; maxRow: number; minCol: number; maxCol: number }) => string) => {
+    const range = getSelectionRange();
+    if (!range || readOnly || !authorizeRangeEdit(range)) return;
+    pushUndo();
+    const edits: Record<string, string> = {};
+    for (let row = range.minRow; row <= Math.min(range.maxRow, produtos.length - 1); row++) {
+      for (let col = range.minCol; col <= range.maxCol; col++) {
+        const def = orderedColDefs[col];
+        if (def?.isData) edits[`${row}-${def.originalIdx}`] = valueFor(row, col, range);
+      }
+    }
+    if (Object.keys(edits).length === 0) return;
+    setCellEdits(prev => ({ ...prev, ...edits }));
+    setHasUnsavedChanges(true);
+    setSaveStatus('idle');
+  }, [getSelectionRange, readOnly, authorizeRangeEdit, pushUndo, produtos.length, orderedColDefs]);
+
+  const clearSelection = useCallback(() => updateSelectedCells(() => ''), [updateSelectedCells]);
+  const fillDown = useCallback(() => updateSelectedCells((_row, col, range) => getCellValue(range.minRow, col)), [updateSelectedCells, getCellValue]);
+  const fillRight = useCallback(() => updateSelectedCells((row, _col, range) => getCellValue(row, range.minCol)), [updateSelectedCells, getCellValue]);
+  const applyFormulaValueToSelection = useCallback(() => updateSelectedCells(() => formulaValue), [updateSelectedCells, formulaValue]);
+  const duplicateSelection = useCallback(() => {
+    const range = getSelectionRange();
+    if (!range || readOnly) return;
+    const height = range.maxRow - range.minRow + 1;
+    const targetMaxRow = Math.min(produtos.length - 1, range.maxRow + height);
+    if (targetMaxRow <= range.maxRow) return;
+    const targetRange = { ...range, minRow: range.maxRow + 1, maxRow: targetMaxRow };
+    if (!authorizeRangeEdit(targetRange)) return;
+    pushUndo();
+    const edits: Record<string, string> = {};
+    for (let row = targetRange.minRow; row <= targetRange.maxRow; row++) {
+      for (let col = range.minCol; col <= range.maxCol; col++) {
+        const def = orderedColDefs[col];
+        if (def?.isData) edits[`${row}-${def.originalIdx}`] = getCellValue(range.minRow + ((row - targetRange.minRow) % height), col);
+      }
+    }
+    setCellEdits(prev => ({ ...prev, ...edits }));
+    setSelectionAnchor({ row: targetRange.minRow, col: range.minCol });
+    setSelectionEnd({ row: targetRange.maxRow, col: range.maxCol });
+    setActiveCell({ row: targetRange.minRow, col: range.minCol });
+    setHasUnsavedChanges(true);
+    setSaveStatus('idle');
+  }, [getSelectionRange, readOnly, produtos.length, authorizeRangeEdit, pushUndo, orderedColDefs, getCellValue]);
 
   const isCellSelected = useCallback((row: number, col: number): boolean => {
     const range = getSelectionRange();
@@ -693,28 +765,8 @@ const SpreadsheetTable: React.FC<SpreadsheetTableProps> = ({
       if (!readOnly && target.tagName !== 'INPUT' && (e.key === 'Delete' || e.key === 'Backspace')) {
         const range = getSelectionRange();
         if (!range) return;
-        const protectedColumns = new Map<string, { empresa: string; state: string; rows: number[] }>();
-        for (let c = range.minCol; c <= range.maxCol; c++) {
-          const col = orderedColDefs[c];
-          if (!col?.empresa || !col.state) continue;
-          const key = `${col.empresa}_${col.state}`;
-          protectedColumns.set(key, { empresa: col.empresa, state: col.state, rows: Array.from({ length: range.maxRow - range.minRow + 1 }, (_, i) => range.minRow + i) });
-        }
-        if ([...protectedColumns.values()].some(item => !authorizeOriginalPriceEdit(item.empresa, item.state, item.rows))) return;
         e.preventDefault();
-        pushUndo();
-        setCellEdits(prev => {
-          const next = { ...prev };
-          for (let r = range.minRow; r <= Math.min(range.maxRow, produtos.length - 1); r++) {
-            for (let c = range.minCol; c <= range.maxCol; c++) {
-              const col = orderedColDefs[c];
-              if (col?.isData) next[`${r}-${col.originalIdx}`] = '';
-            }
-          }
-          return next;
-        });
-        setHasUnsavedChanges(true);
-        setSaveStatus('idle');
+        clearSelection();
         return;
       }
       if (!readOnly && target.tagName !== 'INPUT' && e.key.length === 1 && !e.ctrlKey && !e.metaKey && !e.altKey) {
@@ -757,7 +809,7 @@ const SpreadsheetTable: React.FC<SpreadsheetTableProps> = ({
     };
     document.addEventListener('keydown', handleKeyDown);
     return () => document.removeEventListener('keydown', handleKeyDown);
-  }, [activeCell, orderedColDefs, totalRows, readOnly, getSelectionRange, authorizeOriginalPriceEdit, produtos.length, pushUndo, handleCellDoubleClick]);
+  }, [activeCell, orderedColDefs, totalRows, readOnly, getSelectionRange, authorizeOriginalPriceEdit, produtos.length, handleCellDoubleClick, clearSelection]);
 
   // Copy
   useEffect(() => {
@@ -781,6 +833,28 @@ const SpreadsheetTable: React.FC<SpreadsheetTableProps> = ({
     document.addEventListener('copy', handleCopy);
     return () => document.removeEventListener('copy', handleCopy);
   }, [getSelectionRange, getCellValue]);
+
+  // Cut
+  useEffect(() => {
+    const handleCut = (e: ClipboardEvent) => {
+      const range = getSelectionRange();
+      if (!range || readOnly) return;
+      const target = e.target as HTMLElement;
+      if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA') return;
+      if (!authorizeRangeEdit(range)) return;
+      e.preventDefault();
+      const lines: string[] = [];
+      for (let row = range.minRow; row <= range.maxRow; row++) {
+        const values: string[] = [];
+        for (let col = range.minCol; col <= range.maxCol; col++) values.push(getCellValue(row, col));
+        lines.push(values.join('\t'));
+      }
+      e.clipboardData?.setData('text/plain', lines.join('\n'));
+      clearSelection();
+    };
+    document.addEventListener('cut', handleCut);
+    return () => document.removeEventListener('cut', handleCut);
+  }, [getSelectionRange, readOnly, authorizeRangeEdit, getCellValue, clearSelection]);
 
   // Paste
   useEffect(() => {
@@ -878,6 +952,11 @@ const SpreadsheetTable: React.FC<SpreadsheetTableProps> = ({
     });
     setColWidths(prev => ({ ...prev, [colIdx]: max }));
   }, []);
+
+  const handleAutoFitAll = useCallback(() => {
+    for (let colIdx = 0; colIdx < orderedColDefs.length; colIdx++) handleColAutoFit(colIdx);
+    setRowHeights({});
+  }, [orderedColDefs.length, handleColAutoFit]);
 
   const handleRowAutoFit = useCallback((rowIdx: number) => {
     setRowHeights(prev => { const copy = { ...prev }; delete copy[rowIdx]; return copy; });
@@ -1048,9 +1127,10 @@ const SpreadsheetTable: React.FC<SpreadsheetTableProps> = ({
 
   const handleHeaderSort = useCallback((colIdx: number, origIdx: number) => {
     if (origIdx === 0 || origIdx > 3 + empresas.length * 2 + 1) return;
-    if (sortCol === origIdx) setSortDir(prev => prev === 'asc' ? 'desc' : 'asc');
-    else { setSortCol(origIdx); setSortDir('asc'); }
-  }, [sortCol, empresas.length]);
+    if (sortCol !== origIdx) { setSortCol(origIdx); setSortDir('asc'); return; }
+    if (sortDir === 'asc') { setSortDir('desc'); return; }
+    setSortCol(null);
+  }, [sortCol, sortDir, empresas.length]);
 
   const allRows = useMemo(() => {
     const rows = [...produtos.map((p, i) => ({ prod: p, idx: i, isEmpty: false }))];
@@ -1397,7 +1477,50 @@ const SpreadsheetTable: React.FC<SpreadsheetTableProps> = ({
 
   const hasSelection = activeCell !== null;
   const [searchTerm, setSearchTerm] = useState('');
+  const [replaceTerm, setReplaceTerm] = useState('');
   const [showSearch, setShowSearch] = useState(false);
+
+  const findNext = useCallback(() => {
+    const term = searchTerm.trim().toLocaleLowerCase('pt-BR');
+    if (!term) return;
+    const dataCols = orderedColDefs.map((col, index) => ({ col, index })).filter(item => item.col.isData);
+    const cells = produtos.flatMap((_prod, row) => dataCols.map(item => ({ row, col: item.index })));
+    const start = activeCell ? cells.findIndex(cell => cell.row === activeCell.row && cell.col === activeCell.col) + 1 : 0;
+    for (let offset = 0; offset < cells.length; offset++) {
+      const cell = cells[(start + offset) % cells.length];
+      if (getCellValue(cell.row, cell.col).toLocaleLowerCase('pt-BR').includes(term)) {
+        setActiveCell(cell); setSelectionAnchor(cell); setSelectionEnd(cell);
+        tableRef.current?.querySelector(`[data-cell="${cell.row}-${cell.col}"]`)?.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+        return;
+      }
+    }
+  }, [searchTerm, orderedColDefs, produtos, activeCell, getCellValue]);
+
+  const replaceMatches = useCallback((all: boolean) => {
+    const term = searchTerm.trim();
+    if (!term || readOnly) return;
+    const escaped = term.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const matcher = new RegExp(escaped, 'gi');
+    const targets: CellPos[] = [];
+    if (!all && activeCell && getCellValue(activeCell.row, activeCell.col).toLocaleLowerCase('pt-BR').includes(term.toLocaleLowerCase('pt-BR'))) targets.push(activeCell);
+    if (all) {
+      for (let row = 0; row < produtos.length; row++) for (let col = 1; col < orderedColDefs.length; col++) {
+        if (orderedColDefs[col]?.isData && getCellValue(row, col).toLocaleLowerCase('pt-BR').includes(term.toLocaleLowerCase('pt-BR'))) targets.push({ row, col });
+      }
+    }
+    if (targets.length === 0) { findNext(); return; }
+    const range = { minRow: Math.min(...targets.map(t => t.row)), maxRow: Math.max(...targets.map(t => t.row)), minCol: Math.min(...targets.map(t => t.col)), maxCol: Math.max(...targets.map(t => t.col)) };
+    if (!authorizeRangeEdit(range)) return;
+    pushUndo();
+    const edits: Record<string, string> = {};
+    for (const target of targets) {
+      const def = orderedColDefs[target.col];
+      if (def?.isData) edits[`${target.row}-${def.originalIdx}`] = getCellValue(target.row, target.col).replace(matcher, replaceTerm);
+    }
+    setCellEdits(prev => ({ ...prev, ...edits }));
+    setHasUnsavedChanges(true); setSaveStatus('idle');
+    if (!all) findNext();
+  }, [searchTerm, replaceTerm, readOnly, activeCell, getCellValue, orderedColDefs, produtos.length, findNext, authorizeRangeEdit, pushUndo]);
 
   // Render row
   const renderRow = useCallback((prod: Produto | null, idx: number, isEmpty: boolean, displayIdx: number) => {
@@ -1542,7 +1665,7 @@ const SpreadsheetTable: React.FC<SpreadsheetTableProps> = ({
       dragOverRow, dragRow, activeRowResize, produtos, getDisplayValue, handleCellClick, handleCellMouseDown,
       handleCellMouseEnter, handleCellDoubleClick, commitEdit, cancelEdit, onPriceChange, ufs]);
 
-  // Filtered rows for search + winner filter
+  // Filtered rows
   const displayRows = useMemo(() => {
     let rows = sortedRows;
     if (winnerFilter) {
@@ -1551,15 +1674,29 @@ const SpreadsheetTable: React.FC<SpreadsheetTableProps> = ({
         return getLowestEmpresa(row.prod.codigo_interno, winnerFilter.state) === winnerFilter.empresa;
       });
     }
-    if (!searchTerm.trim()) return rows;
-    const term = searchTerm.toLowerCase();
+    const activeFilters = Object.entries(columnFilters).filter(([, filter]) => filter.text || filter.min || filter.max || filter.emptyOnly || filter.winnerOnly);
+    if (activeFilters.length === 0) return rows;
     return rows.filter(row => {
-      if (row.isEmpty || !row.prod) return true;
-      return row.prod.codigo_interno.toLowerCase().includes(term) ||
-        row.prod.descricao.toLowerCase().includes(term) ||
-        row.prod.codigo_barras.toLowerCase().includes(term);
+      if (row.isEmpty || !row.prod) return false;
+      return activeFilters.every(([origIdxText, filter]) => {
+        const origIdx = Number(origIdxText);
+        const visualCol = orderedColDefs.findIndex(col => col.originalIdx === origIdx);
+        if (visualCol < 0) return true;
+        const value = getCellValue(row.idx, visualCol);
+        const empty = value.trim() === '' || value === 'R$ -';
+        if (filter.emptyOnly && !empty) return false;
+        if (filter.text && !value.toLocaleLowerCase('pt-BR').includes(filter.text.toLocaleLowerCase('pt-BR'))) return false;
+        const col = orderedColDefs[visualCol];
+        if (filter.winnerOnly && (!col.empresa || !col.state || getLowestEmpresa(row.prod.codigo_interno, col.state) !== col.empresa)) return false;
+        const numeric = parsePrice(value);
+        const min = filter.min ? parsePrice(filter.min) : -Infinity;
+        const max = filter.max ? parsePrice(filter.max) : Infinity;
+        if (filter.min && (numeric === Infinity || numeric < min)) return false;
+        if (filter.max && (numeric === Infinity || numeric > max)) return false;
+        return true;
+      });
     });
-  }, [sortedRows, searchTerm, winnerFilter, getLowestEmpresa]);
+  }, [sortedRows, winnerFilter, getLowestEmpresa, columnFilters, orderedColDefs, getCellValue]);
 
 
   return (
