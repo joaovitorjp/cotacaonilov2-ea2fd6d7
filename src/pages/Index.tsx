@@ -12,6 +12,7 @@ import PerfilPanel from '@/components/PerfilPanel';
 import { useAvatar } from '@/hooks/useAvatar';
 import HeaderAvatarButton from '@/components/HeaderAvatarButton';
 import LanguageSwitcher from '@/components/LanguageSwitcher';
+import AccessStatusBadge from '@/components/AccessStatusBadge';
 import adrLogo from '@/assets/adr-logo.jpeg';
 import { useBranding } from '@/hooks/useBranding';
 import { toast } from 'sonner';
