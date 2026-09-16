@@ -1130,11 +1130,12 @@ const SpreadsheetTable: React.FC<SpreadsheetTableProps> = ({
     }
 
     if (changed > 0) {
+      pushUndo();
       setCellEdits(prev => ({ ...prev, ...newEdits }));
       setHasUnsavedChanges(true);
     }
     setContextMenu(null);
-  }, [contextMenu, orderedColDefs, allColDefs, produtos, empresas, getPreco]);
+  }, [contextMenu, orderedColDefs, allColDefs, produtos, empresas, getPreco, pushUndo]);
 
   // Toolbar
   const getSelectionTarget = (): { type: 'cell'; keys: string[] } | null => {
@@ -1152,22 +1153,105 @@ const SpreadsheetTable: React.FC<SpreadsheetTableProps> = ({
 
   const toolbarToggleBold = () => {
     const target = getSelectionTarget(); if (!target) return;
+    pushUndo();
     const allB = target.keys.every(k => cellBold[k]);
     setCellBold(prev => { const next = { ...prev }; target.keys.forEach(k => { next[k] = !allB; }); return next; });
   };
   const toolbarToggleItalic = () => {
     const target = getSelectionTarget(); if (!target) return;
+    pushUndo();
     const allI = target.keys.every(k => cellItalic[k]);
     setCellItalic(prev => { const next = { ...prev }; target.keys.forEach(k => { next[k] = !allI; }); return next; });
   };
   const toolbarSetAlign = (align: TextAlign) => {
     const target = getSelectionTarget(); if (!target) return;
+    pushUndo();
     setCellAligns(prev => { const next = { ...prev }; target.keys.forEach(k => { next[k] = align; }); return next; });
   };
   const toolbarSetBgColor = (color: string) => {
     const target = getSelectionTarget(); if (!target) return;
+    pushUndo();
     setCellBgColor(prev => { const next = { ...prev }; target.keys.forEach(k => { next[k] = color; }); return next; });
   };
+
+  // ===== Snapshot + desfazer =====
+  snapshotFnRef.current = () => ({
+    cellEdits, cellAligns, colAligns, rowAligns,
+    cellBold, cellItalic, cellBgColor,
+    colBold, colItalic, colBgColor,
+    rowBold, rowItalic, rowBgColor,
+    colOrder, rowOrder, colWidths, rowHeights,
+    sortCol, sortDir, hasUnsavedChanges,
+    produtos, priceMarkups, tipoPrecoOverrides,
+  });
+
+  const handleUndo = useCallback(() => {
+    const snap = undoStackRef.current.pop();
+    setUndoCount(undoStackRef.current.length);
+    if (!snap) return;
+    setCellEdits(snap.cellEdits);
+    setCellAligns(snap.cellAligns); setColAligns(snap.colAligns); setRowAligns(snap.rowAligns);
+    setCellBold(snap.cellBold); setCellItalic(snap.cellItalic); setCellBgColor(snap.cellBgColor);
+    setColBold(snap.colBold); setColItalic(snap.colItalic); setColBgColor(snap.colBgColor);
+    setRowBold(snap.rowBold); setRowItalic(snap.rowItalic); setRowBgColor(snap.rowBgColor);
+    setColOrder(snap.colOrder); setRowOrder(snap.rowOrder);
+    setColWidths(snap.colWidths); setRowHeights(snap.rowHeights);
+    setSortCol(snap.sortCol); setSortDir(snap.sortDir);
+    setHasUnsavedChanges(snap.hasUnsavedChanges);
+    setEditingCell(null);
+
+    // Acréscimo (markup) — restaura e persiste apenas o que mudou
+    const prevMarkups: Record<string, number> = snap.priceMarkups || {};
+    const curMarkups = priceMarkups;
+    const empresasMarkup = new Set([...Object.keys(prevMarkups), ...Object.keys(curMarkups)]);
+    let markupChanged = false;
+    empresasMarkup.forEach(emp => {
+      if ((prevMarkups[emp] ?? 0) !== (curMarkups[emp] ?? 0)) {
+        markupChanged = true;
+        saveMarkupToDb(emp, prevMarkups[emp] ?? 0);
+      }
+    });
+    if (markupChanged) setPriceMarkups(prevMarkups);
+
+    // Tipo de preço — restaura e persiste apenas o que mudou
+    const prevTipos: Record<string, string> = snap.tipoPrecoOverrides || {};
+    const curTipos = tipoPrecoOverrides;
+    const chaves = new Set([...Object.keys(prevTipos), ...Object.keys(curTipos)]);
+    let tipoChanged = false;
+    chaves.forEach(k => {
+      if (prevTipos[k] !== curTipos[k]) {
+        tipoChanged = true;
+        const [empresa, estado] = k.split('_');
+        const tipo = prevTipos[k] ?? (estado === 'GO' ? 'NOTA' : 'IPI_ST');
+        if (listaId) {
+          supabase.from('price_types').upsert(
+            { lista_id: listaId, empresa, estado, tipo, user_id: user?.id, updated_at: new Date().toISOString() },
+            { onConflict: 'lista_id,empresa,estado' }
+          ).then(() => {});
+        }
+      }
+    });
+    if (tipoChanged) setTipoPrecoOverrides(prevTipos);
+
+    // Produtos (novo item / exclusão / etc.)
+    if (onSave && JSON.stringify(snap.produtos) !== JSON.stringify(produtos)) {
+      onSave(snap.produtos);
+    }
+  }, [priceMarkups, tipoPrecoOverrides, produtos, onSave, listaId, user?.id]);
+
+  // Atalho Ctrl+Z / Cmd+Z
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z') {
+        const target = e.target as HTMLElement;
+        if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA') return;
+        e.preventDefault();
+        handleUndo();
+      }
+    };
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, [handleUndo]);
 
   const [showColorPicker, setShowColorPicker] = useState(false);
   const colorPickerRef = useRef<HTMLDivElement>(null);
