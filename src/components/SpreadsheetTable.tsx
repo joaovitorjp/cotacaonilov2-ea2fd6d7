@@ -846,6 +846,7 @@ const SpreadsheetTable: React.FC<SpreadsheetTableProps> = ({
 
   const toggleItalic = () => {
     if (!contextMenu) return;
+    pushUndo();
     const { type, colIdx, rowIdx } = contextMenu;
     if (type === 'cell' && colIdx !== undefined && rowIdx !== undefined) { const key = `${rowIdx}-${colIdx}`; setCellItalic(prev => ({ ...prev, [key]: !prev[key] })); }
     else if (type === 'column' && colIdx !== undefined) setColItalic(prev => ({ ...prev, [colIdx]: !prev[colIdx] }));
