@@ -269,6 +269,7 @@ const AdminPanel: React.FC = () => {
                   <SelectItem value="ativos">Ativos</SelectItem>
                   <SelectItem value="bloqueados">Bloqueados</SelectItem>
                   <SelectItem value="vencidos">Vencidos</SelectItem>
+                  <SelectItem value="pendentes">Aguardando liberação</SelectItem>
                 </SelectContent>
               </Select>
               <Button onClick={() => setNovoUsuario(true)} className="rounded-xl bg-slate-900 hover:bg-slate-800 text-xs font-bold">
@@ -290,10 +291,21 @@ const AdminPanel: React.FC = () => {
                       <p className="text-[11px] text-slate-400">{p.email}</p>
                     </div>
                     <span className={`text-[10px] font-black uppercase tracking-wider px-2 py-1 rounded-md ${
-                      s === 'ativo' ? 'bg-emerald-50 text-emerald-600' : s === 'vencido' ? 'bg-amber-50 text-amber-600' : 'bg-red-50 text-red-600'
+                      s === 'ativo' ? 'bg-emerald-50 text-emerald-600' : (s === 'vencido' || s === 'pendente') ? 'bg-amber-50 text-amber-600' : 'bg-red-50 text-red-600'
                     }`}>{s}</span>
                     <span className="text-[11px] text-slate-500 font-bold min-w-[110px]">{rede?.name ?? 'Sem rede'}</span>
+                    <span className="text-[11px] text-slate-500 font-bold min-w-[110px]">
+                      {p.access_expires_at
+                        ? `${Math.max(0, Math.ceil((new Date(p.access_expires_at).getTime() - Date.now()) / 86400000))} dia(s)`
+                        : 'Sem prazo'}
+                    </span>
                     <div className="flex items-center gap-1.5 ml-auto">
+                      {!p.approved_at && (
+                        <Button size="sm" className="text-xs rounded-lg bg-emerald-600 hover:bg-emerald-700" disabled={acao}
+                          onClick={() => updateProfile(p, { approved_at: new Date().toISOString() } as any, 'liberar_usuario')}>
+                          <CheckCircle2 className="w-3.5 h-3.5 mr-1.5" /> Liberar
+                        </Button>
+                      )}
                       <Button size="sm" variant="ghost" className="text-xs rounded-lg" onClick={() => { setSelecionado(p); }}>Gerenciar</Button>
                       <Button
                         size="sm"
