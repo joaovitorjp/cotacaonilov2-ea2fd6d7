@@ -8,6 +8,7 @@ import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { drawHeader, drawChips, drawSectionTitle, drawFooter, tableStyles, PDF_COLORS } from '@/lib/pdf-theme';
 import adrLogo from '@/assets/adr-logo.jpeg';
+import { setBrand, DEFAULT_BRAND } from '@/lib/branding';
 import { condicoesFromLink, parseEstados, ufNome, buildPrecosPayload, getPrecoUF, type CondicaoEstado } from '@/lib/estados';
 
 interface Produto {
@@ -36,6 +37,7 @@ const CotacaoResposta = () => {
   const [condicoes, setCondicoes] = useState<Record<string, CondicaoEstado>>({});
   const [showBriefing, setShowBriefing] = useState(false);
   const [briefingProgress, setBriefingProgress] = useState(100);
+  const [marca, setMarca] = useState<{ nome: string; logo: string }>({ nome: DEFAULT_BRAND.nome, logo: adrLogo });
 
   const tipoLabel = (t: string) => (t === 'NOTA' ? 'PREÇO NOTA' : 'IPI + ST');
   const condDe = (uf: string): CondicaoEstado => condicoes[uf] ?? { tipo: 'IPI_ST', frete: 'CIF' };
@@ -87,6 +89,14 @@ const CotacaoResposta = () => {
       setLoading(false);
       return;
     }
+
+    const marca = payload?.marca;
+    const brandAtual = {
+      nome: (marca?.nome as string) || DEFAULT_BRAND.nome,
+      logo: (marca?.logo_url as string) || adrLogo,
+    };
+    setMarca(brandAtual);
+    setBrand(brandAtual);
 
     if (linkData.respondido) setLinkRespondido(true);
     setEmpresa(linkData.empresa);
@@ -370,9 +380,9 @@ const CotacaoResposta = () => {
       )}
       <header className="bg-primary text-primary-foreground px-4 sm:px-6 py-4 shrink-0 shadow-md">
         <div className="max-w-3xl mx-auto flex items-center gap-3">
-          <img src={adrLogo} alt="COTARME" className="h-11 w-11 rounded-lg bg-white object-contain p-0.5 shrink-0" />
+          <img src={marca.logo} alt={marca.nome} className="h-11 w-11 rounded-lg bg-white object-contain p-0.5 shrink-0" />
           <div>
-            <h1 className="text-lg sm:text-xl font-bold tracking-tight">COTARME</h1>
+            <h1 className="text-lg sm:text-xl font-bold tracking-tight">{marca.nome}</h1>
             <p className="text-primary-foreground/80 text-xs sm:text-sm mt-0.5">
               Cotação: {listaNome}
             </p>

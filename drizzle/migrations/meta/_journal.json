@@ -43,6 +43,13 @@
       "when": 1789583506244,
       "tag": "0005_admin_panel_access_control",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1789587052776,
+      "tag": "0006_network_branding",
+      "breakpoints": true
     }
   ]
 }

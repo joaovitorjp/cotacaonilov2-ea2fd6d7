@@ -14,9 +14,10 @@ import {
 } from '@/components/ui/dialog';
 import { toast } from 'sonner';
 import UserDataTree from '@/components/admin/UserDataTree';
+import { imageToDataUrl } from '@/lib/branding';
 import {
   ArrowLeft, Ban, CalendarClock, CheckCircle2, KeyRound, Loader2, LogOut,
-  Network, Plus, Search, Shield, Trash2, Users as UsersIcon, FolderTree, ScrollText,
+  Network, Plus, Search, Shield, Trash2, Users as UsersIcon, FolderTree, ScrollText, ImageIcon,
 } from 'lucide-react';
 
 type Tab = 'usuarios' | 'redes' | 'dados' | 'auditoria';
@@ -38,6 +39,8 @@ interface Rede {
   slug: string;
   blocked_at: string | null;
   access_expires_at: string | null;
+  display_name: string | null;
+  logo_url: string | null;
 }
 
 const toDateInput = (v: string | null) => (v ? new Date(v).toISOString().slice(0, 10) : '');
@@ -72,7 +75,7 @@ const AdminPanel: React.FC = () => {
     setLoading(true);
     const [p, n, r, l] = await Promise.all([
       supabase.from('profiles').select('user_id,nome,email,network_id,blocked_at,blocked_reason,access_expires_at,created_at').order('nome'),
-      supabase.from('networks').select('id,name,slug,blocked_at,access_expires_at').order('name'),
+      supabase.from('networks').select('id,name,slug,blocked_at,access_expires_at,display_name,logo_url').order('name'),
       supabase.from('user_roles').select('user_id,role').eq('role', 'admin'),
       supabase.from('master_audit_logs').select('*').order('created_at', { ascending: false }).limit(100),
     ]);
@@ -307,11 +310,47 @@ const AdminPanel: React.FC = () => {
                 return (
                   <div key={r.id} className="p-4 space-y-3">
                     <div className="flex flex-wrap items-center gap-3">
+                      <label className="relative shrink-0 cursor-pointer group" title="Alterar logo da rede">
+                        <div className="w-12 h-12 rounded-xl border border-slate-200 bg-white flex items-center justify-center overflow-hidden">
+                          {r.logo_url
+                            ? <img src={r.logo_url} alt={r.name} className="w-full h-full object-contain" />
+                            : <ImageIcon className="w-4 h-4 text-slate-300" />}
+                        </div>
+                        <input
+                          type="file"
+                          accept="image/*"
+                          className="hidden"
+                          onChange={async e => {
+                            const file = e.target.files?.[0];
+                            e.target.value = '';
+                            if (!file) return;
+                            if (file.size > 5 * 1024 * 1024) { toast.error('Imagem muito grande (máx. 5 MB).'); return; }
+                            try {
+                              const dataUrl = await imageToDataUrl(file, 512);
+                              await updateRede(r, { logo_url: dataUrl } as any, 'logo_rede');
+                            } catch (err) {
+                              toast.error(err instanceof Error ? err.message : 'Falha ao processar a imagem.');
+                            }
+                          }}
+                        />
+                      </label>
                       <Input
                         defaultValue={r.name}
                         onBlur={e => { const v = e.target.value.trim(); if (v && v !== r.name) void updateRede(r, { name: v }, 'renomear_rede'); }}
                         className="max-w-[240px] rounded-xl font-bold"
                       />
+                      <Input
+                        defaultValue={r.display_name ?? ''}
+                        placeholder="Nome exibido no sistema"
+                        onBlur={e => { const v = e.target.value.trim(); if (v !== (r.display_name ?? '')) void updateRede(r, { display_name: v || null } as any, 'nome_exibicao_rede'); }}
+                        className="max-w-[220px] rounded-xl text-xs"
+                      />
+                      {r.logo_url && (
+                        <Button size="sm" variant="ghost" className="text-[11px] rounded-lg text-slate-500"
+                          onClick={() => updateRede(r, { logo_url: null } as any, 'remover_logo_rede')}>
+                          Remover logo
+                        </Button>
+                      )}
                       <span className="text-[11px] text-slate-400 font-bold">{membros.length} usuário(s)</span>
                       {r.blocked_at && <span className="text-[10px] font-black uppercase bg-red-50 text-red-600 px-2 py-1 rounded-md">bloqueada</span>}
                       <div className="flex items-center gap-2 ml-auto">

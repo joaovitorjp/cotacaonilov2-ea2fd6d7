@@ -1,5 +1,6 @@
 import type jsPDF from 'jspdf';
 import { LOGO_BASE64 } from './pdf-logo';
+import { getBrand } from './branding';
 
 // =========================================================================
 // PDF Design System — paleta única, tipografia consistente e componentes
@@ -30,6 +31,13 @@ export const PDF_COLORS = {
 
 export const BRAND_NAME = 'COTARME • Sistema de Cotações';
 
+/** Marca atual (rede do usuário) aplicada a todos os relatórios. */
+const brandName = (): string => `${getBrand().nome} • Sistema de Cotações`;
+const brandLogo = (): string => {
+  const logo = getBrand().logo;
+  return logo && logo.startsWith('data:') ? logo : LOGO_BASE64;
+};
+
 export const formatBRL = (n: number): string => {
   if (n === null || n === undefined || isNaN(n)) return '—';
   return `R$ ${n.toFixed(2).replace('.', ',').replace(/\B(?=(\d{3})+(?!\d))/g, '.')}`;
@@ -58,7 +66,7 @@ export function drawHeader(doc: jsPDF, opts: HeaderOptions): number {
 
   // Logo à esquerda
   try {
-    doc.addImage(LOGO_BASE64, 'JPEG', 11, 5, 22, 22);
+    doc.addImage(brandLogo(), 'JPEG', 11, 5, 22, 22);
   } catch { /* logo opcional */ }
   const tx = 38; // textos deslocados para a direita da logo
 
@@ -66,7 +74,7 @@ export function drawHeader(doc: jsPDF, opts: HeaderOptions): number {
   doc.setTextColor(...PDF_COLORS.white);
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(9);
-  doc.text(BRAND_NAME.toUpperCase(), tx, 9);
+  doc.text(brandName().toUpperCase(), tx, 9);
 
   // Título
   doc.setFontSize(17);
@@ -167,7 +175,7 @@ export function drawFooter(doc: jsPDF, extraLeft?: string): void {
     doc.setFont('helvetica', 'normal');
     doc.setFontSize(7.5);
     doc.setTextColor(...PDF_COLORS.muted);
-    doc.text(extraLeft || BRAND_NAME, 14, ph - 5.5);
+    doc.text(extraLeft || brandName(), 14, ph - 5.5);
     const rightText = `Página ${i} de ${pages}`;
     const w = doc.getTextWidth(rightText);
     doc.text(rightText, pw - 14 - w, ph - 5.5);
