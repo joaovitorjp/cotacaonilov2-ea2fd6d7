@@ -497,6 +497,7 @@ const SpreadsheetTable: React.FC<SpreadsheetTableProps> = ({
   const commitEdit = useCallback((origIdx: number) => {
     if (!editingCell) return;
     const editKey = `${editingCell.row}-${origIdx}`;
+    pushUndo();
     setCellEdits(prev => ({ ...prev, [editKey]: editingValue }));
     setHasUnsavedChanges(true);
     setEditingCell(null);
