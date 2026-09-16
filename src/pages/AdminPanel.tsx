@@ -31,6 +31,7 @@ interface Profile {
   blocked_at: string | null;
   blocked_reason: string | null;
   access_expires_at: string | null;
+  approved_at: string | null;
   created_at: string;
 }
 
