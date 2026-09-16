@@ -31,6 +31,7 @@ interface Profile {
   blocked_at: string | null;
   blocked_reason: string | null;
   access_expires_at: string | null;
+  approved_at: string | null;
   created_at: string;
 }
 
@@ -59,7 +60,7 @@ const AdminPanel: React.FC = () => {
   const [logs, setLogs] = useState<any[]>([]);
   const [busca, setBusca] = useState('');
   const [filtroRede, setFiltroRede] = useState<string>('todas');
-  const [filtroSituacao, setFiltroSituacao] = useState<'todos' | 'ativos' | 'bloqueados' | 'vencidos'>('todos');
+  const [filtroSituacao, setFiltroSituacao] = useState<'todos' | 'ativos' | 'bloqueados' | 'vencidos' | 'pendentes'>('todos');
   const [selecionado, setSelecionado] = useState<Profile | null>(null);
   const [senhaDialog, setSenhaDialog] = useState<Profile | null>(null);
   const [novaSenha, setNovaSenha] = useState('');
@@ -75,7 +76,7 @@ const AdminPanel: React.FC = () => {
   const load = async () => {
     setLoading(true);
     const [p, n, r, l] = await Promise.all([
-      supabase.from('profiles').select('user_id,nome,email,network_id,blocked_at,blocked_reason,access_expires_at,created_at').order('nome'),
+      supabase.from('profiles').select('user_id,nome,email,network_id,blocked_at,blocked_reason,access_expires_at,approved_at,created_at').order('nome'),
       supabase.from('networks').select('id,name,slug,blocked_at,access_expires_at,display_name,logo_url').order('name'),
       supabase.from('user_roles').select('user_id,role').eq('role', 'admin'),
       supabase.from('master_audit_logs').select('*').order('created_at', { ascending: false }).limit(100),
@@ -105,6 +106,7 @@ const AdminPanel: React.FC = () => {
 
   const situacao = (p: Profile) => {
     const rede = redeDe(p.network_id);
+    if (!p.approved_at && !adminIds.includes(p.user_id)) return 'pendente';
     if (p.blocked_at) return 'bloqueado';
     if (rede?.blocked_at) return 'rede bloqueada';
     const exp = p.access_expires_at ?? rede?.access_expires_at ?? null;
@@ -121,9 +123,10 @@ const AdminPanel: React.FC = () => {
       if (filtroSituacao === 'ativos' && s !== 'ativo') return false;
       if (filtroSituacao === 'bloqueados' && !s.includes('bloque')) return false;
       if (filtroSituacao === 'vencidos' && s !== 'vencido') return false;
+      if (filtroSituacao === 'pendentes' && s !== 'pendente') return false;
       return true;
     });
-  }, [profiles, busca, filtroRede, filtroSituacao, redes]);
+  }, [profiles, busca, filtroRede, filtroSituacao, redes, adminIds]);
 
   const updateProfile = async (p: Profile, patch: Partial<Profile>, acaoNome: string) => {
     setAcao(true);
@@ -266,6 +269,7 @@ const AdminPanel: React.FC = () => {
                   <SelectItem value="ativos">Ativos</SelectItem>
                   <SelectItem value="bloqueados">Bloqueados</SelectItem>
                   <SelectItem value="vencidos">Vencidos</SelectItem>
+                  <SelectItem value="pendentes">Aguardando liberação</SelectItem>
                 </SelectContent>
               </Select>
               <Button onClick={() => setNovoUsuario(true)} className="rounded-xl bg-slate-900 hover:bg-slate-800 text-xs font-bold">
@@ -287,10 +291,21 @@ const AdminPanel: React.FC = () => {
                       <p className="text-[11px] text-slate-400">{p.email}</p>
                     </div>
                     <span className={`text-[10px] font-black uppercase tracking-wider px-2 py-1 rounded-md ${
-                      s === 'ativo' ? 'bg-emerald-50 text-emerald-600' : s === 'vencido' ? 'bg-amber-50 text-amber-600' : 'bg-red-50 text-red-600'
+                      s === 'ativo' ? 'bg-emerald-50 text-emerald-600' : (s === 'vencido' || s === 'pendente') ? 'bg-amber-50 text-amber-600' : 'bg-red-50 text-red-600'
                     }`}>{s}</span>
                     <span className="text-[11px] text-slate-500 font-bold min-w-[110px]">{rede?.name ?? 'Sem rede'}</span>
+                    <span className="text-[11px] text-slate-500 font-bold min-w-[110px]">
+                      {p.access_expires_at
+                        ? `${Math.max(0, Math.ceil((new Date(p.access_expires_at).getTime() - Date.now()) / 86400000))} dia(s)`
+                        : 'Sem prazo'}
+                    </span>
                     <div className="flex items-center gap-1.5 ml-auto">
+                      {!p.approved_at && (
+                        <Button size="sm" className="text-xs rounded-lg bg-emerald-600 hover:bg-emerald-700" disabled={acao}
+                          onClick={() => updateProfile(p, { approved_at: new Date().toISOString() } as any, 'liberar_usuario')}>
+                          <CheckCircle2 className="w-3.5 h-3.5 mr-1.5" /> Liberar
+                        </Button>
+                      )}
                       <Button size="sm" variant="ghost" className="text-xs rounded-lg" onClick={() => { setSelecionado(p); }}>Gerenciar</Button>
                       <Button
                         size="sm"
@@ -464,6 +479,29 @@ const AdminPanel: React.FC = () => {
           <DialogHeader><DialogTitle className="font-display">{selecionado?.nome || selecionado?.email}</DialogTitle></DialogHeader>
           {selecionado && (
             <div className="space-y-4">
+              <div className="flex items-center justify-between rounded-xl border border-slate-200 p-3">
+                <div>
+                  <p className="text-xs font-bold text-slate-700">
+                    {selecionado.approved_at ? 'Conta liberada' : 'Aguardando liberação'}
+                  </p>
+                  <p className="text-[11px] text-slate-400">
+                    {selecionado.approved_at
+                      ? `Liberada em ${new Date(selecionado.approved_at).toLocaleDateString('pt-BR')}`
+                      : 'As funções do sistema ficam bloqueadas até a liberação.'}
+                  </p>
+                </div>
+                <Button size="sm" disabled={acao}
+                  className={`rounded-xl text-xs font-bold ${selecionado.approved_at ? '' : 'bg-emerald-600 hover:bg-emerald-700'}`}
+                  variant={selecionado.approved_at ? 'secondary' : 'default'}
+                  onClick={() => updateProfile(
+                    selecionado,
+                    { approved_at: selecionado.approved_at ? null : new Date().toISOString() } as any,
+                    selecionado.approved_at ? 'suspender_liberacao' : 'liberar_usuario',
+                  )}>
+                  {selecionado.approved_at ? 'Suspender' : 'Liberar acesso'}
+                </Button>
+              </div>
+
               <div className="space-y-2">
                 <Label>Rede</Label>
                 <Select

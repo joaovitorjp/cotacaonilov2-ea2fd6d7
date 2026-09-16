@@ -139,13 +139,13 @@ const Login = () => {
       const { data: status } = await supabase.rpc('meu_status_acesso' as any);
       const st = status as any;
       if (st && st.ativo === false) {
-        await supabase.auth.signOut();
         toast.error(
-          st.bloqueado
-            ? `Acesso bloqueado.${st.motivo ? ' Motivo: ' + st.motivo : ''} Fale com o administrador.`
-            : 'Seu prazo de acesso expirou. Fale com o administrador.'
+          st.aprovado === false
+            ? 'Sua conta ainda não foi liberada pelo administrador.'
+            : st.bloqueado
+              ? `Acesso bloqueado.${st.motivo ? ' Motivo: ' + st.motivo : ''} Fale com o administrador.`
+              : 'Seu prazo de acesso expirou. Fale com o administrador.'
         );
-        return;
       }
       goNext();
     }
@@ -189,7 +189,7 @@ const Login = () => {
       return;
     }
 
-    toast.success('Conta criada! Confirme seu email para liberar o acesso.');
+    toast.success('Conta criada! O acesso de 7 dias será liberado pelo administrador.');
     setPassword('');
     setIsSignUp(false);
   };
@@ -246,7 +246,7 @@ const Login = () => {
           <div className="animate-in fade-in slide-in-from-bottom-4 duration-700">
             <div className="inline-flex items-center gap-2 rounded-full border border-primary/20 bg-primary/5 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-primary">
               <span className="h-2 w-2 rounded-full bg-primary animate-pulse" />
-              Plataforma 100% gratuita
+              7 dias de teste ao criar sua conta
             </div>
             <h1 className="mt-6 font-display text-4xl sm:text-5xl font-bold leading-[1.08] tracking-tight text-primary-deep" style={{ color: 'hsl(var(--primary-deep))' }}>
               A forma mais rápida de cotar com seus fornecedores.
@@ -257,7 +257,7 @@ const Login = () => {
             </p>
             <div className="mt-8 flex flex-wrap gap-3">
               <Button size="lg" className="px-7 font-semibold uppercase tracking-wide" onClick={() => openAuth(true)}>
-                Criar conta grátis
+                Criar conta
               </Button>
               <Button size="lg" variant="outline" className="px-7 font-semibold uppercase tracking-wide" onClick={() => scrollTo('funcionalidades')}>
                 Ver funcionalidades
@@ -265,7 +265,7 @@ const Login = () => {
             </div>
             <p className="mt-6 flex items-center gap-1.5 text-xs text-muted-foreground">
               <ShieldCheck className="h-3.5 w-3.5" />
-              Sem cobranças. Nenhum cartão é exigido.
+              O acesso é liberado pelo administrador após o cadastro.
             </p>
           </div>
 
@@ -321,7 +321,7 @@ const Login = () => {
             </DialogTitle>
             <DialogDescription>
               {isSignUp
-                ? 'Cadastre-se gratuitamente e comece a cotar'
+                ? 'Cadastre-se e teste o sistema por 7 dias'
                 : 'Acesse sua conta para gerenciar suas cotações'}
             </DialogDescription>
           </DialogHeader>
@@ -367,7 +367,7 @@ const Login = () => {
             <Button type="submit" className="w-full" disabled={loading}>
               {loading
                 ? isSignUp ? 'Criando conta...' : 'Entrando...'
-                : isSignUp ? 'Criar conta grátis' : 'Entrar'}
+                : isSignUp ? 'Criar conta' : 'Entrar'}
             </Button>
 
           </form>
@@ -394,7 +394,7 @@ const Login = () => {
               className="text-sm text-muted-foreground hover:text-foreground underline transition-colors"
               onClick={() => setIsSignUp(!isSignUp)}
             >
-              {isSignUp ? 'Já tem acesso? Entrar' : 'Criar conta e testar 7 dias grátis'}
+              {isSignUp ? 'Já tem acesso? Entrar' : 'Criar conta e testar por 7 dias'}
             </button>
           </div>
         </DialogContent>

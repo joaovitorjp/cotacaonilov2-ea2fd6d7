@@ -50,6 +50,13 @@
       "when": 1789587052776,
       "tag": "0006_network_branding",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1789591096450,
+      "tag": "0007_trial_7_dias_e_aprovacao_admin",
+      "breakpoints": true
     }
   ]
 }
