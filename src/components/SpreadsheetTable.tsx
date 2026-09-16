@@ -1440,6 +1440,11 @@ const SpreadsheetTable: React.FC<SpreadsheetTableProps> = ({
     <div className="flex-1 flex flex-col" style={{ border: '1px solid hsl(var(--border))' }}>
       {/* Toolbar */}
       <div className="flex items-center gap-1 px-2 py-1 border-b bg-muted/50 flex-wrap" style={{ borderColor: 'hsl(var(--border))' }}>
+        <button onClick={handleUndo} disabled={undoCount === 0}
+          className="p-1.5 rounded hover:bg-accent disabled:opacity-40 transition-colors flex items-center gap-1 text-xs" title="Desfazer última alteração (Ctrl+Z)">
+          <Undo2 className="w-4 h-4" /><span className="hidden sm:inline">Desfazer</span>
+        </button>
+        <div className="w-px h-5 bg-border mx-1" />
         {!readOnly && (
           <>
             <button onClick={addRow}
