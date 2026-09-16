@@ -257,6 +257,13 @@ const Login = () => {
 
   const scrollTo = (id: string) => document.getElementById(id)?.scrollIntoView({ behavior: 'smooth' });
 
+  const ativarPlano = (plano: string) => {
+    const texto = plano
+      ? `Olá! Quero ativar o plano ${plano} do COTARME.`
+      : 'Olá! Gostaria de saber mais sobre os planos do COTARME.';
+    window.open(`https://wa.me/${WHATSAPP_SUPORTE}?text=${encodeURIComponent(texto)}`, '_blank', 'noopener');
+  };
+
   return (
     <div className="min-h-screen bg-background text-foreground overflow-x-hidden">
       {/* Navbar */}
