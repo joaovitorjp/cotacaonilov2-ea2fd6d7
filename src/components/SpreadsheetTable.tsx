@@ -1705,7 +1705,7 @@ const SpreadsheetTable: React.FC<SpreadsheetTableProps> = ({
     );
   }, [orderedColDefs, getColWidth, getFrozenLeft, getLowestEmpresa, getSecondEmpresa, editingCell, editingValue, cellEdits, getPreco, getMarkedUpPrice,
       isCellSelected, isCellActive, getSelectionBorders, editableColumn, editPrices, readOnly, rowHeights,
-      dragOverRow, dragRow, activeRowResize, produtos, getDisplayValue, handleCellClick, handleCellMouseDown,
+      dragOverRow, dragRow, activeRowResize, produtos, computeDisplayValue, evalRaw, handleCellClick, handleCellMouseDown,
       handleCellMouseEnter, handleCellDoubleClick, commitEdit, cancelEdit, onPriceChange, ufs, frozenRows, frozenCols]);
 
   // Filtered rows
