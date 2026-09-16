@@ -181,38 +181,63 @@ const AdminPanel: React.FC = () => {
     { key: 'auditoria', label: 'Auditoria', icon: ScrollText },
   ];
 
+  const tituloAba = tabs.find(t => t.key === tab)?.label ?? '';
+
   return (
-    <div className="min-h-screen bg-[#F8FAFC]">
-      <header className="sticky top-0 z-30 bg-white/80 backdrop-blur-md border-b border-slate-200 px-4 sm:px-8 py-4 flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <button onClick={() => navigate('/')} className="p-1.5 rounded-lg hover:bg-slate-50 text-slate-500">
-            <ArrowLeft className="w-4 h-4" />
-          </button>
+    <div className="h-screen w-full flex bg-[#F8FAFC] overflow-hidden">
+      <aside className="hidden md:flex w-60 shrink-0 flex-col border-r border-slate-200 bg-white">
+        <div className="flex items-center gap-3 px-4 py-4 border-b border-slate-200">
           <div className="w-9 h-9 rounded-xl bg-slate-900 flex items-center justify-center">
             <Shield className="w-4 h-4 text-white" />
           </div>
-          <div>
-            <h1 className="text-lg font-display font-bold text-slate-900 tracking-tight">Painel Admin</h1>
-            <p className="text-[10px] text-slate-500 font-medium uppercase tracking-wider">Gestão total do sistema</p>
+          <div className="min-w-0">
+            <h1 className="text-base font-display font-bold text-slate-900 tracking-tight">Painel Admin</h1>
+            <p className="text-[10px] text-slate-500 font-medium uppercase tracking-wider truncate">Gestão total</p>
           </div>
         </div>
-        <div className="flex items-center gap-2">
+        <nav className="flex-1 p-3 space-y-1 overflow-y-auto">
           {tabs.map(t => (
-            <Button
+            <button
               key={t.key}
-              size="sm"
-              variant={tab === t.key ? 'default' : 'ghost'}
               onClick={() => setTab(t.key)}
-              className={`text-xs font-bold rounded-xl h-9 ${tab === t.key ? 'bg-slate-900 hover:bg-slate-800 text-white' : 'text-slate-600'}`}
+              className={`w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-sm font-bold transition-colors ${
+                tab === t.key ? 'bg-slate-900 text-white' : 'text-slate-600 hover:bg-slate-100'
+              }`}
             >
-              <t.icon className="w-3.5 h-3.5 mr-2" />
-              <span className="hidden sm:inline">{t.label}</span>
-            </Button>
+              <t.icon className="w-4 h-4" />
+              {t.label}
+            </button>
           ))}
+        </nav>
+        <div className="p-3 border-t border-slate-200">
+          <button onClick={() => navigate('/')} className="w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-sm font-bold text-slate-600 hover:bg-slate-100">
+            <ArrowLeft className="w-4 h-4" /> Voltar ao sistema
+          </button>
         </div>
-      </header>
+      </aside>
 
-      <main className="max-w-6xl mx-auto p-4 sm:p-8 space-y-4">
+      <div className="flex-1 min-w-0 flex flex-col">
+        <header className="shrink-0 bg-white/80 backdrop-blur-md border-b border-slate-200 px-4 sm:px-6 py-3 flex items-center gap-3">
+          <button onClick={() => navigate('/')} className="md:hidden p-1.5 rounded-lg hover:bg-slate-50 text-slate-500">
+            <ArrowLeft className="w-4 h-4" />
+          </button>
+          <h2 className="text-base font-display font-bold text-slate-900 tracking-tight">{tituloAba}</h2>
+          <div className="flex md:hidden items-center gap-1 ml-auto overflow-x-auto">
+            {tabs.map(t => (
+              <Button
+                key={t.key}
+                size="sm"
+                variant={tab === t.key ? 'default' : 'ghost'}
+                onClick={() => setTab(t.key)}
+                className={`text-xs font-bold rounded-xl h-9 ${tab === t.key ? 'bg-slate-900 hover:bg-slate-800 text-white' : 'text-slate-600'}`}
+              >
+                <t.icon className="w-3.5 h-3.5" />
+              </Button>
+            ))}
+          </div>
+        </header>
+
+      <main className="flex-1 overflow-y-auto w-full p-4 sm:p-6 space-y-4">
         {loading && (
           <div className="flex items-center gap-2 text-slate-500 text-sm"><Loader2 className="w-4 h-4 animate-spin" /> Carregando dados...</div>
         )}
