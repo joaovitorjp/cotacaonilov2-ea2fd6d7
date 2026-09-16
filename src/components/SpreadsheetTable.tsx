@@ -856,6 +856,7 @@ const SpreadsheetTable: React.FC<SpreadsheetTableProps> = ({
 
   const setBgColor = (color: string) => {
     if (!contextMenu) return;
+    pushUndo();
     const { type, colIdx, rowIdx } = contextMenu;
     if (type === 'cell' && colIdx !== undefined && rowIdx !== undefined) setCellBgColor(prev => ({ ...prev, [`${rowIdx}-${colIdx}`]: color }));
     else if (type === 'column' && colIdx !== undefined) setColBgColor(prev => ({ ...prev, [colIdx]: color }));
