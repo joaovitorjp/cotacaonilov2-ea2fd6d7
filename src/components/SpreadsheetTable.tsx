@@ -1,5 +1,5 @@
 import React, { useState, useCallback, useRef, useEffect, useMemo } from 'react';
-import { AlignLeft, AlignCenter, AlignRight, ArrowUp, ArrowDown, ArrowLeft, ArrowRight, Copy, ClipboardPaste, Bold, Italic, Paintbrush, X, Save, Percent, Search, MapPin, Trash2, Plus, Swords, Trash, Filter, Check, Undo2 } from 'lucide-react';
+import { AlignLeft, AlignCenter, AlignRight, ArrowUp, ArrowDown, ArrowLeft, ArrowRight, Copy, ClipboardPaste, Bold, Italic, Paintbrush, X, Save, Percent, Search, MapPin, Trash2, Plus, Swords, Trash, Filter, Check, Undo2, CheckCircle2, Loader2, AlertCircle } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useEstadosUsuario } from '@/hooks/useEstadosUsuario';
@@ -27,7 +27,7 @@ interface SpreadsheetTableProps {
   onPriceChange?: (rowIndex: number, preco: string) => void;
   editPrices?: Record<number, string>;
   highlightLowest?: boolean;
-  onSave?: (produtos: Produto[]) => void;
+  onSave?: (produtos: Produto[], options?: { silent?: boolean }) => void | Promise<void>;
   listaId?: string;
   onDeleteResposta?: (empresa: string) => Promise<void>;
   onAfterSave?: () => void;
@@ -155,11 +155,36 @@ const SpreadsheetTable: React.FC<SpreadsheetTableProps> = ({
   const [editingCell, setEditingCell] = useState<{ row: number; col: number } | null>(null);
   const [editingValue, setEditingValue] = useState('');
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
+  const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
+  const saveInProgressRef = useRef(false);
+  const authorizedPriceColumnsRef = useRef<Set<string>>(new Set());
   const editInputRef = useRef<HTMLInputElement>(null);
 
   const getPreco = useCallback((empresa: string, state: string, codigoInterno: string) => {
     return precoMap[`${empresa}_${state}`]?.[codigoInterno] ?? '';
   }, [precoMap]);
+
+  const isManualEmpresaState = useCallback((empresa: string, state: string) => {
+    const resp = respostas.find(r => r.empresa === empresa);
+    return Boolean(resp?.resposta.some((item: any) => Array.isArray(item?.__manual_states) && item.__manual_states.includes(state)));
+  }, [respostas]);
+
+  const authorizeOriginalPriceEdit = useCallback((empresa: string, state: string, rowIndexes: number[]): boolean => {
+    const authKey = `${empresa}_${state}`;
+    if (authorizedPriceColumnsRef.current.has(authKey) || isManualEmpresaState(empresa, state)) return true;
+    const changesOriginal = rowIndexes.some(rowIdx => {
+      const prod = produtos[rowIdx];
+      if (!prod) return false;
+      const raw = getPreco(empresa, state, prod.codigo_interno);
+      return raw !== '' && raw !== undefined && raw !== null;
+    });
+    if (!changesOriginal) return true;
+    const allowed = window.confirm(
+      `Os preços de ${empresa} (${state}) foram enviados pelo fornecedor. Deseja liberar a edição desta coluna durante esta sessão?`
+    );
+    if (allowed) authorizedPriceColumnsRef.current.add(authKey);
+    return allowed;
+  }, [getPreco, isManualEmpresaState, produtos]);
 
   const getLowestEmpresa = useCallback((codigoInterno: string, state: string): string | null => {
     if (!highlightLowest || empresas.length === 0) return null;
@@ -481,6 +506,7 @@ const SpreadsheetTable: React.FC<SpreadsheetTableProps> = ({
       else if (origIdx === 2) currentVal = prod.descricao;
       else if (origIdx === 3) currentVal = prod.codigo_barras;
       else if (colDef?.state && colDef?.empresa) {
+        if (!authorizeOriginalPriceEdit(colDef.empresa, colDef.state, [row])) return;
         const raw = getPreco(colDef.empresa, colDef.state, prod.codigo_interno);
         if (raw === '' || raw === undefined || raw === null) currentVal = '';
         else {
@@ -492,7 +518,7 @@ const SpreadsheetTable: React.FC<SpreadsheetTableProps> = ({
     setEditingCell({ row, col: visualCol });
     setEditingValue(currentVal ?? '');
     setTimeout(() => editInputRef.current?.focus(), 0);
-  }, [readOnly, cellEdits, produtos, orderedColDefs, getPreco]);
+  }, [readOnly, cellEdits, produtos, orderedColDefs, getPreco, authorizeOriginalPriceEdit]);
 
   const commitEdit = useCallback((origIdx: number) => {
     if (!editingCell) return;
@@ -525,15 +551,19 @@ const SpreadsheetTable: React.FC<SpreadsheetTableProps> = ({
   }, [cellEdits, produtos, allColDefs, getPreco]);
 
   // Save handler
-  const handleSave = useCallback(async () => {
+  const handleSave = useCallback(async (silent = false) => {
+    if (saveInProgressRef.current || !hasUnsavedChanges) return;
+    saveInProgressRef.current = true;
+    setSaveStatus('saving');
     const updated = produtos.map((prod, rowIdx) => ({
       codigo_interno: cellEdits[`${rowIdx}-1`] ?? prod.codigo_interno,
       descricao: cellEdits[`${rowIdx}-2`] ?? prod.descricao,
       codigo_barras: cellEdits[`${rowIdx}-3`] ?? prod.codigo_barras,
     }));
-    if (onSave) onSave(updated);
+    try {
+      if (onSave) await onSave(updated, { silent });
 
-    if (listaId) {
+      if (listaId) {
       const priceEditsByEmpresa: Record<string, { rowIdx: number; value: string; state: string }[]> = {};
       for (const [key, value] of Object.entries(cellEdits)) {
         const [rowStr, origIdxStr] = key.split('-');
@@ -568,16 +598,31 @@ const SpreadsheetTable: React.FC<SpreadsheetTableProps> = ({
           }
         }
         if (existingResp) {
-          await supabase.from('respostas').update({ resposta: currentItems as any }).eq('lista_id', listaId).eq('empresa', emp).eq('user_id', user?.id ?? '');
+          const { error } = await supabase.from('respostas').update({ resposta: currentItems as any }).eq('lista_id', listaId).eq('empresa', emp).eq('user_id', user?.id ?? '');
+          if (error) throw error;
         } else {
-          await supabase.from('respostas').insert({ lista_id: listaId, empresa: emp, resposta: currentItems as any, user_id: user?.id });
+          const { error } = await supabase.from('respostas').insert({ lista_id: listaId, empresa: emp, resposta: currentItems as any, user_id: user?.id });
+          if (error) throw error;
         }
       }
+      }
+      setCellEdits({});
+      setHasUnsavedChanges(false);
+      setSaveStatus('saved');
+      if (onAfterSave) await onAfterSave();
+    } catch (error) {
+      console.error('Erro ao salvar planilha:', error);
+      setSaveStatus('error');
+    } finally {
+      saveInProgressRef.current = false;
     }
-    setCellEdits({});
-    setHasUnsavedChanges(false);
-    if (onAfterSave) onAfterSave();
-  }, [onSave, produtos, cellEdits, allColDefs, respostas, listaId, onAfterSave]);
+  }, [onSave, produtos, cellEdits, allColDefs, respostas, listaId, onAfterSave, user?.id, hasUnsavedChanges]);
+
+  useEffect(() => {
+    if (!hasUnsavedChanges || saveStatus === 'saving') return;
+    const timer = window.setTimeout(() => { void handleSave(true); }, 1800);
+    return () => window.clearTimeout(timer);
+  }, [hasUnsavedChanges, cellEdits, handleSave, saveStatus]);
 
   // Mouse selection
   const handleCellMouseDown = useCallback((row: number, col: number, e: React.MouseEvent) => {
@@ -609,6 +654,42 @@ const SpreadsheetTable: React.FC<SpreadsheetTableProps> = ({
       const maxRow = totalRows - 1;
       let newRow = activeCell.row;
       let newCol = activeCell.col;
+      if (!readOnly && target.tagName !== 'INPUT' && (e.key === 'Delete' || e.key === 'Backspace')) {
+        const range = getSelectionRange();
+        if (!range) return;
+        const protectedColumns = new Map<string, { empresa: string; state: string; rows: number[] }>();
+        for (let c = range.minCol; c <= range.maxCol; c++) {
+          const col = orderedColDefs[c];
+          if (!col?.empresa || !col.state) continue;
+          const key = `${col.empresa}_${col.state}`;
+          protectedColumns.set(key, { empresa: col.empresa, state: col.state, rows: Array.from({ length: range.maxRow - range.minRow + 1 }, (_, i) => range.minRow + i) });
+        }
+        if ([...protectedColumns.values()].some(item => !authorizeOriginalPriceEdit(item.empresa, item.state, item.rows))) return;
+        e.preventDefault();
+        pushUndo();
+        setCellEdits(prev => {
+          const next = { ...prev };
+          for (let r = range.minRow; r <= Math.min(range.maxRow, produtos.length - 1); r++) {
+            for (let c = range.minCol; c <= range.maxCol; c++) {
+              const col = orderedColDefs[c];
+              if (col?.isData) next[`${r}-${col.originalIdx}`] = '';
+            }
+          }
+          return next;
+        });
+        setHasUnsavedChanges(true);
+        setSaveStatus('idle');
+        return;
+      }
+      if (!readOnly && target.tagName !== 'INPUT' && e.key.length === 1 && !e.ctrlKey && !e.metaKey && !e.altKey) {
+        const col = orderedColDefs[activeCell.col];
+        if (activeCell.row < produtos.length && col?.isData && (!col.empresa || !col.state || authorizeOriginalPriceEdit(col.empresa, col.state, [activeCell.row]))) {
+          e.preventDefault();
+          handleCellDoubleClick(activeCell.row, activeCell.col, col.originalIdx);
+          setEditingValue(e.key);
+        }
+        return;
+      }
       switch (e.key) {
         case 'ArrowUp': e.preventDefault(); newRow = Math.max(0, activeCell.row - 1); break;
         case 'ArrowDown': e.preventDefault(); newRow = Math.min(maxRow, activeCell.row + 1); break;
@@ -640,7 +721,7 @@ const SpreadsheetTable: React.FC<SpreadsheetTableProps> = ({
     };
     document.addEventListener('keydown', handleKeyDown);
     return () => document.removeEventListener('keydown', handleKeyDown);
-  }, [activeCell, orderedColDefs.length, totalRows]);
+  }, [activeCell, orderedColDefs, totalRows, readOnly, getSelectionRange, authorizeOriginalPriceEdit, produtos.length, pushUndo, handleCellDoubleClick]);
 
   // Copy
   useEffect(() => {
@@ -673,8 +754,20 @@ const SpreadsheetTable: React.FC<SpreadsheetTableProps> = ({
       if (target.tagName === 'INPUT') return;
       const text = e.clipboardData?.getData('text/plain');
       if (!text) return;
-      e.preventDefault();
       const lines = text.split('\n').map(l => l.split('\t'));
+      const protectedColumns = new Map<string, { empresa: string; state: string; rows: number[] }>();
+      for (let c = 0; c < Math.max(...lines.map(line => line.length)); c++) {
+        const col = orderedColDefs[activeCell.col + c];
+        if (!col?.empresa || !col.state) continue;
+        protectedColumns.set(`${col.empresa}_${col.state}`, {
+          empresa: col.empresa, state: col.state,
+          rows: lines.map((_, r) => activeCell.row + r).filter(row => row < produtos.length),
+        });
+      }
+      if ([...protectedColumns.values()].some(item => !authorizeOriginalPriceEdit(item.empresa, item.state, item.rows))) return;
+      e.preventDefault();
+      pushUndo();
+      const edits: Record<string, string> = {};
       for (let r = 0; r < lines.length; r++) {
         for (let c = 0; c < lines[r].length; c++) {
           const targetRow = activeCell.row + r;
@@ -683,17 +776,18 @@ const SpreadsheetTable: React.FC<SpreadsheetTableProps> = ({
           const colDef = orderedColDefs[targetCol];
           if (!colDef) continue;
           const origIdx = colDef.originalIdx;
-          const isEditableEmpCol = origIdx >= 4 && editableColumn && (
-            (origIdx < 4 + empresas.length && empresas[origIdx - 4] === editableColumn) ||
-            (!empresas.includes(editableColumn) && origIdx === 4 + empresas.length)
-          );
-          if (isEditableEmpCol) onPriceChange?.(targetRow, lines[r][c]);
+          if (colDef.isData) edits[`${targetRow}-${origIdx}`] = lines[r][c].trim();
         }
+      }
+      if (Object.keys(edits).length > 0) {
+        setCellEdits(prev => ({ ...prev, ...edits }));
+        setHasUnsavedChanges(true);
+        setSaveStatus('idle');
       }
     };
     document.addEventListener('paste', handlePaste);
     return () => document.removeEventListener('paste', handlePaste);
-  }, [activeCell, readOnly, orderedColDefs, editableColumn, empresas, produtos.length, onPriceChange]);
+  }, [activeCell, readOnly, orderedColDefs, produtos.length, authorizeOriginalPriceEdit, pushUndo]);
 
   // Column resize
   const handleColResizeStart = useCallback((e: React.MouseEvent, colIdx: number) => {
@@ -1375,17 +1469,13 @@ const SpreadsheetTable: React.FC<SpreadsheetTableProps> = ({
             const lowestEmp = lowestEmpByUf[state] ?? null;
             const isLowest = lowestEmp === emp;
             const isSecond = !isLowest && (secondEmpByUf[state] ?? null) === emp;
-            const isEditable = editableColumn === emp;
             const editKey = `${idx}-${origIdx}`;
             const hasEdit = cellEdits[editKey] !== undefined;
             return (
-              <td key={col.key} className={`${cellBaseClass} px-1 whitespace-nowrap text-xs ${isEditable ? 'bg-primary/5' : isLowest ? 'bg-success/10 text-success font-bold' : isSecond ? 'bg-warning/25 text-warning-foreground font-bold' : ''}`}
+              <td key={col.key} className={`${cellBaseClass} px-1 whitespace-nowrap text-xs ${isLowest ? 'bg-success/10 text-success font-bold' : isSecond ? 'bg-warning/25 text-warning-foreground font-bold' : ''}`}
                 style={{ borderColor: 'hsl(var(--border))', minWidth: getColWidth(visualColIdx), width: getColWidth(visualColIdx), ...cellBgStyle }}
                 {...cellEvents} onDoubleClick={() => handleCellDoubleClick(idx, visualColIdx, origIdx)}>
-                {isEditable && !readOnly ? (
-                  <input type="text" inputMode="decimal" className={`w-full bg-transparent outline-none focus:ring-1 focus:ring-primary rounded px-1 ${alignClass(effectiveAlign)} text-xs h-full`}
-                    value={editPrices[idx] ?? ''} onChange={e => onPriceChange?.(idx, e.target.value)} placeholder="0,00" />
-                ) : isEditing ? (
+                {isEditing ? (
                   <input ref={editInputRef} type="text" inputMode="decimal" className={`w-full bg-transparent outline-none focus:ring-1 focus:ring-primary rounded px-1 ${alignClass(effectiveAlign)} text-xs h-full`}
                     value={editingValue} onChange={e => setEditingValue(e.target.value)}
                     onBlur={() => commitEdit(origIdx)} onKeyDown={e => { if (e.key === 'Enter') commitEdit(origIdx); if (e.key === 'Escape') cancelEdit(); }} placeholder="0,00" />
@@ -1492,11 +1582,17 @@ const SpreadsheetTable: React.FC<SpreadsheetTableProps> = ({
         {onSave && (
           <>
             <div className="w-px h-5 bg-border mx-1" />
-            <button onClick={handleSave} disabled={!hasUnsavedChanges}
+            <button onClick={() => void handleSave(false)} disabled={!hasUnsavedChanges || saveStatus === 'saving'}
               className={`p-1.5 rounded transition-colors flex items-center gap-1 text-xs ${hasUnsavedChanges ? 'bg-primary text-primary-foreground hover:bg-primary/90' : 'hover:bg-accent disabled:opacity-40'}`}
               title="Salvar alterações">
               <Save className="w-4 h-4" /><span className="hidden sm:inline">Salvar</span>
             </button>
+            <span className={`ml-1 inline-flex items-center gap-1 text-[10px] font-medium ${saveStatus === 'error' ? 'text-destructive' : saveStatus === 'saved' ? 'text-success' : 'text-muted-foreground'}`}>
+              {saveStatus === 'saving' ? <><Loader2 className="w-3 h-3 animate-spin" /> Salvando...</> :
+               saveStatus === 'saved' ? <><CheckCircle2 className="w-3 h-3" /> Salvo</> :
+               saveStatus === 'error' ? <><AlertCircle className="w-3 h-3" /> Erro ao salvar</> :
+               hasUnsavedChanges ? 'Alterações pendentes' : null}
+            </span>
           </>
         )}
 
