@@ -780,6 +780,7 @@ export type Database = {
       profiles: {
         Row: {
           access_expires_at: string | null
+          approved_at: string | null
           avatar_url: string | null
           blocked_at: string | null
           blocked_reason: string | null
@@ -796,6 +797,7 @@ export type Database = {
         }
         Insert: {
           access_expires_at?: string | null
+          approved_at?: string | null
           avatar_url?: string | null
           blocked_at?: string | null
           blocked_reason?: string | null
@@ -812,6 +814,7 @@ export type Database = {
         }
         Update: {
           access_expires_at?: string | null
+          approved_at?: string | null
           avatar_url?: string | null
           blocked_at?: string | null
           blocked_reason?: string | null
