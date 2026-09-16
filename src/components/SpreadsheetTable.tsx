@@ -1,5 +1,5 @@
 import React, { useState, useCallback, useRef, useEffect, useMemo } from 'react';
-import { AlignLeft, AlignCenter, AlignRight, ArrowUp, ArrowDown, ArrowLeft, ArrowRight, Copy, ClipboardPaste, Bold, Italic, Paintbrush, X, Save, Percent, Search, MapPin, Trash2, Plus, Swords, Trash, Filter, Check } from 'lucide-react';
+import { AlignLeft, AlignCenter, AlignRight, ArrowUp, ArrowDown, ArrowLeft, ArrowRight, Copy, ClipboardPaste, Bold, Italic, Paintbrush, X, Save, Percent, Search, MapPin, Trash2, Plus, Swords, Trash, Filter, Check, Undo2 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useEstadosUsuario } from '@/hooks/useEstadosUsuario';
@@ -229,6 +229,19 @@ const SpreadsheetTable: React.FC<SpreadsheetTableProps> = ({
   const tableRef = useRef<HTMLTableElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const contextMenuRef = useRef<HTMLDivElement>(null);
+
+  // ===== Undo (desfazer última alteração) =====
+  type Snapshot = Record<string, any>;
+  const undoStackRef = useRef<Snapshot[]>([]);
+  const [undoCount, setUndoCount] = useState(0);
+  const snapshotFnRef = useRef<(() => Snapshot) | null>(null);
+  const pushUndo = useCallback(() => {
+    const snap = snapshotFnRef.current?.();
+    if (!snap) return;
+    undoStackRef.current.push(snap);
+    if (undoStackRef.current.length > 50) undoStackRef.current.shift();
+    setUndoCount(undoStackRef.current.length);
+  }, []);
 
   // Build ALL column definitions (unfiltered)
   const allColDefs = useMemo((): ColDef[] => {
@@ -484,6 +497,7 @@ const SpreadsheetTable: React.FC<SpreadsheetTableProps> = ({
   const commitEdit = useCallback((origIdx: number) => {
     if (!editingCell) return;
     const editKey = `${editingCell.row}-${origIdx}`;
+    pushUndo();
     setCellEdits(prev => ({ ...prev, [editKey]: editingValue }));
     setHasUnsavedChanges(true);
     setEditingCell(null);
@@ -777,6 +791,7 @@ const SpreadsheetTable: React.FC<SpreadsheetTableProps> = ({
 
   const setAlignment = (align: TextAlign) => {
     if (!contextMenu) return;
+    pushUndo();
     const { type, colIdx, rowIdx } = contextMenu;
     if (type === 'cell' && colIdx !== undefined && rowIdx !== undefined) setCellAligns(prev => ({ ...prev, [`${rowIdx}-${colIdx}`]: align }));
     else if (type === 'column' && colIdx !== undefined) setColAligns(prev => ({ ...prev, [colIdx]: align }));
@@ -787,6 +802,7 @@ const SpreadsheetTable: React.FC<SpreadsheetTableProps> = ({
   const moveColumn = (direction: 'left' | 'right') => {
     if (!contextMenu || contextMenu.colIdx === undefined) return;
     const colIdx = contextMenu.colIdx;
+    pushUndo();
     setColOrder(prev => {
       const order = [...prev]; const pos = order.indexOf(colIdx);
       if (pos === -1) return order;
@@ -800,6 +816,7 @@ const SpreadsheetTable: React.FC<SpreadsheetTableProps> = ({
   const moveRow = (direction: 'up' | 'down') => {
     if (!contextMenu || contextMenu.rowIdx === undefined) return;
     const rowIdx = contextMenu.rowIdx;
+    pushUndo();
     setRowOrder(prev => {
       const order = [...prev]; const pos = order.indexOf(rowIdx);
       if (pos === -1) return order;
@@ -819,6 +836,7 @@ const SpreadsheetTable: React.FC<SpreadsheetTableProps> = ({
 
   const toggleBold = () => {
     if (!contextMenu) return;
+    pushUndo();
     const { type, colIdx, rowIdx } = contextMenu;
     if (type === 'cell' && colIdx !== undefined && rowIdx !== undefined) { const key = `${rowIdx}-${colIdx}`; setCellBold(prev => ({ ...prev, [key]: !prev[key] })); }
     else if (type === 'column' && colIdx !== undefined) setColBold(prev => ({ ...prev, [colIdx]: !prev[colIdx] }));
@@ -828,6 +846,7 @@ const SpreadsheetTable: React.FC<SpreadsheetTableProps> = ({
 
   const toggleItalic = () => {
     if (!contextMenu) return;
+    pushUndo();
     const { type, colIdx, rowIdx } = contextMenu;
     if (type === 'cell' && colIdx !== undefined && rowIdx !== undefined) { const key = `${rowIdx}-${colIdx}`; setCellItalic(prev => ({ ...prev, [key]: !prev[key] })); }
     else if (type === 'column' && colIdx !== undefined) setColItalic(prev => ({ ...prev, [colIdx]: !prev[colIdx] }));
@@ -837,6 +856,7 @@ const SpreadsheetTable: React.FC<SpreadsheetTableProps> = ({
 
   const setBgColor = (color: string) => {
     if (!contextMenu) return;
+    pushUndo();
     const { type, colIdx, rowIdx } = contextMenu;
     if (type === 'cell' && colIdx !== undefined && rowIdx !== undefined) setCellBgColor(prev => ({ ...prev, [`${rowIdx}-${colIdx}`]: color }));
     else if (type === 'column' && colIdx !== undefined) setColBgColor(prev => ({ ...prev, [colIdx]: color }));
@@ -846,6 +866,7 @@ const SpreadsheetTable: React.FC<SpreadsheetTableProps> = ({
 
   const deleteRow = (rowIdx: number) => {
     if (readOnly || rowIdx >= produtos.length) return;
+    pushUndo();
     const updated = produtos.filter((_, i) => i !== rowIdx);
     if (onSave) onSave(updated);
     setContextMenu(null);
@@ -853,6 +874,7 @@ const SpreadsheetTable: React.FC<SpreadsheetTableProps> = ({
 
   const addRow = () => {
     if (readOnly) return;
+    pushUndo();
     const newProd: Produto = {
       codigo_interno: `NOVO-${Date.now().toString().slice(-4)}`,
       descricao: 'Novo Produto',
@@ -1017,6 +1039,7 @@ const SpreadsheetTable: React.FC<SpreadsheetTableProps> = ({
     [tipoPrecoOverrides, tipoPrecoMap]);
 
   const setTipoPreco = async (empresa: string, estado: string, tipo: string) => {
+    pushUndo();
     setTipoPrecoOverrides(prev => ({ ...prev, [`${empresa}_${estado}`]: tipo }));
     setContextMenu(null);
     if (!listaId) return;
@@ -1033,6 +1056,7 @@ const SpreadsheetTable: React.FC<SpreadsheetTableProps> = ({
     if (!markupDialog) return;
     const pct = parseFloat(markupValue.replace(',', '.'));
     if (isNaN(pct)) { setMarkupDialog(null); setMarkupValue(''); return; }
+    pushUndo();
     const newVal = (priceMarkups[markupDialog.empresa] || 0) + pct;
     setPriceMarkups(prev => ({ ...prev, [markupDialog.empresa]: newVal }));
     saveMarkupToDb(markupDialog.empresa, newVal);
@@ -1106,11 +1130,12 @@ const SpreadsheetTable: React.FC<SpreadsheetTableProps> = ({
     }
 
     if (changed > 0) {
+      pushUndo();
       setCellEdits(prev => ({ ...prev, ...newEdits }));
       setHasUnsavedChanges(true);
     }
     setContextMenu(null);
-  }, [contextMenu, orderedColDefs, allColDefs, produtos, empresas, getPreco]);
+  }, [contextMenu, orderedColDefs, allColDefs, produtos, empresas, getPreco, pushUndo]);
 
   // Toolbar
   const getSelectionTarget = (): { type: 'cell'; keys: string[] } | null => {
@@ -1128,22 +1153,105 @@ const SpreadsheetTable: React.FC<SpreadsheetTableProps> = ({
 
   const toolbarToggleBold = () => {
     const target = getSelectionTarget(); if (!target) return;
+    pushUndo();
     const allB = target.keys.every(k => cellBold[k]);
     setCellBold(prev => { const next = { ...prev }; target.keys.forEach(k => { next[k] = !allB; }); return next; });
   };
   const toolbarToggleItalic = () => {
     const target = getSelectionTarget(); if (!target) return;
+    pushUndo();
     const allI = target.keys.every(k => cellItalic[k]);
     setCellItalic(prev => { const next = { ...prev }; target.keys.forEach(k => { next[k] = !allI; }); return next; });
   };
   const toolbarSetAlign = (align: TextAlign) => {
     const target = getSelectionTarget(); if (!target) return;
+    pushUndo();
     setCellAligns(prev => { const next = { ...prev }; target.keys.forEach(k => { next[k] = align; }); return next; });
   };
   const toolbarSetBgColor = (color: string) => {
     const target = getSelectionTarget(); if (!target) return;
+    pushUndo();
     setCellBgColor(prev => { const next = { ...prev }; target.keys.forEach(k => { next[k] = color; }); return next; });
   };
+
+  // ===== Snapshot + desfazer =====
+  snapshotFnRef.current = () => ({
+    cellEdits, cellAligns, colAligns, rowAligns,
+    cellBold, cellItalic, cellBgColor,
+    colBold, colItalic, colBgColor,
+    rowBold, rowItalic, rowBgColor,
+    colOrder, rowOrder, colWidths, rowHeights,
+    sortCol, sortDir, hasUnsavedChanges,
+    produtos, priceMarkups, tipoPrecoOverrides,
+  });
+
+  const handleUndo = useCallback(() => {
+    const snap = undoStackRef.current.pop();
+    setUndoCount(undoStackRef.current.length);
+    if (!snap) return;
+    setCellEdits(snap.cellEdits);
+    setCellAligns(snap.cellAligns); setColAligns(snap.colAligns); setRowAligns(snap.rowAligns);
+    setCellBold(snap.cellBold); setCellItalic(snap.cellItalic); setCellBgColor(snap.cellBgColor);
+    setColBold(snap.colBold); setColItalic(snap.colItalic); setColBgColor(snap.colBgColor);
+    setRowBold(snap.rowBold); setRowItalic(snap.rowItalic); setRowBgColor(snap.rowBgColor);
+    setColOrder(snap.colOrder); setRowOrder(snap.rowOrder);
+    setColWidths(snap.colWidths); setRowHeights(snap.rowHeights);
+    setSortCol(snap.sortCol); setSortDir(snap.sortDir);
+    setHasUnsavedChanges(snap.hasUnsavedChanges);
+    setEditingCell(null);
+
+    // Acréscimo (markup) — restaura e persiste apenas o que mudou
+    const prevMarkups: Record<string, number> = snap.priceMarkups || {};
+    const curMarkups = priceMarkups;
+    const empresasMarkup = new Set([...Object.keys(prevMarkups), ...Object.keys(curMarkups)]);
+    let markupChanged = false;
+    empresasMarkup.forEach(emp => {
+      if ((prevMarkups[emp] ?? 0) !== (curMarkups[emp] ?? 0)) {
+        markupChanged = true;
+        saveMarkupToDb(emp, prevMarkups[emp] ?? 0);
+      }
+    });
+    if (markupChanged) setPriceMarkups(prevMarkups);
+
+    // Tipo de preço — restaura e persiste apenas o que mudou
+    const prevTipos: Record<string, string> = snap.tipoPrecoOverrides || {};
+    const curTipos = tipoPrecoOverrides;
+    const chaves = new Set([...Object.keys(prevTipos), ...Object.keys(curTipos)]);
+    let tipoChanged = false;
+    chaves.forEach(k => {
+      if (prevTipos[k] !== curTipos[k]) {
+        tipoChanged = true;
+        const [empresa, estado] = k.split('_');
+        const tipo = prevTipos[k] ?? (estado === 'GO' ? 'NOTA' : 'IPI_ST');
+        if (listaId) {
+          supabase.from('price_types').upsert(
+            { lista_id: listaId, empresa, estado, tipo, user_id: user?.id, updated_at: new Date().toISOString() },
+            { onConflict: 'lista_id,empresa,estado' }
+          ).then(() => {});
+        }
+      }
+    });
+    if (tipoChanged) setTipoPrecoOverrides(prevTipos);
+
+    // Produtos (novo item / exclusão / etc.)
+    if (onSave && JSON.stringify(snap.produtos) !== JSON.stringify(produtos)) {
+      onSave(snap.produtos);
+    }
+  }, [priceMarkups, tipoPrecoOverrides, produtos, onSave, listaId, user?.id]);
+
+  // Atalho Ctrl+Z / Cmd+Z
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z') {
+        const target = e.target as HTMLElement;
+        if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA') return;
+        e.preventDefault();
+        handleUndo();
+      }
+    };
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, [handleUndo]);
 
   const [showColorPicker, setShowColorPicker] = useState(false);
   const colorPickerRef = useRef<HTMLDivElement>(null);
@@ -1332,6 +1440,11 @@ const SpreadsheetTable: React.FC<SpreadsheetTableProps> = ({
     <div className="flex-1 flex flex-col" style={{ border: '1px solid hsl(var(--border))' }}>
       {/* Toolbar */}
       <div className="flex items-center gap-1 px-2 py-1 border-b bg-muted/50 flex-wrap" style={{ borderColor: 'hsl(var(--border))' }}>
+        <button onClick={handleUndo} disabled={undoCount === 0}
+          className="p-1.5 rounded hover:bg-accent disabled:opacity-40 transition-colors flex items-center gap-1 text-xs" title="Desfazer última alteração (Ctrl+Z)">
+          <Undo2 className="w-4 h-4" /><span className="hidden sm:inline">Desfazer</span>
+        </button>
+        <div className="w-px h-5 bg-border mx-1" />
         {!readOnly && (
           <>
             <button onClick={addRow}
