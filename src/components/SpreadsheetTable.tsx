@@ -1641,7 +1641,7 @@ const SpreadsheetTable: React.FC<SpreadsheetTableProps> = ({
 
           const origIdx = col.originalIdx;
           if (origIdx >= 1 && origIdx <= 3) {
-            const displayVal = getDisplayValue(idx, origIdx);
+            const displayVal = computeDisplayValue(idx, origIdx);
             const stickyClass = origIdx === 1 ? 'sticky left-[36px] bg-background z-[5]' : '';
             const extraClass = origIdx === 2 ? 'overflow-hidden text-ellipsis' : '';
             const frozenStyle = visualColIdx <= frozenCols ? { position: 'sticky' as const, left: `${getFrozenLeft(visualColIdx)}px`, zIndex: displayIdx < frozenRows ? 9 : 6, backgroundColor: 'hsl(var(--background))' } : {};
