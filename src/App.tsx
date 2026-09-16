@@ -61,8 +61,15 @@ const App = () => (
             <Route path="/cadastro" element={<Navigate to="/login" replace />} />
             <Route path="/perfil/*" element={<Navigate to="/perfil" replace />} />
             <Route path="/assinatura" element={<Navigate to="/" replace />} />
-            <Route path="/admin/*" element={<Navigate to="/" replace />} />
-            <Route path="/admin" element={<Navigate to="/" replace />} />
+            <Route
+              path="/admin"
+              element={
+                <ProtectedRoute>
+                  <AdminPanel />
+                </ProtectedRoute>
+              }
+            />
+            <Route path="/admin/*" element={<Navigate to="/admin" replace />} />
 
             <Route path="*" element={<NotFound />} />
           </Routes>
