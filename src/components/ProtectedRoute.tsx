@@ -30,6 +30,18 @@ const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) =
     return () => { cancelled = true; };
   }, [loading, user]);
 
+  // Bloqueio / prazo definidos no painel admin derrubam a sessão.
+  useEffect(() => {
+    if (!user) return;
+    let cancelled = false;
+    supabase.rpc('meu_status_acesso' as any).then(({ data }) => {
+      const st = data as any;
+      if (cancelled || !st || st.ativo !== false) return;
+      supabase.auth.signOut();
+    });
+    return () => { cancelled = true; };
+  }, [user]);
+
   if (loading) return <Loading />;
 
   if (!user) {
