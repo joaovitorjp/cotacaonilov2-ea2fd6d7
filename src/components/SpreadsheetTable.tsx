@@ -691,9 +691,9 @@ const SpreadsheetTable: React.FC<SpreadsheetTableProps> = ({
     setSaveStatus('saving');
     const updated = produtos.map((prod, rowIdx) => ({
       ...prod,
-      codigo_interno: cellEdits[`${rowIdx}-1`] ?? prod.codigo_interno,
-      descricao: cellEdits[`${rowIdx}-2`] ?? prod.descricao,
-      codigo_barras: cellEdits[`${rowIdx}-3`] ?? prod.codigo_barras,
+      codigo_interno: cellEdits[`${rowIdx}-1`] !== undefined ? resolveStoredValue(rowIdx, 1, cellEdits[`${rowIdx}-1`]) : prod.codigo_interno,
+      descricao: cellEdits[`${rowIdx}-2`] !== undefined ? resolveStoredValue(rowIdx, 2, cellEdits[`${rowIdx}-2`]) : prod.descricao,
+      codigo_barras: cellEdits[`${rowIdx}-3`] !== undefined ? resolveStoredValue(rowIdx, 3, cellEdits[`${rowIdx}-3`]) : prod.codigo_barras,
     }));
     try {
       if (onSave) await onSave(updated, { silent });
