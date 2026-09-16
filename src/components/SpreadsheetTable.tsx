@@ -958,6 +958,12 @@ const SpreadsheetTable: React.FC<SpreadsheetTableProps> = ({
     setRowHeights({});
   }, [orderedColDefs.length, handleColAutoFit]);
 
+  const getFrozenLeft = useCallback((visualColIdx: number) => {
+    let left = 0;
+    for (let index = 0; index < visualColIdx; index++) left += getColWidth(index);
+    return left;
+  }, [getColWidth]);
+
   const handleRowAutoFit = useCallback((rowIdx: number) => {
     setRowHeights(prev => { const copy = { ...prev }; delete copy[rowIdx]; return copy; });
   }, []);
@@ -1480,6 +1486,11 @@ const SpreadsheetTable: React.FC<SpreadsheetTableProps> = ({
   const [replaceTerm, setReplaceTerm] = useState('');
   const [showSearch, setShowSearch] = useState(false);
 
+  useEffect(() => {
+    setColumnFilters({}); setFilterEditor(null); setSearchTerm(''); setReplaceTerm('');
+    setFrozenRows(0); setFrozenCols(0); setSortCol(null);
+  }, [listaId]);
+
   const findNext = useCallback(() => {
     const term = searchTerm.trim().toLocaleLowerCase('pt-BR');
     if (!term) return;
@@ -1536,7 +1547,8 @@ const SpreadsheetTable: React.FC<SpreadsheetTableProps> = ({
     const isDragOver = dragOverRow === idx;
 
     return (
-      <tr key={isEmpty ? `empty-${idx}` : idx} className={`group/row ${isDragOver ? 'border-t-2 border-t-primary' : ''}`} style={{ height: `${h}px` }}>
+      <tr key={isEmpty ? `empty-${idx}` : idx} className={`group/row ${isDragOver ? 'border-t-2 border-t-primary' : ''}`}
+        style={{ height: `${h}px`, ...(displayIdx < frozenRows ? { position: 'sticky', top: `${64 + displayIdx * DEFAULT_ROW_HEIGHT}px`, zIndex: 7 } : {}) }}>
         <td
           className="border-r border-b px-0 text-center text-[11px] text-muted-foreground select-none relative cursor-grab active:cursor-grabbing"
           style={{
@@ -1605,9 +1617,10 @@ const SpreadsheetTable: React.FC<SpreadsheetTableProps> = ({
             const displayVal = getDisplayValue(idx, origIdx);
             const stickyClass = origIdx === 1 ? 'sticky left-[36px] bg-background z-[5]' : '';
             const extraClass = origIdx === 2 ? 'overflow-hidden text-ellipsis' : '';
+            const frozenStyle = visualColIdx <= frozenCols ? { position: 'sticky' as const, left: `${getFrozenLeft(visualColIdx)}px`, zIndex: displayIdx < frozenRows ? 9 : 6, backgroundColor: 'hsl(var(--background))' } : {};
             return (
               <td key={col.key} className={`${cellBaseClass} ${stickyClass} whitespace-nowrap ${extraClass} text-xs`}
-                style={{ borderColor: 'hsl(var(--border))', minWidth: getColWidth(visualColIdx), width: getColWidth(visualColIdx), ...cellBgStyle }}
+                style={{ borderColor: 'hsl(var(--border))', minWidth: getColWidth(visualColIdx), width: getColWidth(visualColIdx), ...cellBgStyle, ...frozenStyle }}
                 {...cellEvents} onDoubleClick={() => handleCellDoubleClick(idx, visualColIdx, origIdx)}>
                 {isEditing ? (
                   <input ref={editInputRef} type="text" className={`w-full bg-transparent outline-none focus:ring-1 focus:ring-primary rounded px-1 ${alignClass(effectiveAlign)} text-xs h-full`}
@@ -1630,9 +1643,10 @@ const SpreadsheetTable: React.FC<SpreadsheetTableProps> = ({
             const isSecond = !isLowest && (secondEmpByUf[state] ?? null) === emp;
             const editKey = `${idx}-${origIdx}`;
             const hasEdit = cellEdits[editKey] !== undefined;
+            const frozenStyle = visualColIdx <= frozenCols ? { position: 'sticky' as const, left: `${getFrozenLeft(visualColIdx)}px`, zIndex: displayIdx < frozenRows ? 9 : 6, backgroundColor: 'hsl(var(--background))' } : {};
             return (
               <td key={col.key} className={`${cellBaseClass} px-1 whitespace-nowrap text-xs ${isLowest ? 'bg-success/10 text-success font-bold' : isSecond ? 'bg-warning/25 text-warning-foreground font-bold' : ''}`}
-                style={{ borderColor: 'hsl(var(--border))', minWidth: getColWidth(visualColIdx), width: getColWidth(visualColIdx), ...cellBgStyle }}
+                style={{ borderColor: 'hsl(var(--border))', minWidth: getColWidth(visualColIdx), width: getColWidth(visualColIdx), ...cellBgStyle, ...frozenStyle }}
                 {...cellEvents} onDoubleClick={() => handleCellDoubleClick(idx, visualColIdx, origIdx)}>
                 {isEditing ? (
                   <input ref={editInputRef} type="text" inputMode="decimal" className={`w-full bg-transparent outline-none focus:ring-1 focus:ring-primary rounded px-1 ${alignClass(effectiveAlign)} text-xs h-full`}
@@ -1660,10 +1674,10 @@ const SpreadsheetTable: React.FC<SpreadsheetTableProps> = ({
         })}
       </tr>
     );
-  }, [orderedColDefs, getColWidth, getLowestEmpresa, getSecondEmpresa, editingCell, editingValue, cellEdits, getPreco, getMarkedUpPrice,
+  }, [orderedColDefs, getColWidth, getFrozenLeft, getLowestEmpresa, getSecondEmpresa, editingCell, editingValue, cellEdits, getPreco, getMarkedUpPrice,
       isCellSelected, isCellActive, getSelectionBorders, editableColumn, editPrices, readOnly, rowHeights,
       dragOverRow, dragRow, activeRowResize, produtos, getDisplayValue, handleCellClick, handleCellMouseDown,
-      handleCellMouseEnter, handleCellDoubleClick, commitEdit, cancelEdit, onPriceChange, ufs]);
+      handleCellMouseEnter, handleCellDoubleClick, commitEdit, cancelEdit, onPriceChange, ufs, frozenRows, frozenCols]);
 
   // Filtered rows
   const displayRows = useMemo(() => {
@@ -1710,6 +1724,17 @@ const SpreadsheetTable: React.FC<SpreadsheetTableProps> = ({
         <div className="w-px h-5 bg-border mx-1" />
         {!readOnly && (
           <>
+            <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => document.execCommand('cut')} disabled={!hasSelection} title="Recortar (Ctrl+X)"><Scissors className="w-4 h-4" /></Button>
+            <Button variant="ghost" size="sm" className="h-7 px-2 text-xs" onClick={duplicateSelection} disabled={!hasSelection} title="Duplicar seleção abaixo"><Copy className="w-4 h-4" /><span className="hidden md:inline">Duplicar</span></Button>
+            <Button variant="ghost" size="icon" className="h-7 w-7" onClick={clearSelection} disabled={!hasSelection} title="Limpar conteúdo"><Eraser className="w-4 h-4" /></Button>
+            <Button variant="ghost" size="icon" className="h-7 w-7" onClick={fillDown} disabled={!hasSelection} title="Preencher para baixo"><Rows3 className="w-4 h-4" /></Button>
+            <Button variant="ghost" size="icon" className="h-7 w-7" onClick={fillRight} disabled={!hasSelection} title="Preencher para a direita"><Columns3 className="w-4 h-4" /></Button>
+            <Button variant="ghost" size="sm" className="h-7 px-2 text-xs" onClick={applyFormulaValueToSelection} disabled={!hasSelection} title="Aplicar o conteúdo da barra ao intervalo">Aplicar</Button>
+            <div className="w-px h-5 bg-border mx-1" />
+          </>
+        )}
+        {!readOnly && (
+          <>
             <button onClick={addRow}
               className="p-1.5 rounded hover:bg-accent transition-colors flex items-center gap-1 text-xs text-blue-600 font-bold" title="Adicionar Novo Produto">
               <Plus className="w-4 h-4" /><span>Novo Item</span>
@@ -1750,6 +1775,14 @@ const SpreadsheetTable: React.FC<SpreadsheetTableProps> = ({
               </button>
             </div>
           )}
+        </div>
+
+        <Button variant={showSearch ? 'secondary' : 'ghost'} size="icon" className="h-7 w-7" onClick={() => setShowSearch(value => !value)} title="Localizar e substituir"><Search className="w-4 h-4" /></Button>
+        <Button variant="ghost" size="icon" className="h-7 w-7" onClick={handleAutoFitAll} title="Ajustar automaticamente largura e altura"><Scaling className="w-4 h-4" /></Button>
+        <div className="flex items-center gap-0.5 border border-border rounded-md p-0.5 bg-background" title="Congelar linhas e colunas">
+          <Snowflake className="w-3.5 h-3.5 mx-1 text-muted-foreground" />
+          <Button variant={frozenRows ? 'secondary' : 'ghost'} size="sm" className="h-6 px-2 text-[10px]" onClick={() => setFrozenRows(value => value ? 0 : 1)}>Linha</Button>
+          <Button variant={frozenCols ? 'secondary' : 'ghost'} size="sm" className="h-6 px-2 text-[10px]" onClick={() => setFrozenCols(value => value ? 0 : Math.min(3, orderedColDefs.length - 1))}>Colunas</Button>
         </div>
 
         {onSave && (
@@ -1830,6 +1863,17 @@ const SpreadsheetTable: React.FC<SpreadsheetTableProps> = ({
         )}
       </div>
 
+      {showSearch && (
+        <div className="flex flex-wrap items-center gap-2 px-3 py-2 border-b bg-background" style={{ borderColor: 'hsl(var(--border))' }}>
+          <div className="relative min-w-44 flex-1 max-w-xs"><Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" /><input value={searchTerm} onChange={event => setSearchTerm(event.target.value)} onKeyDown={event => event.key === 'Enter' && findNext()} className="h-8 w-full rounded-md border border-input bg-background pl-8 pr-2 text-xs outline-none focus:ring-2 focus:ring-primary" placeholder="Localizar" autoFocus /></div>
+          <input value={replaceTerm} onChange={event => setReplaceTerm(event.target.value)} className="h-8 min-w-44 flex-1 max-w-xs rounded-md border border-input bg-background px-3 text-xs outline-none focus:ring-2 focus:ring-primary" placeholder="Substituir por" />
+          <Button variant="outline" size="sm" className="h-8 text-xs" onClick={findNext}>Próximo</Button>
+          {!readOnly && <Button variant="outline" size="sm" className="h-8 text-xs" onClick={() => replaceMatches(false)}>Substituir</Button>}
+          {!readOnly && <Button variant="outline" size="sm" className="h-8 text-xs" onClick={() => replaceMatches(true)}>Substituir todos</Button>}
+          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setShowSearch(false)} title="Fechar"><X className="w-4 h-4" /></Button>
+        </div>
+      )}
+
       <div className="flex items-center min-h-8 border-b bg-background" style={{ borderColor: 'hsl(var(--border))' }}>
         <div className="w-16 shrink-0 self-stretch border-r flex items-center justify-center text-[11px] font-bold text-muted-foreground bg-muted/40">
           {activeCell ? `${spreadsheetColumnName(activeCell.col)}${activeCell.row + 1}` : '—'}
@@ -1890,6 +1934,7 @@ const SpreadsheetTable: React.FC<SpreadsheetTableProps> = ({
                       backgroundColor: col.highlight ? undefined : dragCol === colIdx ? 'hsl(var(--primary) / 0.15)' : 'hsl(var(--muted))',
                       height: HEADER_HEIGHT,
                       cursor: i > 0 && !col.isSeparator ? 'grab' : 'default',
+                      ...(i <= frozenCols ? { position: 'sticky', left: `${getFrozenLeft(i)}px`, zIndex: 24 } : {}),
                     }}
                     draggable={i > 0 && !col.isSeparator}
                     onDragStart={e => handleColDragStart(e, colIdx)}
@@ -1903,6 +1948,22 @@ const SpreadsheetTable: React.FC<SpreadsheetTableProps> = ({
                       {col.label}
                       {sortCol === col.originalIdx && <span className="text-[9px]">{sortDir === 'asc' ? '▲' : '▼'}</span>}
                     </span>
+                    {col.isData && (
+                      <Button variant="ghost" size="icon" className={`absolute left-0.5 top-0.5 h-5 w-5 ${columnFilters[col.originalIdx] ? 'text-primary' : 'text-muted-foreground'}`}
+                        onClick={event => { event.stopPropagation(); setFilterDraft(columnFilters[col.originalIdx] ?? {}); setFilterEditor(filterEditor === col.originalIdx ? null : col.originalIdx); }} title="Filtrar coluna">
+                        <Filter className="w-3 h-3" />
+                      </Button>
+                    )}
+                    {filterEditor === col.originalIdx && (
+                      <div className="absolute left-0 top-full z-50 w-60 border border-border bg-popover p-3 shadow-xl rounded-md text-left" onClick={event => event.stopPropagation()}>
+                        <div className="text-[11px] font-bold mb-2">Filtrar {col.label}</div>
+                        <input value={filterDraft.text ?? ''} onChange={event => setFilterDraft(value => ({ ...value, text: event.target.value }))} className="h-8 w-full rounded-md border border-input bg-background px-2 text-xs mb-2" placeholder="Texto contém" />
+                        {col.empresa && <div className="grid grid-cols-2 gap-2 mb-2"><input value={filterDraft.min ?? ''} onChange={event => setFilterDraft(value => ({ ...value, min: event.target.value }))} className="h-8 rounded-md border border-input bg-background px-2 text-xs min-w-0" placeholder="Preço mín." /><input value={filterDraft.max ?? ''} onChange={event => setFilterDraft(value => ({ ...value, max: event.target.value }))} className="h-8 rounded-md border border-input bg-background px-2 text-xs min-w-0" placeholder="Preço máx." /></div>}
+                        <label className="flex items-center gap-2 py-1 text-xs font-normal"><input type="checkbox" checked={Boolean(filterDraft.emptyOnly)} onChange={event => setFilterDraft(value => ({ ...value, emptyOnly: event.target.checked }))} /> Somente vazias</label>
+                        {col.empresa && <label className="flex items-center gap-2 py-1 text-xs font-normal"><input type="checkbox" checked={Boolean(filterDraft.winnerOnly)} onChange={event => setFilterDraft(value => ({ ...value, winnerOnly: event.target.checked }))} /> Somente vencedores</label>}
+                        <div className="flex justify-end gap-2 mt-3"><Button variant="ghost" size="sm" className="h-7 text-xs" onClick={() => { setColumnFilters(filters => { const next = { ...filters }; delete next[col.originalIdx]; return next; }); setFilterEditor(null); }}>Limpar</Button><Button size="sm" className="h-7 text-xs" onClick={() => { setColumnFilters(filters => ({ ...filters, [col.originalIdx]: filterDraft })); setFilterEditor(null); }}>Aplicar</Button></div>
+                      </div>
+                    )}
                     {col.empresa && priceMarkups[col.empresa] ? (
                       <span className="ml-1 text-[9px] opacity-70">(+{priceMarkups[col.empresa].toFixed(1)}%)</span>
                     ) : null}
