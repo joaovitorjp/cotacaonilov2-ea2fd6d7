@@ -751,7 +751,7 @@ const SpreadsheetTable: React.FC<SpreadsheetTableProps> = ({
     } finally {
       saveInProgressRef.current = false;
     }
-  }, [onSave, produtos, cellEdits, allColDefs, respostas, listaId, onAfterSave, user?.id, hasUnsavedChanges]);
+  }, [onSave, produtos, cellEdits, allColDefs, respostas, listaId, onAfterSave, user?.id, hasUnsavedChanges, resolveStoredValue]);
 
   useEffect(() => {
     if (!hasUnsavedChanges || saveStatus === 'saving') return;
