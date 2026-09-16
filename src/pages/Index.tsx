@@ -631,6 +631,7 @@ const Index = () => {
                 </Button>
               ))}
             </div>
+            <AccessStatusBadge />
             <LanguageSwitcher variant="subtle" className="shrink-0" />
             <HeaderAvatarButton onClick={() => setPerfilOpen(true)} />
             <div className="w-px h-5 bg-slate-200 mx-2 shrink-0" />
