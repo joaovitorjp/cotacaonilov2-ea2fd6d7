@@ -11,6 +11,7 @@ import Dashboard from '@/components/Dashboard';
 import PerfilPanel from '@/components/PerfilPanel';
 import { useAvatar } from '@/hooks/useAvatar';
 import HeaderAvatarButton from '@/components/HeaderAvatarButton';
+import LanguageSwitcher from '@/components/LanguageSwitcher';
 import adrLogo from '@/assets/adr-logo.jpeg';
 import { useBranding } from '@/hooks/useBranding';
 import { toast } from 'sonner';
@@ -629,6 +630,7 @@ const Index = () => {
                 </Button>
               ))}
             </div>
+            <LanguageSwitcher variant="subtle" className="shrink-0" />
             <HeaderAvatarButton onClick={() => setPerfilOpen(true)} />
             <div className="w-px h-5 bg-slate-200 mx-2 shrink-0" />
             <Button variant="ghost" size="icon" onClick={signOut} title="Sair" className="shrink-0 hover:bg-red-50 hover:text-red-600 rounded-full transition-colors w-9 h-9">
@@ -638,6 +640,7 @@ const Index = () => {
 
           {/* Mobile menu toggle */}
           <div className="flex md:hidden items-center gap-2 shrink-0">
+            <LanguageSwitcher variant="subtle" className="shrink-0" />
             <HeaderAvatarButton onClick={() => { setPerfilOpen(true); setMobileMenuOpen(false); }} />
             <Button variant="ghost" size="icon" onClick={() => setMobileMenuOpen(!mobileMenuOpen)} className="w-9 h-9 rounded-xl shrink-0">
               {mobileMenuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}

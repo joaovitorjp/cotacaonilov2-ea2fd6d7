@@ -14,6 +14,7 @@ import {
 } from '@/components/ui/dialog';
 import { toast } from 'sonner';
 import UserDataTree from '@/components/admin/UserDataTree';
+import LanguageSwitcher from '@/components/LanguageSwitcher';
 import { imageToDataUrl } from '@/lib/branding';
 import {
   ArrowLeft, Ban, CalendarClock, CheckCircle2, KeyRound, Loader2, LogOut,
@@ -222,6 +223,7 @@ const AdminPanel: React.FC = () => {
             <ArrowLeft className="w-4 h-4" />
           </button>
           <h2 className="text-base font-display font-bold text-slate-900 tracking-tight">{tituloAba}</h2>
+          <div className="hidden md:block ml-auto"><LanguageSwitcher variant="subtle" /></div>
           <div className="flex md:hidden items-center gap-1 ml-auto overflow-x-auto">
             {tabs.map(t => (
               <Button
