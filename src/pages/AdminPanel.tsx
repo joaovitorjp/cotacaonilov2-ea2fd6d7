@@ -60,7 +60,7 @@ const AdminPanel: React.FC = () => {
   const [logs, setLogs] = useState<any[]>([]);
   const [busca, setBusca] = useState('');
   const [filtroRede, setFiltroRede] = useState<string>('todas');
-  const [filtroSituacao, setFiltroSituacao] = useState<'todos' | 'ativos' | 'bloqueados' | 'vencidos'>('todos');
+  const [filtroSituacao, setFiltroSituacao] = useState<'todos' | 'ativos' | 'bloqueados' | 'vencidos' | 'pendentes'>('todos');
   const [selecionado, setSelecionado] = useState<Profile | null>(null);
   const [senhaDialog, setSenhaDialog] = useState<Profile | null>(null);
   const [novaSenha, setNovaSenha] = useState('');
@@ -123,9 +123,10 @@ const AdminPanel: React.FC = () => {
       if (filtroSituacao === 'ativos' && s !== 'ativo') return false;
       if (filtroSituacao === 'bloqueados' && !s.includes('bloque')) return false;
       if (filtroSituacao === 'vencidos' && s !== 'vencido') return false;
+      if (filtroSituacao === 'pendentes' && s !== 'pendente') return false;
       return true;
     });
-  }, [profiles, busca, filtroRede, filtroSituacao, redes]);
+  }, [profiles, busca, filtroRede, filtroSituacao, redes, adminIds]);
 
   const updateProfile = async (p: Profile, patch: Partial<Profile>, acaoNome: string) => {
     setAcao(true);
