@@ -11,6 +11,7 @@ import CotacaoResposta from "./pages/CotacaoResposta.tsx";
 import OAuthCallback from "./pages/OAuthCallback.tsx";
 import OAuthConsent from "./pages/OAuthConsent.tsx";
 import Perfil from "./pages/Perfil.tsx";
+import AdminPanel from "./pages/AdminPanel.tsx";
 import ResetPassword from "./pages/ResetPassword.tsx";
 import NotFound from "./pages/NotFound.tsx";
 
@@ -60,8 +61,15 @@ const App = () => (
             <Route path="/cadastro" element={<Navigate to="/login" replace />} />
             <Route path="/perfil/*" element={<Navigate to="/perfil" replace />} />
             <Route path="/assinatura" element={<Navigate to="/" replace />} />
-            <Route path="/admin/*" element={<Navigate to="/" replace />} />
-            <Route path="/admin" element={<Navigate to="/" replace />} />
+            <Route
+              path="/admin"
+              element={
+                <ProtectedRoute>
+                  <AdminPanel />
+                </ProtectedRoute>
+              }
+            />
+            <Route path="/admin/*" element={<Navigate to="/admin" replace />} />
 
             <Route path="*" element={<NotFound />} />
           </Routes>
