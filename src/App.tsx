@@ -11,6 +11,7 @@ import CotacaoResposta from "./pages/CotacaoResposta.tsx";
 import OAuthCallback from "./pages/OAuthCallback.tsx";
 import OAuthConsent from "./pages/OAuthConsent.tsx";
 import Perfil from "./pages/Perfil.tsx";
+import AdminPanel from "./pages/AdminPanel.tsx";
 import ResetPassword from "./pages/ResetPassword.tsx";
 import NotFound from "./pages/NotFound.tsx";
 
