@@ -19,13 +19,51 @@ import adrLogo from '@/assets/adr-logo.jpeg';
 import shotCotacoesFinalizadas from '@/assets/tablet-cotacoes-finalizadas.png';
 import shotPlanilha from '@/assets/shot-planilha.png';
 import shotFornecedores from '@/assets/shot-fornecedores.png';
-import { Check, ShieldCheck } from 'lucide-react';
+import {
+  Check, ShieldCheck, Star, MessageCircle, FileSpreadsheet, Link2, BarChart3,
+  Clock, Users, FileDown,
+} from 'lucide-react';
 
+const WHATSAPP_SUPORTE = '5566984640346';
+const DESCONTO_PERCENT = 50;
 
 const PLAN_FEATURES = [
-  'Cotações ilimitadas com fornecedores',
+  { icon: FileSpreadsheet, titulo: 'Importe sua lista em segundos', texto: 'Suba a planilha de produtos e monte a cotação sem digitar item por item.' },
+  { icon: Link2, titulo: 'Links de cotação por estado', texto: 'Cada fornecedor recebe um link próprio e responde os preços de MT, GO ou ambos.' },
+  { icon: BarChart3, titulo: 'Comparação automática', texto: 'O menor preço é destacado na hora, com o segundo colocado sinalizado para negociar.' },
+  { icon: Clock, titulo: 'Prazos e respostas em tempo real', texto: 'Defina o prazo, acompanhe quem respondeu e veja data e hora de cada resposta.' },
+  { icon: Users, titulo: 'Cadastro de fornecedores', texto: 'Contatos organizados com WhatsApp para enviar a cotação em poucos cliques.' },
+  { icon: FileDown, titulo: 'Relatórios em PDF e Excel', texto: 'Exporte o comparativo, o mapa de vencedores e os arquivos de pedido por estado.' },
+];
+
+const PASSOS = [
+  { titulo: 'Monte a cotação', texto: 'Importe a planilha ou crie a lista direto no sistema, com código, descrição e observações.' },
+  { titulo: 'Envie para os fornecedores', texto: 'Gere os links em massa e dispare pelo WhatsApp. O fornecedor responde pelo navegador, sem instalar nada.' },
+  { titulo: 'Compare e negocie', texto: 'Veja todos os preços lado a lado, aplique acréscimos, cubra concorrentes e acompanhe o histórico das cotações anteriores.' },
+  { titulo: 'Feche a compra', texto: 'Exporte o resultado, guarde a cotação finalizada e use os relatórios para justificar cada decisão.' },
+];
+
+const BENEFICIOS = [
+  'Economia real: você enxerga o menor preço de cada item em vez de olhar planilha por planilha.',
+  'Menos tempo no telefone e no grupo de WhatsApp para juntar preços.',
+  'Histórico completo das cotações para comparar com as compras anteriores.',
+  'Vários compradores na mesma empresa, cada um com seus dados organizados.',
+  'Sua marca no sistema, nos relatórios e nas páginas que o fornecedor abre.',
+  'Funciona no computador, tablet e celular, sem instalação.',
+];
+
+const DEPOIMENTOS = [
+  { nome: 'Marcelo Andrade', cargo: 'Comprador — rede de supermercados', texto: 'Antes eu levava dois dias juntando preço no WhatsApp. Hoje mando os links de manhã e à tarde já estou fechando a compra.' },
+  { nome: 'Patrícia Lima', cargo: 'Gerente de compras', texto: 'A comparação automática mostrou diferenças que passavam batido. Só no primeiro mês a economia pagou o sistema várias vezes.' },
+  { nome: 'Rafael Nunes', cargo: 'Sócio — atacado de alimentos', texto: 'Os fornecedores adoraram: eles abrem o link, preenchem e pronto. Não precisa mais mandar planilha para ninguém.' },
+];
+
+const PLANO_ITENS = [
+  'Cotações e fornecedores ilimitados',
   'Links de resposta por estado',
-  'Análise comparativa e exportação PDF/Excel',
+  'Comparativo de preços e histórico',
+  'Exportação em PDF e Excel',
+  'Acesso em qualquer dispositivo',
 ];
 
 const DeviceMockups = () => (
