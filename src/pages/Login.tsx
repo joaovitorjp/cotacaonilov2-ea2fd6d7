@@ -29,7 +29,7 @@ const DESCONTO_PERCENT = 50;
 
 const PLAN_FEATURES = [
   { icon: FileSpreadsheet, titulo: 'Importe sua lista em segundos', texto: 'Suba a planilha de produtos e monte a cotação sem digitar item por item.' },
-  { icon: Link2, titulo: 'Links de cotação por estado', texto: 'Cada fornecedor recebe um link próprio e responde os preços de MT, GO ou ambos.' },
+  { icon: Link2, titulo: 'Links de cotação por estado', texto: 'Cada fornecedor recebe um link próprio e responde os preços por estado definido.' },
   { icon: BarChart3, titulo: 'Comparação automática', texto: 'O menor preço é destacado na hora, com o segundo colocado sinalizado para negociar.' },
   { icon: Clock, titulo: 'Prazos e respostas em tempo real', texto: 'Defina o prazo, acompanhe quem respondeu e veja data e hora de cada resposta.' },
   { icon: Users, titulo: 'Cadastro de fornecedores', texto: 'Contatos organizados com WhatsApp para enviar a cotação em poucos cliques.' },
