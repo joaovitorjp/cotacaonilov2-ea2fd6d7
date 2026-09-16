@@ -45,6 +45,7 @@ interface RespostaEmpresa {
 const Index = () => {
   const { user, signOut } = useAuth();
   const { isAdmin } = useUserRole();
+  const brand = useBranding();
   const navigate = useNavigate();
   const [importOpen, setImportOpen] = useState(false);
   const [carregarOpen, setCarregarOpen] = useState(false);
