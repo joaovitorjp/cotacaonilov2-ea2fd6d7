@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Package, Clock, CheckCircle2, Users } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
-import { useBranding } from '@/hooks/useBranding';
+
 import {
   ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid,
   PieChart, Pie, Cell, Legend,
@@ -21,7 +21,7 @@ interface DashboardProps {
 
 const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
   const { user } = useAuth();
-  const brand = useBranding();
+
   const [stats, setStats] = useState<DashboardStats>({ abertas: 0, finalizadas: 0, totalProdutos: 0, totalRespostas: 0 });
   const [recentes, setRecentes] = useState<{ id: string; nome: string; status: string; created_at: string; produtos: any[] }[]>([]);
   const [respostasPorLista, setRespostasPorLista] = useState<Record<string, number>>({});
@@ -108,14 +108,7 @@ const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
 
   return (
     <div className="flex-1 p-4 sm:p-8 bg-[#F8FAFC]">
-      {/* Stats Header */}
-      <div className="mb-8">
-        <div className="flex items-center gap-3 mb-1">
-          <img src={brand.logo} alt={brand.nome} className="h-10 w-10 rounded-xl object-contain bg-white border border-slate-200 p-1" />
-          <h1 className="text-2xl font-bold text-slate-900 tracking-tight">{brand.nome}</h1>
-        </div>
-        <p className="text-sm text-slate-500">Painel de cotações — bem-vindo de volta ao seu centro de operações.</p>
-      </div>
+
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
         <button onClick={() => onNavigate('carregar')} className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm hover:shadow-md transition-all text-left group">
