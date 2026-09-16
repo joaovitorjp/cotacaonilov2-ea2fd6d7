@@ -135,6 +135,17 @@ const Login = () => {
         toast.error(error.message || 'Não foi possível entrar.');
       }
     } else {
+      const { data: status } = await supabase.rpc('meu_status_acesso' as any);
+      const st = status as any;
+      if (st && st.ativo === false) {
+        await supabase.auth.signOut();
+        toast.error(
+          st.bloqueado
+            ? `Acesso bloqueado.${st.motivo ? ' Motivo: ' + st.motivo : ''} Fale com o administrador.`
+            : 'Seu prazo de acesso expirou. Fale com o administrador.'
+        );
+        return;
+      }
       goNext();
     }
   };
