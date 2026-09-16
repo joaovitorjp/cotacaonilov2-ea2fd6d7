@@ -1725,7 +1725,10 @@ const SpreadsheetTable: React.FC<SpreadsheetTableProps> = ({
         const origIdx = Number(origIdxText);
         const visualCol = orderedColDefs.findIndex(col => col.originalIdx === origIdx);
         if (visualCol < 0) return true;
-        const value = getCellValue(row.idx, visualCol);
+        const rawValue = getCellValue(row.idx, visualCol);
+        const value = isFormula(rawValue)
+          ? evalRaw(rawValue, `${row.idx}-${orderedColDefs[visualCol]?.originalIdx ?? visualCol}`)
+          : rawValue;
         const empty = value.trim() === '' || value === 'R$ -';
         if (filter.emptyOnly && !empty) return false;
         if (filter.text && !value.toLocaleLowerCase('pt-BR').includes(filter.text.toLocaleLowerCase('pt-BR'))) return false;
