@@ -709,7 +709,7 @@ const SpreadsheetTable: React.FC<SpreadsheetTableProps> = ({
         if (colDef?.state && colDef?.empresa) {
           const emp = colDef.empresa;
           if (!priceEditsByEmpresa[emp]) priceEditsByEmpresa[emp] = [];
-          priceEditsByEmpresa[emp].push({ rowIdx, value, state: colDef.state });
+          priceEditsByEmpresa[emp].push({ rowIdx, value: resolveStoredValue(rowIdx, origIdx, value), state: colDef.state });
         }
       }
 
