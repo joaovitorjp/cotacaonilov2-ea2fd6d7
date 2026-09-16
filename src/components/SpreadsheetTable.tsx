@@ -481,6 +481,8 @@ const SpreadsheetTable: React.FC<SpreadsheetTableProps> = ({
     const colDef = orderedColDefs[colIdx];
     if (!colDef) return '';
     const origIdx = colDef.originalIdx;
+    const edited = cellEdits[`${rowIdx}-${origIdx}`];
+    if (edited !== undefined) return edited;
     if (origIdx === 0) return String(rowIdx + 1);
     if (origIdx === 1) return prod.codigo_interno;
     if (origIdx === 2) return prod.descricao;
@@ -494,7 +496,7 @@ const SpreadsheetTable: React.FC<SpreadsheetTableProps> = ({
       return num === Infinity ? String(raw) : Number(num).toFixed(2).replace('.', ',');
     }
     return '';
-  }, [produtos, orderedColDefs, editableColumn, editPrices, getPreco]);
+  }, [produtos, orderedColDefs, editableColumn, editPrices, getPreco, cellEdits]);
 
   useEffect(() => {
     setFormulaValue(activeCell ? getCellValue(activeCell.row, activeCell.col) : '');
@@ -589,6 +591,7 @@ const SpreadsheetTable: React.FC<SpreadsheetTableProps> = ({
     saveInProgressRef.current = true;
     setSaveStatus('saving');
     const updated = produtos.map((prod, rowIdx) => ({
+      ...prod,
       codigo_interno: cellEdits[`${rowIdx}-1`] ?? prod.codigo_interno,
       descricao: cellEdits[`${rowIdx}-2`] ?? prod.descricao,
       codigo_barras: cellEdits[`${rowIdx}-3`] ?? prod.codigo_barras,
