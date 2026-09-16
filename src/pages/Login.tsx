@@ -276,6 +276,9 @@ const Login = () => {
           <nav className="hidden md:flex items-center gap-8 text-sm font-medium text-muted-foreground">
             <button onClick={() => scrollTo('home')} className="hover:text-foreground transition-colors">Home</button>
             <button onClick={() => scrollTo('funcionalidades')} className="hover:text-foreground transition-colors">Funcionalidades</button>
+            <button onClick={() => scrollTo('sobre')} className="hover:text-foreground transition-colors">Como funciona</button>
+            <button onClick={() => scrollTo('depoimentos')} className="hover:text-foreground transition-colors">Depoimentos</button>
+            <button onClick={() => scrollTo('planos')} className="hover:text-foreground transition-colors">Planos</button>
             
           </nav>
           <div className="flex items-center gap-2">
