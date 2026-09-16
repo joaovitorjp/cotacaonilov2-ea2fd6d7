@@ -672,6 +672,8 @@ export type Database = {
       }
       networks: {
         Row: {
+          access_expires_at: string | null
+          blocked_at: string | null
           config: Json | null
           created_at: string | null
           id: string
@@ -680,6 +682,8 @@ export type Database = {
           updated_at: string | null
         }
         Insert: {
+          access_expires_at?: string | null
+          blocked_at?: string | null
           config?: Json | null
           created_at?: string | null
           id?: string
@@ -688,6 +692,8 @@ export type Database = {
           updated_at?: string | null
         }
         Update: {
+          access_expires_at?: string | null
+          blocked_at?: string | null
           config?: Json | null
           created_at?: string | null
           id?: string
@@ -767,7 +773,10 @@ export type Database = {
       }
       profiles: {
         Row: {
+          access_expires_at: string | null
           avatar_url: string | null
+          blocked_at: string | null
+          blocked_reason: string | null
           cargo: string | null
           created_at: string
           email: string
@@ -780,7 +789,10 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          access_expires_at?: string | null
           avatar_url?: string | null
+          blocked_at?: string | null
+          blocked_reason?: string | null
           cargo?: string | null
           created_at?: string
           email?: string
@@ -793,7 +805,10 @@ export type Database = {
           user_id: string
         }
         Update: {
+          access_expires_at?: string | null
           avatar_url?: string | null
+          blocked_at?: string | null
+          blocked_reason?: string | null
           cargo?: string | null
           created_at?: string
           email?: string
@@ -954,6 +969,7 @@ export type Database = {
         }
         Returns: boolean
       }
+      is_user_active: { Args: { _user_id: string }; Returns: boolean }
       listar_usuarios_chat: {
         Args: never
         Returns: {
@@ -962,6 +978,7 @@ export type Database = {
           user_id: string
         }[]
       }
+      meu_status_acesso: { Args: never; Returns: Json }
       resgatar_chave: { Args: { _chave: string }; Returns: Json }
     }
     Enums: {
