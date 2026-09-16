@@ -791,6 +791,7 @@ const SpreadsheetTable: React.FC<SpreadsheetTableProps> = ({
 
   const setAlignment = (align: TextAlign) => {
     if (!contextMenu) return;
+    pushUndo();
     const { type, colIdx, rowIdx } = contextMenu;
     if (type === 'cell' && colIdx !== undefined && rowIdx !== undefined) setCellAligns(prev => ({ ...prev, [`${rowIdx}-${colIdx}`]: align }));
     else if (type === 'column' && colIdx !== undefined) setColAligns(prev => ({ ...prev, [colIdx]: align }));
