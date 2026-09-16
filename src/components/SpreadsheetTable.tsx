@@ -1681,8 +1681,10 @@ const SpreadsheetTable: React.FC<SpreadsheetTableProps> = ({
                     onBlur={() => commitEdit(origIdx)} onKeyDown={e => { if (e.key === 'Enter') commitEdit(origIdx); if (e.key === 'Escape') cancelEdit(); }} placeholder="0,00" />
                 ) : (() => {
                   if (hasEdit) {
-                    const editVal = cellEdits[editKey];
+                    const rawEdit = cellEdits[editKey];
+                    const editVal = isFormula(rawEdit) ? evalRaw(rawEdit, editKey) : rawEdit;
                     if (!editVal || editVal === '') return 'R$ -';
+                    if (isFormulaError(editVal)) return editVal;
                     const num = parsePrice(editVal);
                     return num === Infinity ? editVal : `R$ ${Number(num).toFixed(2).replace('.', ',')}`;
                   }
