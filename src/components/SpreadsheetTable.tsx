@@ -1,5 +1,5 @@
 import React, { useState, useCallback, useRef, useEffect, useMemo } from 'react';
-import { AlignLeft, AlignCenter, AlignRight, ArrowUp, ArrowDown, ArrowLeft, ArrowRight, Copy, ClipboardPaste, Bold, Italic, Paintbrush, X, Save, Percent, Search, MapPin, Trash2, Plus, Swords, Trash, Filter, Check, Undo2, CheckCircle2, Loader2, AlertCircle } from 'lucide-react';
+import { AlignLeft, AlignCenter, AlignRight, ArrowUp, ArrowDown, ArrowLeft, ArrowRight, Copy, ClipboardPaste, Bold, Italic, Paintbrush, X, Save, Percent, Search, Trash2, Plus, Swords, Trash, Filter, Check, Undo2, CheckCircle2, Loader2, AlertCircle, Scissors, Eraser, Rows3, Columns3, Snowflake, Scaling } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/contexts/AuthContext';
@@ -93,6 +93,14 @@ interface ColDef {
   isSeparator?: boolean;
   state?: string;
   empresa?: string;
+}
+
+interface ColumnFilter {
+  text?: string;
+  min?: string;
+  max?: string;
+  emptyOnly?: boolean;
+  winnerOnly?: boolean;
 }
 
 const SpreadsheetTable: React.FC<SpreadsheetTableProps> = ({
@@ -263,6 +271,11 @@ const SpreadsheetTable: React.FC<SpreadsheetTableProps> = ({
 
   const [sortCol, setSortCol] = useState<number | null>(null);
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc');
+  const [columnFilters, setColumnFilters] = useState<Record<number, ColumnFilter>>({});
+  const [filterEditor, setFilterEditor] = useState<number | null>(null);
+  const [filterDraft, setFilterDraft] = useState<ColumnFilter>({});
+  const [frozenRows, setFrozenRows] = useState(0);
+  const [frozenCols, setFrozenCols] = useState(0);
 
   const tableRef = useRef<HTMLTableElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -465,6 +478,37 @@ const SpreadsheetTable: React.FC<SpreadsheetTableProps> = ({
     };
   }, [selectionAnchor, selectionEnd, activeCell]);
 
+  const authorizeRangeEdit = useCallback((range: { minRow: number; maxRow: number; minCol: number; maxCol: number }) => {
+    const protectedColumns = new Map<string, { empresa: string; state: string; rows: number[] }>();
+    for (let c = range.minCol; c <= range.maxCol; c++) {
+      const col = orderedColDefs[c];
+      if (!col?.empresa || !col.state) continue;
+      protectedColumns.set(`${col.empresa}_${col.state}`, {
+        empresa: col.empresa,
+        state: col.state,
+        rows: Array.from({ length: range.maxRow - range.minRow + 1 }, (_, i) => range.minRow + i).filter(row => row < produtos.length),
+      });
+    }
+    return [...protectedColumns.values()].every(item => authorizeOriginalPriceEdit(item.empresa, item.state, item.rows));
+  }, [orderedColDefs, produtos.length, authorizeOriginalPriceEdit]);
+
+  const updateSelectedCells = useCallback((valueFor: (row: number, col: number, range: { minRow: number; maxRow: number; minCol: number; maxCol: number }) => string) => {
+    const range = getSelectionRange();
+    if (!range || readOnly || !authorizeRangeEdit(range)) return;
+    pushUndo();
+    const edits: Record<string, string> = {};
+    for (let row = range.minRow; row <= Math.min(range.maxRow, produtos.length - 1); row++) {
+      for (let col = range.minCol; col <= range.maxCol; col++) {
+        const def = orderedColDefs[col];
+        if (def?.isData) edits[`${row}-${def.originalIdx}`] = valueFor(row, col, range);
+      }
+    }
+    if (Object.keys(edits).length === 0) return;
+    setCellEdits(prev => ({ ...prev, ...edits }));
+    setHasUnsavedChanges(true);
+    setSaveStatus('idle');
+  }, [getSelectionRange, readOnly, authorizeRangeEdit, pushUndo, produtos.length, orderedColDefs]);
+
   const isCellSelected = useCallback((row: number, col: number): boolean => {
     const range = getSelectionRange();
     if (!range) return false;
@@ -497,6 +541,34 @@ const SpreadsheetTable: React.FC<SpreadsheetTableProps> = ({
     }
     return '';
   }, [produtos, orderedColDefs, editableColumn, editPrices, getPreco, cellEdits]);
+
+  const clearSelection = useCallback(() => updateSelectedCells(() => ''), [updateSelectedCells]);
+  const fillDown = useCallback(() => updateSelectedCells((_row, col, range) => getCellValue(range.minRow, col)), [updateSelectedCells, getCellValue]);
+  const fillRight = useCallback(() => updateSelectedCells((row, _col, range) => getCellValue(row, range.minCol)), [updateSelectedCells, getCellValue]);
+  const applyFormulaValueToSelection = useCallback(() => updateSelectedCells(() => formulaValue), [updateSelectedCells, formulaValue]);
+  const duplicateSelection = useCallback(() => {
+    const range = getSelectionRange();
+    if (!range || readOnly) return;
+    const height = range.maxRow - range.minRow + 1;
+    const targetMaxRow = Math.min(produtos.length - 1, range.maxRow + height);
+    if (targetMaxRow <= range.maxRow) return;
+    const targetRange = { ...range, minRow: range.maxRow + 1, maxRow: targetMaxRow };
+    if (!authorizeRangeEdit(targetRange)) return;
+    pushUndo();
+    const edits: Record<string, string> = {};
+    for (let row = targetRange.minRow; row <= targetRange.maxRow; row++) {
+      for (let col = range.minCol; col <= range.maxCol; col++) {
+        const def = orderedColDefs[col];
+        if (def?.isData) edits[`${row}-${def.originalIdx}`] = getCellValue(range.minRow + ((row - targetRange.minRow) % height), col);
+      }
+    }
+    setCellEdits(prev => ({ ...prev, ...edits }));
+    setSelectionAnchor({ row: targetRange.minRow, col: range.minCol });
+    setSelectionEnd({ row: targetRange.maxRow, col: range.maxCol });
+    setActiveCell({ row: targetRange.minRow, col: range.minCol });
+    setHasUnsavedChanges(true);
+    setSaveStatus('idle');
+  }, [getSelectionRange, readOnly, produtos.length, authorizeRangeEdit, pushUndo, orderedColDefs, getCellValue]);
 
   useEffect(() => {
     setFormulaValue(activeCell ? getCellValue(activeCell.row, activeCell.col) : '');
@@ -693,28 +765,8 @@ const SpreadsheetTable: React.FC<SpreadsheetTableProps> = ({
       if (!readOnly && target.tagName !== 'INPUT' && (e.key === 'Delete' || e.key === 'Backspace')) {
         const range = getSelectionRange();
         if (!range) return;
-        const protectedColumns = new Map<string, { empresa: string; state: string; rows: number[] }>();
-        for (let c = range.minCol; c <= range.maxCol; c++) {
-          const col = orderedColDefs[c];
-          if (!col?.empresa || !col.state) continue;
-          const key = `${col.empresa}_${col.state}`;
-          protectedColumns.set(key, { empresa: col.empresa, state: col.state, rows: Array.from({ length: range.maxRow - range.minRow + 1 }, (_, i) => range.minRow + i) });
-        }
-        if ([...protectedColumns.values()].some(item => !authorizeOriginalPriceEdit(item.empresa, item.state, item.rows))) return;
         e.preventDefault();
-        pushUndo();
-        setCellEdits(prev => {
-          const next = { ...prev };
-          for (let r = range.minRow; r <= Math.min(range.maxRow, produtos.length - 1); r++) {
-            for (let c = range.minCol; c <= range.maxCol; c++) {
-              const col = orderedColDefs[c];
-              if (col?.isData) next[`${r}-${col.originalIdx}`] = '';
-            }
-          }
-          return next;
-        });
-        setHasUnsavedChanges(true);
-        setSaveStatus('idle');
+        clearSelection();
         return;
       }
       if (!readOnly && target.tagName !== 'INPUT' && e.key.length === 1 && !e.ctrlKey && !e.metaKey && !e.altKey) {
@@ -757,7 +809,7 @@ const SpreadsheetTable: React.FC<SpreadsheetTableProps> = ({
     };
     document.addEventListener('keydown', handleKeyDown);
     return () => document.removeEventListener('keydown', handleKeyDown);
-  }, [activeCell, orderedColDefs, totalRows, readOnly, getSelectionRange, authorizeOriginalPriceEdit, produtos.length, pushUndo, handleCellDoubleClick]);
+  }, [activeCell, orderedColDefs, totalRows, readOnly, getSelectionRange, authorizeOriginalPriceEdit, produtos.length, handleCellDoubleClick, clearSelection]);
 
   // Copy
   useEffect(() => {
@@ -781,6 +833,28 @@ const SpreadsheetTable: React.FC<SpreadsheetTableProps> = ({
     document.addEventListener('copy', handleCopy);
     return () => document.removeEventListener('copy', handleCopy);
   }, [getSelectionRange, getCellValue]);
+
+  // Cut
+  useEffect(() => {
+    const handleCut = (e: ClipboardEvent) => {
+      const range = getSelectionRange();
+      if (!range || readOnly) return;
+      const target = e.target as HTMLElement;
+      if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA') return;
+      if (!authorizeRangeEdit(range)) return;
+      e.preventDefault();
+      const lines: string[] = [];
+      for (let row = range.minRow; row <= range.maxRow; row++) {
+        const values: string[] = [];
+        for (let col = range.minCol; col <= range.maxCol; col++) values.push(getCellValue(row, col));
+        lines.push(values.join('\t'));
+      }
+      e.clipboardData?.setData('text/plain', lines.join('\n'));
+      clearSelection();
+    };
+    document.addEventListener('cut', handleCut);
+    return () => document.removeEventListener('cut', handleCut);
+  }, [getSelectionRange, readOnly, authorizeRangeEdit, getCellValue, clearSelection]);
 
   // Paste
   useEffect(() => {
@@ -878,6 +952,17 @@ const SpreadsheetTable: React.FC<SpreadsheetTableProps> = ({
     });
     setColWidths(prev => ({ ...prev, [colIdx]: max }));
   }, []);
+
+  const handleAutoFitAll = useCallback(() => {
+    for (let colIdx = 0; colIdx < orderedColDefs.length; colIdx++) handleColAutoFit(colIdx);
+    setRowHeights({});
+  }, [orderedColDefs.length, handleColAutoFit]);
+
+  const getFrozenLeft = useCallback((visualColIdx: number) => {
+    let left = 0;
+    for (let index = 0; index < visualColIdx; index++) left += getColWidth(index);
+    return left;
+  }, [getColWidth]);
 
   const handleRowAutoFit = useCallback((rowIdx: number) => {
     setRowHeights(prev => { const copy = { ...prev }; delete copy[rowIdx]; return copy; });
@@ -1048,9 +1133,10 @@ const SpreadsheetTable: React.FC<SpreadsheetTableProps> = ({
 
   const handleHeaderSort = useCallback((colIdx: number, origIdx: number) => {
     if (origIdx === 0 || origIdx > 3 + empresas.length * 2 + 1) return;
-    if (sortCol === origIdx) setSortDir(prev => prev === 'asc' ? 'desc' : 'asc');
-    else { setSortCol(origIdx); setSortDir('asc'); }
-  }, [sortCol, empresas.length]);
+    if (sortCol !== origIdx) { setSortCol(origIdx); setSortDir('asc'); return; }
+    if (sortDir === 'asc') { setSortDir('desc'); return; }
+    setSortCol(null);
+  }, [sortCol, sortDir, empresas.length]);
 
   const allRows = useMemo(() => {
     const rows = [...produtos.map((p, i) => ({ prod: p, idx: i, isEmpty: false }))];
@@ -1397,7 +1483,55 @@ const SpreadsheetTable: React.FC<SpreadsheetTableProps> = ({
 
   const hasSelection = activeCell !== null;
   const [searchTerm, setSearchTerm] = useState('');
+  const [replaceTerm, setReplaceTerm] = useState('');
   const [showSearch, setShowSearch] = useState(false);
+
+  useEffect(() => {
+    setColumnFilters({}); setFilterEditor(null); setSearchTerm(''); setReplaceTerm('');
+    setFrozenRows(0); setFrozenCols(0); setSortCol(null);
+  }, [listaId]);
+
+  const findNext = useCallback(() => {
+    const term = searchTerm.trim().toLocaleLowerCase('pt-BR');
+    if (!term) return;
+    const dataCols = orderedColDefs.map((col, index) => ({ col, index })).filter(item => item.col.isData);
+    const cells = produtos.flatMap((_prod, row) => dataCols.map(item => ({ row, col: item.index })));
+    const start = activeCell ? cells.findIndex(cell => cell.row === activeCell.row && cell.col === activeCell.col) + 1 : 0;
+    for (let offset = 0; offset < cells.length; offset++) {
+      const cell = cells[(start + offset) % cells.length];
+      if (getCellValue(cell.row, cell.col).toLocaleLowerCase('pt-BR').includes(term)) {
+        setActiveCell(cell); setSelectionAnchor(cell); setSelectionEnd(cell);
+        tableRef.current?.querySelector(`[data-cell="${cell.row}-${cell.col}"]`)?.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+        return;
+      }
+    }
+  }, [searchTerm, orderedColDefs, produtos, activeCell, getCellValue]);
+
+  const replaceMatches = useCallback((all: boolean) => {
+    const term = searchTerm.trim();
+    if (!term || readOnly) return;
+    const escaped = term.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const matcher = new RegExp(escaped, 'gi');
+    const targets: CellPos[] = [];
+    if (!all && activeCell && getCellValue(activeCell.row, activeCell.col).toLocaleLowerCase('pt-BR').includes(term.toLocaleLowerCase('pt-BR'))) targets.push(activeCell);
+    if (all) {
+      for (let row = 0; row < produtos.length; row++) for (let col = 1; col < orderedColDefs.length; col++) {
+        if (orderedColDefs[col]?.isData && getCellValue(row, col).toLocaleLowerCase('pt-BR').includes(term.toLocaleLowerCase('pt-BR'))) targets.push({ row, col });
+      }
+    }
+    if (targets.length === 0) { findNext(); return; }
+    const range = { minRow: Math.min(...targets.map(t => t.row)), maxRow: Math.max(...targets.map(t => t.row)), minCol: Math.min(...targets.map(t => t.col)), maxCol: Math.max(...targets.map(t => t.col)) };
+    if (!authorizeRangeEdit(range)) return;
+    pushUndo();
+    const edits: Record<string, string> = {};
+    for (const target of targets) {
+      const def = orderedColDefs[target.col];
+      if (def?.isData) edits[`${target.row}-${def.originalIdx}`] = getCellValue(target.row, target.col).replace(matcher, replaceTerm);
+    }
+    setCellEdits(prev => ({ ...prev, ...edits }));
+    setHasUnsavedChanges(true); setSaveStatus('idle');
+    if (!all) findNext();
+  }, [searchTerm, replaceTerm, readOnly, activeCell, getCellValue, orderedColDefs, produtos.length, findNext, authorizeRangeEdit, pushUndo]);
 
   // Render row
   const renderRow = useCallback((prod: Produto | null, idx: number, isEmpty: boolean, displayIdx: number) => {
@@ -1413,7 +1547,8 @@ const SpreadsheetTable: React.FC<SpreadsheetTableProps> = ({
     const isDragOver = dragOverRow === idx;
 
     return (
-      <tr key={isEmpty ? `empty-${idx}` : idx} className={`group/row ${isDragOver ? 'border-t-2 border-t-primary' : ''}`} style={{ height: `${h}px` }}>
+      <tr key={isEmpty ? `empty-${idx}` : idx} className={`group/row ${isDragOver ? 'border-t-2 border-t-primary' : ''}`}
+        style={{ height: `${h}px`, ...(displayIdx < frozenRows ? { position: 'sticky', top: `${64 + displayIdx * DEFAULT_ROW_HEIGHT}px`, zIndex: 7 } : {}) }}>
         <td
           className="border-r border-b px-0 text-center text-[11px] text-muted-foreground select-none relative cursor-grab active:cursor-grabbing"
           style={{
@@ -1482,9 +1617,10 @@ const SpreadsheetTable: React.FC<SpreadsheetTableProps> = ({
             const displayVal = getDisplayValue(idx, origIdx);
             const stickyClass = origIdx === 1 ? 'sticky left-[36px] bg-background z-[5]' : '';
             const extraClass = origIdx === 2 ? 'overflow-hidden text-ellipsis' : '';
+            const frozenStyle = visualColIdx <= frozenCols ? { position: 'sticky' as const, left: `${getFrozenLeft(visualColIdx)}px`, zIndex: displayIdx < frozenRows ? 9 : 6, backgroundColor: 'hsl(var(--background))' } : {};
             return (
               <td key={col.key} className={`${cellBaseClass} ${stickyClass} whitespace-nowrap ${extraClass} text-xs`}
-                style={{ borderColor: 'hsl(var(--border))', minWidth: getColWidth(visualColIdx), width: getColWidth(visualColIdx), ...cellBgStyle }}
+                style={{ borderColor: 'hsl(var(--border))', minWidth: getColWidth(visualColIdx), width: getColWidth(visualColIdx), ...cellBgStyle, ...frozenStyle }}
                 {...cellEvents} onDoubleClick={() => handleCellDoubleClick(idx, visualColIdx, origIdx)}>
                 {isEditing ? (
                   <input ref={editInputRef} type="text" className={`w-full bg-transparent outline-none focus:ring-1 focus:ring-primary rounded px-1 ${alignClass(effectiveAlign)} text-xs h-full`}
@@ -1507,9 +1643,10 @@ const SpreadsheetTable: React.FC<SpreadsheetTableProps> = ({
             const isSecond = !isLowest && (secondEmpByUf[state] ?? null) === emp;
             const editKey = `${idx}-${origIdx}`;
             const hasEdit = cellEdits[editKey] !== undefined;
+            const frozenStyle = visualColIdx <= frozenCols ? { position: 'sticky' as const, left: `${getFrozenLeft(visualColIdx)}px`, zIndex: displayIdx < frozenRows ? 9 : 6, backgroundColor: 'hsl(var(--background))' } : {};
             return (
               <td key={col.key} className={`${cellBaseClass} px-1 whitespace-nowrap text-xs ${isLowest ? 'bg-success/10 text-success font-bold' : isSecond ? 'bg-warning/25 text-warning-foreground font-bold' : ''}`}
-                style={{ borderColor: 'hsl(var(--border))', minWidth: getColWidth(visualColIdx), width: getColWidth(visualColIdx), ...cellBgStyle }}
+                style={{ borderColor: 'hsl(var(--border))', minWidth: getColWidth(visualColIdx), width: getColWidth(visualColIdx), ...cellBgStyle, ...frozenStyle }}
                 {...cellEvents} onDoubleClick={() => handleCellDoubleClick(idx, visualColIdx, origIdx)}>
                 {isEditing ? (
                   <input ref={editInputRef} type="text" inputMode="decimal" className={`w-full bg-transparent outline-none focus:ring-1 focus:ring-primary rounded px-1 ${alignClass(effectiveAlign)} text-xs h-full`}
@@ -1537,12 +1674,12 @@ const SpreadsheetTable: React.FC<SpreadsheetTableProps> = ({
         })}
       </tr>
     );
-  }, [orderedColDefs, getColWidth, getLowestEmpresa, getSecondEmpresa, editingCell, editingValue, cellEdits, getPreco, getMarkedUpPrice,
+  }, [orderedColDefs, getColWidth, getFrozenLeft, getLowestEmpresa, getSecondEmpresa, editingCell, editingValue, cellEdits, getPreco, getMarkedUpPrice,
       isCellSelected, isCellActive, getSelectionBorders, editableColumn, editPrices, readOnly, rowHeights,
       dragOverRow, dragRow, activeRowResize, produtos, getDisplayValue, handleCellClick, handleCellMouseDown,
-      handleCellMouseEnter, handleCellDoubleClick, commitEdit, cancelEdit, onPriceChange, ufs]);
+      handleCellMouseEnter, handleCellDoubleClick, commitEdit, cancelEdit, onPriceChange, ufs, frozenRows, frozenCols]);
 
-  // Filtered rows for search + winner filter
+  // Filtered rows
   const displayRows = useMemo(() => {
     let rows = sortedRows;
     if (winnerFilter) {
@@ -1551,15 +1688,29 @@ const SpreadsheetTable: React.FC<SpreadsheetTableProps> = ({
         return getLowestEmpresa(row.prod.codigo_interno, winnerFilter.state) === winnerFilter.empresa;
       });
     }
-    if (!searchTerm.trim()) return rows;
-    const term = searchTerm.toLowerCase();
+    const activeFilters = Object.entries(columnFilters).filter(([, filter]) => filter.text || filter.min || filter.max || filter.emptyOnly || filter.winnerOnly);
+    if (activeFilters.length === 0) return rows;
     return rows.filter(row => {
-      if (row.isEmpty || !row.prod) return true;
-      return row.prod.codigo_interno.toLowerCase().includes(term) ||
-        row.prod.descricao.toLowerCase().includes(term) ||
-        row.prod.codigo_barras.toLowerCase().includes(term);
+      if (row.isEmpty || !row.prod) return false;
+      return activeFilters.every(([origIdxText, filter]) => {
+        const origIdx = Number(origIdxText);
+        const visualCol = orderedColDefs.findIndex(col => col.originalIdx === origIdx);
+        if (visualCol < 0) return true;
+        const value = getCellValue(row.idx, visualCol);
+        const empty = value.trim() === '' || value === 'R$ -';
+        if (filter.emptyOnly && !empty) return false;
+        if (filter.text && !value.toLocaleLowerCase('pt-BR').includes(filter.text.toLocaleLowerCase('pt-BR'))) return false;
+        const col = orderedColDefs[visualCol];
+        if (filter.winnerOnly && (!col.empresa || !col.state || getLowestEmpresa(row.prod.codigo_interno, col.state) !== col.empresa)) return false;
+        const numeric = parsePrice(value);
+        const min = filter.min ? parsePrice(filter.min) : -Infinity;
+        const max = filter.max ? parsePrice(filter.max) : Infinity;
+        if (filter.min && (numeric === Infinity || numeric < min)) return false;
+        if (filter.max && (numeric === Infinity || numeric > max)) return false;
+        return true;
+      });
     });
-  }, [sortedRows, searchTerm, winnerFilter, getLowestEmpresa]);
+  }, [sortedRows, winnerFilter, getLowestEmpresa, columnFilters, orderedColDefs, getCellValue]);
 
 
   return (
@@ -1571,6 +1722,17 @@ const SpreadsheetTable: React.FC<SpreadsheetTableProps> = ({
           <Undo2 className="w-4 h-4" /><span className="hidden sm:inline">Desfazer</span>
         </Button>
         <div className="w-px h-5 bg-border mx-1" />
+        {!readOnly && (
+          <>
+            <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => document.execCommand('cut')} disabled={!hasSelection} title="Recortar (Ctrl+X)"><Scissors className="w-4 h-4" /></Button>
+            <Button variant="ghost" size="sm" className="h-7 px-2 text-xs" onClick={duplicateSelection} disabled={!hasSelection} title="Duplicar seleção abaixo"><Copy className="w-4 h-4" /><span className="hidden md:inline">Duplicar</span></Button>
+            <Button variant="ghost" size="icon" className="h-7 w-7" onClick={clearSelection} disabled={!hasSelection} title="Limpar conteúdo"><Eraser className="w-4 h-4" /></Button>
+            <Button variant="ghost" size="icon" className="h-7 w-7" onClick={fillDown} disabled={!hasSelection} title="Preencher para baixo"><Rows3 className="w-4 h-4" /></Button>
+            <Button variant="ghost" size="icon" className="h-7 w-7" onClick={fillRight} disabled={!hasSelection} title="Preencher para a direita"><Columns3 className="w-4 h-4" /></Button>
+            <Button variant="ghost" size="sm" className="h-7 px-2 text-xs" onClick={applyFormulaValueToSelection} disabled={!hasSelection} title="Aplicar o conteúdo da barra ao intervalo">Aplicar</Button>
+            <div className="w-px h-5 bg-border mx-1" />
+          </>
+        )}
         {!readOnly && (
           <>
             <button onClick={addRow}
@@ -1613,6 +1775,14 @@ const SpreadsheetTable: React.FC<SpreadsheetTableProps> = ({
               </button>
             </div>
           )}
+        </div>
+
+        <Button variant={showSearch ? 'secondary' : 'ghost'} size="icon" className="h-7 w-7" onClick={() => setShowSearch(value => !value)} title="Localizar e substituir"><Search className="w-4 h-4" /></Button>
+        <Button variant="ghost" size="icon" className="h-7 w-7" onClick={handleAutoFitAll} title="Ajustar automaticamente largura e altura"><Scaling className="w-4 h-4" /></Button>
+        <div className="flex items-center gap-0.5 border border-border rounded-md p-0.5 bg-background" title="Congelar linhas e colunas">
+          <Snowflake className="w-3.5 h-3.5 mx-1 text-muted-foreground" />
+          <Button variant={frozenRows ? 'secondary' : 'ghost'} size="sm" className="h-6 px-2 text-[10px]" onClick={() => setFrozenRows(value => value ? 0 : 1)}>Linha</Button>
+          <Button variant={frozenCols ? 'secondary' : 'ghost'} size="sm" className="h-6 px-2 text-[10px]" onClick={() => setFrozenCols(value => value ? 0 : Math.min(3, orderedColDefs.length - 1))}>Colunas</Button>
         </div>
 
         {onSave && (
@@ -1693,6 +1863,17 @@ const SpreadsheetTable: React.FC<SpreadsheetTableProps> = ({
         )}
       </div>
 
+      {showSearch && (
+        <div className="flex flex-wrap items-center gap-2 px-3 py-2 border-b bg-background" style={{ borderColor: 'hsl(var(--border))' }}>
+          <div className="relative min-w-44 flex-1 max-w-xs"><Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" /><input value={searchTerm} onChange={event => setSearchTerm(event.target.value)} onKeyDown={event => event.key === 'Enter' && findNext()} className="h-8 w-full rounded-md border border-input bg-background pl-8 pr-2 text-xs outline-none focus:ring-2 focus:ring-primary" placeholder="Localizar" autoFocus /></div>
+          <input value={replaceTerm} onChange={event => setReplaceTerm(event.target.value)} className="h-8 min-w-44 flex-1 max-w-xs rounded-md border border-input bg-background px-3 text-xs outline-none focus:ring-2 focus:ring-primary" placeholder="Substituir por" />
+          <Button variant="outline" size="sm" className="h-8 text-xs" onClick={findNext}>Próximo</Button>
+          {!readOnly && <Button variant="outline" size="sm" className="h-8 text-xs" onClick={() => replaceMatches(false)}>Substituir</Button>}
+          {!readOnly && <Button variant="outline" size="sm" className="h-8 text-xs" onClick={() => replaceMatches(true)}>Substituir todos</Button>}
+          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setShowSearch(false)} title="Fechar"><X className="w-4 h-4" /></Button>
+        </div>
+      )}
+
       <div className="flex items-center min-h-8 border-b bg-background" style={{ borderColor: 'hsl(var(--border))' }}>
         <div className="w-16 shrink-0 self-stretch border-r flex items-center justify-center text-[11px] font-bold text-muted-foreground bg-muted/40">
           {activeCell ? `${spreadsheetColumnName(activeCell.col)}${activeCell.row + 1}` : '—'}
@@ -1753,6 +1934,7 @@ const SpreadsheetTable: React.FC<SpreadsheetTableProps> = ({
                       backgroundColor: col.highlight ? undefined : dragCol === colIdx ? 'hsl(var(--primary) / 0.15)' : 'hsl(var(--muted))',
                       height: HEADER_HEIGHT,
                       cursor: i > 0 && !col.isSeparator ? 'grab' : 'default',
+                      ...(i <= frozenCols ? { position: 'sticky', left: `${getFrozenLeft(i)}px`, zIndex: 24 } : {}),
                     }}
                     draggable={i > 0 && !col.isSeparator}
                     onDragStart={e => handleColDragStart(e, colIdx)}
@@ -1766,6 +1948,22 @@ const SpreadsheetTable: React.FC<SpreadsheetTableProps> = ({
                       {col.label}
                       {sortCol === col.originalIdx && <span className="text-[9px]">{sortDir === 'asc' ? '▲' : '▼'}</span>}
                     </span>
+                    {col.isData && (
+                      <Button variant="ghost" size="icon" className={`absolute left-0.5 top-0.5 h-5 w-5 ${columnFilters[col.originalIdx] ? 'text-primary' : 'text-muted-foreground'}`}
+                        onClick={event => { event.stopPropagation(); setFilterDraft(columnFilters[col.originalIdx] ?? {}); setFilterEditor(filterEditor === col.originalIdx ? null : col.originalIdx); }} title="Filtrar coluna">
+                        <Filter className="w-3 h-3" />
+                      </Button>
+                    )}
+                    {filterEditor === col.originalIdx && (
+                      <div className="absolute left-0 top-full z-50 w-60 border border-border bg-popover p-3 shadow-xl rounded-md text-left" onClick={event => event.stopPropagation()}>
+                        <div className="text-[11px] font-bold mb-2">Filtrar {col.label}</div>
+                        <input value={filterDraft.text ?? ''} onChange={event => setFilterDraft(value => ({ ...value, text: event.target.value }))} className="h-8 w-full rounded-md border border-input bg-background px-2 text-xs mb-2" placeholder="Texto contém" />
+                        {col.empresa && <div className="grid grid-cols-2 gap-2 mb-2"><input value={filterDraft.min ?? ''} onChange={event => setFilterDraft(value => ({ ...value, min: event.target.value }))} className="h-8 rounded-md border border-input bg-background px-2 text-xs min-w-0" placeholder="Preço mín." /><input value={filterDraft.max ?? ''} onChange={event => setFilterDraft(value => ({ ...value, max: event.target.value }))} className="h-8 rounded-md border border-input bg-background px-2 text-xs min-w-0" placeholder="Preço máx." /></div>}
+                        <label className="flex items-center gap-2 py-1 text-xs font-normal"><input type="checkbox" checked={Boolean(filterDraft.emptyOnly)} onChange={event => setFilterDraft(value => ({ ...value, emptyOnly: event.target.checked }))} /> Somente vazias</label>
+                        {col.empresa && <label className="flex items-center gap-2 py-1 text-xs font-normal"><input type="checkbox" checked={Boolean(filterDraft.winnerOnly)} onChange={event => setFilterDraft(value => ({ ...value, winnerOnly: event.target.checked }))} /> Somente vencedores</label>}
+                        <div className="flex justify-end gap-2 mt-3"><Button variant="ghost" size="sm" className="h-7 text-xs" onClick={() => { setColumnFilters(filters => { const next = { ...filters }; delete next[col.originalIdx]; return next; }); setFilterEditor(null); }}>Limpar</Button><Button size="sm" className="h-7 text-xs" onClick={() => { setColumnFilters(filters => ({ ...filters, [col.originalIdx]: filterDraft })); setFilterEditor(null); }}>Aplicar</Button></div>
+                      </div>
+                    )}
                     {col.empresa && priceMarkups[col.empresa] ? (
                       <span className="ml-1 text-[9px] opacity-70">(+{priceMarkups[col.empresa].toFixed(1)}%)</span>
                     ) : null}
