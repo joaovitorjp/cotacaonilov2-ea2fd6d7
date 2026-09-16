@@ -76,7 +76,7 @@ const AdminPanel: React.FC = () => {
   const load = async () => {
     setLoading(true);
     const [p, n, r, l] = await Promise.all([
-      supabase.from('profiles').select('user_id,nome,email,network_id,blocked_at,blocked_reason,access_expires_at,created_at').order('nome'),
+      supabase.from('profiles').select('user_id,nome,email,network_id,blocked_at,blocked_reason,access_expires_at,approved_at,created_at').order('nome'),
       supabase.from('networks').select('id,name,slug,blocked_at,access_expires_at,display_name,logo_url').order('name'),
       supabase.from('user_roles').select('user_id,role').eq('role', 'admin'),
       supabase.from('master_audit_logs').select('*').order('created_at', { ascending: false }).limit(100),
@@ -106,6 +106,7 @@ const AdminPanel: React.FC = () => {
 
   const situacao = (p: Profile) => {
     const rede = redeDe(p.network_id);
+    if (!p.approved_at && !adminIds.includes(p.user_id)) return 'pendente';
     if (p.blocked_at) return 'bloqueado';
     if (rede?.blocked_at) return 'rede bloqueada';
     const exp = p.access_expires_at ?? rede?.access_expires_at ?? null;
