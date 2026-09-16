@@ -1,5 +1,6 @@
 import type jsPDF from 'jspdf';
 import { LOGO_BASE64 } from './pdf-logo';
+import { getBrand } from './branding';
 
 // =========================================================================
 // PDF Design System — paleta única, tipografia consistente e componentes
@@ -29,6 +30,13 @@ export const PDF_COLORS = {
 } as const;
 
 export const BRAND_NAME = 'COTARME • Sistema de Cotações';
+
+/** Marca atual (rede do usuário) aplicada a todos os relatórios. */
+const brandName = (): string => `${getBrand().nome} • Sistema de Cotações`;
+const brandLogo = (): string => {
+  const logo = getBrand().logo;
+  return logo && logo.startsWith('data:') ? logo : LOGO_BASE64;
+};
 
 export const formatBRL = (n: number): string => {
   if (n === null || n === undefined || isNaN(n)) return '—';
