@@ -866,6 +866,7 @@ const SpreadsheetTable: React.FC<SpreadsheetTableProps> = ({
 
   const deleteRow = (rowIdx: number) => {
     if (readOnly || rowIdx >= produtos.length) return;
+    pushUndo();
     const updated = produtos.filter((_, i) => i !== rowIdx);
     if (onSave) onSave(updated);
     setContextMenu(null);
@@ -873,6 +874,7 @@ const SpreadsheetTable: React.FC<SpreadsheetTableProps> = ({
 
   const addRow = () => {
     if (readOnly) return;
+    pushUndo();
     const newProd: Produto = {
       codigo_interno: `NOVO-${Date.now().toString().slice(-4)}`,
       descricao: 'Novo Produto',
