@@ -452,6 +452,9 @@ const AdminPanel: React.FC = () => {
           </div>
         )}
       </main>
+      </div>
+
+
 
       {/* Gerenciar usuário */}
       <Dialog open={!!selecionado} onOpenChange={o => !o && setSelecionado(null)}>
