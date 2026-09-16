@@ -816,6 +816,7 @@ const SpreadsheetTable: React.FC<SpreadsheetTableProps> = ({
   const moveRow = (direction: 'up' | 'down') => {
     if (!contextMenu || contextMenu.rowIdx === undefined) return;
     const rowIdx = contextMenu.rowIdx;
+    pushUndo();
     setRowOrder(prev => {
       const order = [...prev]; const pos = order.indexOf(rowIdx);
       if (pos === -1) return order;
