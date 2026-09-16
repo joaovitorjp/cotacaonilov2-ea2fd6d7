@@ -1056,6 +1056,7 @@ const SpreadsheetTable: React.FC<SpreadsheetTableProps> = ({
     if (!markupDialog) return;
     const pct = parseFloat(markupValue.replace(',', '.'));
     if (isNaN(pct)) { setMarkupDialog(null); setMarkupValue(''); return; }
+    pushUndo();
     const newVal = (priceMarkups[markupDialog.empresa] || 0) + pct;
     setPriceMarkups(prev => ({ ...prev, [markupDialog.empresa]: newVal }));
     saveMarkupToDb(markupDialog.empresa, newVal);
