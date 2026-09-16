@@ -1,6 +1,7 @@
 import React, { useState, useCallback, useRef, useEffect, useMemo } from 'react';
 import { AlignLeft, AlignCenter, AlignRight, ArrowUp, ArrowDown, ArrowLeft, ArrowRight, Copy, ClipboardPaste, Bold, Italic, Paintbrush, X, Save, Percent, Search, MapPin, Trash2, Plus, Swords, Trash, Filter, Check, Undo2, CheckCircle2, Loader2, AlertCircle } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
+import { Button } from '@/components/ui/button';
 import { useAuth } from '@/contexts/AuthContext';
 import { useEstadosUsuario } from '@/hooks/useEstadosUsuario';
 import { ufNome, getPrecoUF, hasPrecoUF, buildPrecosPayload, ufsDaResposta, ordenarUFs, TIPO_LABELS, FRETE_LABELS } from '@/lib/estados';
@@ -57,6 +58,17 @@ const DEFAULT_ROW_HEIGHT = 25;
 const HEADER_HEIGHT = 40;
 const EMPTY_ROWS = 30;
 const EMPTY_COLS = 8;
+
+const spreadsheetColumnName = (index: number): string => {
+  let value = index;
+  let result = '';
+  while (value > 0) {
+    value--;
+    result = String.fromCharCode(65 + (value % 26)) + result;
+    value = Math.floor(value / 26);
+  }
+  return result;
+};
 
 type TextAlign = 'left' | 'center' | 'right';
 type StateFilter = string; // UF or '__ALL__'
@@ -244,6 +256,7 @@ const SpreadsheetTable: React.FC<SpreadsheetTableProps> = ({
   const [winnerFilter, setWinnerFilter] = useState<{ empresa: string; state: string } | null>(null);
 
   const [activeCell, setActiveCell] = useState<CellPos | null>(null);
+  const [formulaValue, setFormulaValue] = useState('');
   const [selectionAnchor, setSelectionAnchor] = useState<CellPos | null>(null);
   const [selectionEnd, setSelectionEnd] = useState<CellPos | null>(null);
   const [isSelecting, setIsSelecting] = useState(false);
@@ -482,6 +495,26 @@ const SpreadsheetTable: React.FC<SpreadsheetTableProps> = ({
     }
     return '';
   }, [produtos, orderedColDefs, editableColumn, editPrices, getPreco]);
+
+  useEffect(() => {
+    setFormulaValue(activeCell ? getCellValue(activeCell.row, activeCell.col) : '');
+  }, [activeCell, getCellValue, cellEdits]);
+
+  const commitFormulaBar = useCallback(() => {
+    if (!activeCell || readOnly || activeCell.row >= produtos.length) return;
+    const col = orderedColDefs[activeCell.col];
+    if (!col?.isData) return;
+    if (col.empresa && col.state && !authorizeOriginalPriceEdit(col.empresa, col.state, [activeCell.row])) {
+      setFormulaValue(getCellValue(activeCell.row, activeCell.col));
+      return;
+    }
+    const current = getCellValue(activeCell.row, activeCell.col);
+    if (formulaValue === current) return;
+    pushUndo();
+    setCellEdits(prev => ({ ...prev, [`${activeCell.row}-${col.originalIdx}`]: formulaValue }));
+    setHasUnsavedChanges(true);
+    setSaveStatus('idle');
+  }, [activeCell, readOnly, produtos.length, orderedColDefs, authorizeOriginalPriceEdit, getCellValue, formulaValue, pushUndo]);
 
   const handleCellClick = useCallback((row: number, col: number, e: React.MouseEvent) => {
     if (col === 0) return;
@@ -1530,10 +1563,10 @@ const SpreadsheetTable: React.FC<SpreadsheetTableProps> = ({
     <div className="flex-1 flex flex-col" style={{ border: '1px solid hsl(var(--border))' }}>
       {/* Toolbar */}
       <div className="flex items-center gap-1 px-2 py-1 border-b bg-muted/50 flex-wrap" style={{ borderColor: 'hsl(var(--border))' }}>
-        <button onClick={handleUndo} disabled={undoCount === 0}
-          className="p-1.5 rounded hover:bg-accent disabled:opacity-40 transition-colors flex items-center gap-1 text-xs" title="Desfazer última alteração (Ctrl+Z)">
+        <Button variant="ghost" size="sm" onClick={handleUndo} disabled={undoCount === 0}
+          className="h-7 px-2 text-xs" title="Desfazer última alteração (Ctrl+Z)">
           <Undo2 className="w-4 h-4" /><span className="hidden sm:inline">Desfazer</span>
-        </button>
+        </Button>
         <div className="w-px h-5 bg-border mx-1" />
         {!readOnly && (
           <>
@@ -1657,6 +1690,25 @@ const SpreadsheetTable: React.FC<SpreadsheetTableProps> = ({
         )}
       </div>
 
+      <div className="flex items-center min-h-8 border-b bg-background" style={{ borderColor: 'hsl(var(--border))' }}>
+        <div className="w-16 shrink-0 self-stretch border-r flex items-center justify-center text-[11px] font-bold text-muted-foreground bg-muted/40">
+          {activeCell ? `${spreadsheetColumnName(activeCell.col)}${activeCell.row + 1}` : '—'}
+        </div>
+        <div className="w-10 shrink-0 self-stretch border-r flex items-center justify-center font-display font-bold text-sm text-muted-foreground" title="Barra de conteúdo">fx</div>
+        <input
+          value={formulaValue}
+          onChange={e => setFormulaValue(e.target.value)}
+          onBlur={commitFormulaBar}
+          onKeyDown={e => {
+            if (e.key === 'Enter') { e.preventDefault(); commitFormulaBar(); containerRef.current?.focus(); }
+            if (e.key === 'Escape') { setFormulaValue(activeCell ? getCellValue(activeCell.row, activeCell.col) : ''); containerRef.current?.focus(); }
+          }}
+          disabled={!activeCell || readOnly}
+          className="h-8 min-w-0 flex-1 bg-background px-3 text-xs outline-none focus:ring-1 focus:ring-inset focus:ring-primary disabled:opacity-60"
+          aria-label="Conteúdo da célula selecionada"
+          placeholder="Selecione uma célula para visualizar ou editar o conteúdo"
+        />
+      </div>
 
       {/* Spreadsheet */}
       <div ref={containerRef} className="flex-1 overflow-auto relative" tabIndex={0}>
@@ -1670,6 +1722,14 @@ const SpreadsheetTable: React.FC<SpreadsheetTableProps> = ({
           </colgroup>
 
           <thead className="sticky top-0 z-10">
+            <tr className="h-6 bg-muted/70">
+              {orderedColDefs.map((col, i) => (
+                <th key={`letter-${col.key}`} className={`border-r border-b text-[10px] font-semibold text-muted-foreground select-none ${i === 0 ? 'sticky left-0 z-30 bg-muted' : ''}`}
+                  style={{ borderColor: 'hsl(var(--border))', minWidth: getColWidth(i), width: getColWidth(i) }}>
+                  {i === 0 ? '' : spreadsheetColumnName(i)}
+                </th>
+              ))}
+            </tr>
             <tr style={{ height: `${HEADER_HEIGHT}px` }}>
               {orderedColDefs.map((col, i) => {
                 const colIdx = col.orderIdx;
