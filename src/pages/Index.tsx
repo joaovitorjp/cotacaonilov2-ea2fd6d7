@@ -12,6 +12,7 @@ import PerfilPanel from '@/components/PerfilPanel';
 import { useAvatar } from '@/hooks/useAvatar';
 import HeaderAvatarButton from '@/components/HeaderAvatarButton';
 import adrLogo from '@/assets/adr-logo.jpeg';
+import { useBranding } from '@/hooks/useBranding';
 import { toast } from 'sonner';
 import * as XLSX from 'xlsx';
 import ExcelJS from 'exceljs';
@@ -590,12 +591,12 @@ const Index = () => {
         {/* Modern Header */}
         <header className="sticky top-0 z-30 w-full bg-white/80 backdrop-blur-md border-b border-slate-200 px-4 sm:px-8 py-4 flex items-center justify-between shrink-0">
           <div className="flex items-center gap-3">
-            <button onClick={handleBackToDashboard} className="p-1 rounded-xl" title="COTARME">
-              <img src={adrLogo} alt="COTARME" className="h-9 w-9 rounded-lg object-contain" />
+            <button onClick={handleBackToDashboard} className="p-1 rounded-xl" title={brand.nome}>
+              <img src={brand.logo} alt={brand.nome} className="h-9 w-9 rounded-lg object-contain" />
             </button>
             <div>
               <h1 className="text-lg font-display font-bold text-slate-900 tracking-tight cursor-pointer" onClick={handleBackToDashboard}>
-                COTARME
+                {brand.nome}
               </h1>
               <p className="text-[10px] text-slate-500 font-medium uppercase tracking-wider">Gestão de Cotações</p>
             </div>
