@@ -802,6 +802,7 @@ const SpreadsheetTable: React.FC<SpreadsheetTableProps> = ({
   const moveColumn = (direction: 'left' | 'right') => {
     if (!contextMenu || contextMenu.colIdx === undefined) return;
     const colIdx = contextMenu.colIdx;
+    pushUndo();
     setColOrder(prev => {
       const order = [...prev]; const pos = order.indexOf(colIdx);
       if (pos === -1) return order;
