@@ -1039,6 +1039,7 @@ const SpreadsheetTable: React.FC<SpreadsheetTableProps> = ({
     [tipoPrecoOverrides, tipoPrecoMap]);
 
   const setTipoPreco = async (empresa: string, estado: string, tipo: string) => {
+    pushUndo();
     setTipoPrecoOverrides(prev => ({ ...prev, [`${empresa}_${estado}`]: tipo }));
     setContextMenu(null);
     if (!listaId) return;
