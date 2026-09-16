@@ -576,6 +576,14 @@ const Index = () => {
     { label: 'Perfil', icon: UserIcon, action: () => { setPerfilOpen(true); setMobileMenuOpen(false); } },
   ];
 
+  if (isAdmin) {
+    navItems.splice(navItems.length - 1, 0, {
+      label: 'Admin',
+      icon: Shield,
+      action: () => { setMobileMenuOpen(false); navigate('/admin'); },
+    });
+  }
+
   return (
     <ProfileGate>
       <div className="flex flex-col h-screen bg-[#F8FAFC]">
