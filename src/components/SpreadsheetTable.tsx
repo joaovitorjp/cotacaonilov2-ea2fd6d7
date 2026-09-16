@@ -509,34 +509,6 @@ const SpreadsheetTable: React.FC<SpreadsheetTableProps> = ({
     setSaveStatus('idle');
   }, [getSelectionRange, readOnly, authorizeRangeEdit, pushUndo, produtos.length, orderedColDefs]);
 
-  const clearSelection = useCallback(() => updateSelectedCells(() => ''), [updateSelectedCells]);
-  const fillDown = useCallback(() => updateSelectedCells((_row, col, range) => getCellValue(range.minRow, col)), [updateSelectedCells, getCellValue]);
-  const fillRight = useCallback(() => updateSelectedCells((row, _col, range) => getCellValue(row, range.minCol)), [updateSelectedCells, getCellValue]);
-  const applyFormulaValueToSelection = useCallback(() => updateSelectedCells(() => formulaValue), [updateSelectedCells, formulaValue]);
-  const duplicateSelection = useCallback(() => {
-    const range = getSelectionRange();
-    if (!range || readOnly) return;
-    const height = range.maxRow - range.minRow + 1;
-    const targetMaxRow = Math.min(produtos.length - 1, range.maxRow + height);
-    if (targetMaxRow <= range.maxRow) return;
-    const targetRange = { ...range, minRow: range.maxRow + 1, maxRow: targetMaxRow };
-    if (!authorizeRangeEdit(targetRange)) return;
-    pushUndo();
-    const edits: Record<string, string> = {};
-    for (let row = targetRange.minRow; row <= targetRange.maxRow; row++) {
-      for (let col = range.minCol; col <= range.maxCol; col++) {
-        const def = orderedColDefs[col];
-        if (def?.isData) edits[`${row}-${def.originalIdx}`] = getCellValue(range.minRow + ((row - targetRange.minRow) % height), col);
-      }
-    }
-    setCellEdits(prev => ({ ...prev, ...edits }));
-    setSelectionAnchor({ row: targetRange.minRow, col: range.minCol });
-    setSelectionEnd({ row: targetRange.maxRow, col: range.maxCol });
-    setActiveCell({ row: targetRange.minRow, col: range.minCol });
-    setHasUnsavedChanges(true);
-    setSaveStatus('idle');
-  }, [getSelectionRange, readOnly, produtos.length, authorizeRangeEdit, pushUndo, orderedColDefs, getCellValue]);
-
   const isCellSelected = useCallback((row: number, col: number): boolean => {
     const range = getSelectionRange();
     if (!range) return false;
@@ -569,6 +541,34 @@ const SpreadsheetTable: React.FC<SpreadsheetTableProps> = ({
     }
     return '';
   }, [produtos, orderedColDefs, editableColumn, editPrices, getPreco, cellEdits]);
+
+  const clearSelection = useCallback(() => updateSelectedCells(() => ''), [updateSelectedCells]);
+  const fillDown = useCallback(() => updateSelectedCells((_row, col, range) => getCellValue(range.minRow, col)), [updateSelectedCells, getCellValue]);
+  const fillRight = useCallback(() => updateSelectedCells((row, _col, range) => getCellValue(row, range.minCol)), [updateSelectedCells, getCellValue]);
+  const applyFormulaValueToSelection = useCallback(() => updateSelectedCells(() => formulaValue), [updateSelectedCells, formulaValue]);
+  const duplicateSelection = useCallback(() => {
+    const range = getSelectionRange();
+    if (!range || readOnly) return;
+    const height = range.maxRow - range.minRow + 1;
+    const targetMaxRow = Math.min(produtos.length - 1, range.maxRow + height);
+    if (targetMaxRow <= range.maxRow) return;
+    const targetRange = { ...range, minRow: range.maxRow + 1, maxRow: targetMaxRow };
+    if (!authorizeRangeEdit(targetRange)) return;
+    pushUndo();
+    const edits: Record<string, string> = {};
+    for (let row = targetRange.minRow; row <= targetRange.maxRow; row++) {
+      for (let col = range.minCol; col <= range.maxCol; col++) {
+        const def = orderedColDefs[col];
+        if (def?.isData) edits[`${row}-${def.originalIdx}`] = getCellValue(range.minRow + ((row - targetRange.minRow) % height), col);
+      }
+    }
+    setCellEdits(prev => ({ ...prev, ...edits }));
+    setSelectionAnchor({ row: targetRange.minRow, col: range.minCol });
+    setSelectionEnd({ row: targetRange.maxRow, col: range.maxCol });
+    setActiveCell({ row: targetRange.minRow, col: range.minCol });
+    setHasUnsavedChanges(true);
+    setSaveStatus('idle');
+  }, [getSelectionRange, readOnly, produtos.length, authorizeRangeEdit, pushUndo, orderedColDefs, getCellValue]);
 
   useEffect(() => {
     setFormulaValue(activeCell ? getCellValue(activeCell.row, activeCell.col) : '');
