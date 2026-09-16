@@ -479,6 +479,29 @@ const AdminPanel: React.FC = () => {
           <DialogHeader><DialogTitle className="font-display">{selecionado?.nome || selecionado?.email}</DialogTitle></DialogHeader>
           {selecionado && (
             <div className="space-y-4">
+              <div className="flex items-center justify-between rounded-xl border border-slate-200 p-3">
+                <div>
+                  <p className="text-xs font-bold text-slate-700">
+                    {selecionado.approved_at ? 'Conta liberada' : 'Aguardando liberação'}
+                  </p>
+                  <p className="text-[11px] text-slate-400">
+                    {selecionado.approved_at
+                      ? `Liberada em ${new Date(selecionado.approved_at).toLocaleDateString('pt-BR')}`
+                      : 'As funções do sistema ficam bloqueadas até a liberação.'}
+                  </p>
+                </div>
+                <Button size="sm" disabled={acao}
+                  className={`rounded-xl text-xs font-bold ${selecionado.approved_at ? '' : 'bg-emerald-600 hover:bg-emerald-700'}`}
+                  variant={selecionado.approved_at ? 'secondary' : 'default'}
+                  onClick={() => updateProfile(
+                    selecionado,
+                    { approved_at: selecionado.approved_at ? null : new Date().toISOString() } as any,
+                    selecionado.approved_at ? 'suspender_liberacao' : 'liberar_usuario',
+                  )}>
+                  {selecionado.approved_at ? 'Suspender' : 'Liberar acesso'}
+                </Button>
+              </div>
+
               <div className="space-y-2">
                 <Label>Rede</Label>
                 <Select
