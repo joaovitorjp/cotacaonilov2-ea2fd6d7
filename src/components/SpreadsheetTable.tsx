@@ -1742,7 +1742,7 @@ const SpreadsheetTable: React.FC<SpreadsheetTableProps> = ({
         return true;
       });
     });
-  }, [sortedRows, winnerFilter, getLowestEmpresa, columnFilters, orderedColDefs, getCellValue]);
+  }, [sortedRows, winnerFilter, getLowestEmpresa, columnFilters, orderedColDefs, getCellValue, evalRaw]);
 
 
   return (
