@@ -230,6 +230,19 @@ const SpreadsheetTable: React.FC<SpreadsheetTableProps> = ({
   const containerRef = useRef<HTMLDivElement>(null);
   const contextMenuRef = useRef<HTMLDivElement>(null);
 
+  // ===== Undo (desfazer última alteração) =====
+  type Snapshot = Record<string, any>;
+  const undoStackRef = useRef<Snapshot[]>([]);
+  const [undoCount, setUndoCount] = useState(0);
+  const snapshotFnRef = useRef<(() => Snapshot) | null>(null);
+  const pushUndo = useCallback(() => {
+    const snap = snapshotFnRef.current?.();
+    if (!snap) return;
+    undoStackRef.current.push(snap);
+    if (undoStackRef.current.length > 50) undoStackRef.current.shift();
+    setUndoCount(undoStackRef.current.length);
+  }, []);
+
   // Build ALL column definitions (unfiltered)
   const allColDefs = useMemo((): ColDef[] => {
     const cols: ColDef[] = [
