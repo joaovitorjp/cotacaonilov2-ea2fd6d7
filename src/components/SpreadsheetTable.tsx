@@ -658,6 +658,32 @@ const SpreadsheetTable: React.FC<SpreadsheetTableProps> = ({
     return '';
   }, [cellEdits, produtos, allColDefs, getPreco]);
 
+  // ---- Fórmulas (=SOMA(A1:A10), =A1*2, =SE(...), ...) ----
+  const evalStackRef = useRef<Set<string>>(new Set());
+  const evalRaw = useCallback((raw: string, key: string): string => {
+    if (!isFormula(raw)) return raw;
+    if (evalStackRef.current.has(key)) return ERR_CIRC;
+    evalStackRef.current.add(key);
+    try {
+      return evaluateFormula(raw, (r, c) => {
+        const def = orderedColDefs[c];
+        if (!def) return '';
+        return evalRaw(getCellValue(r, c), `${r}-${def.originalIdx}`);
+      });
+    } finally {
+      evalStackRef.current.delete(key);
+    }
+  }, [getCellValue, orderedColDefs]);
+
+  const computeDisplayValue = useCallback((row: number, origIdx: number): string =>
+    evalRaw(getDisplayValue(row, origIdx), `${row}-${origIdx}`), [evalRaw, getDisplayValue]);
+
+  const resolveStoredValue = useCallback((row: number, origIdx: number, value: string): string => {
+    if (!isFormula(value)) return value;
+    const result = evalRaw(value, `${row}-${origIdx}`);
+    return isFormulaError(result) ? '' : result;
+  }, [evalRaw]);
+
   // Save handler
   const handleSave = useCallback(async (silent = false) => {
     if (saveInProgressRef.current || !hasUnsavedChanges) return;
