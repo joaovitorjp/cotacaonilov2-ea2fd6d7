@@ -6,6 +6,7 @@ import ImportListaPanel from '@/components/ImportListaPanel';
 import CarregarListaPanel from '@/components/CarregarListaPanel';
 import GerarLinkPanel from '@/components/GerarLinkPanel';
 import FornecedoresPanel from '@/components/FornecedoresPanel';
+import MixProdutosPanel from '@/components/MixProdutosPanel';
 import AnalisePrecosPanel from '@/components/AnalisePrecosPanel';
 import Dashboard from '@/components/Dashboard';
 import PerfilPanel from '@/components/PerfilPanel';
@@ -54,6 +55,7 @@ const Index = () => {
   const [finalizadasOpen, setFinalizadasOpen] = useState(false);
   const [gerarLinkOpen, setGerarLinkOpen] = useState(false);
   const [fornecedoresOpen, setFornecedoresOpen] = useState(false);
+  const [mixOpen, setMixOpen] = useState(false);
   const [perfilOpen, setPerfilOpen] = useState(false);
   const { avatarUrl } = useAvatar();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -577,6 +579,7 @@ const Index = () => {
     { label: 'Gerar Link', icon: Link2, action: () => { setGerarLinkOpen(true); setMobileMenuOpen(false); }, disabled: !currentLista || isFinalized },
     { label: 'Finalizadas', icon: CheckSquare, action: () => { setFinalizadasOpen(true); setMobileMenuOpen(false); } },
     { label: 'Fornecedores', icon: Users, action: () => { setFornecedoresOpen(true); setMobileMenuOpen(false); } },
+    { label: 'Mix de Produtos', icon: Package, action: () => { setMixOpen(true); setMobileMenuOpen(false); } },
     { label: 'Perfil', icon: UserIcon, action: () => { setPerfilOpen(true); setMobileMenuOpen(false); } },
   ];
 
@@ -916,6 +919,7 @@ const Index = () => {
         onDownloadResultados={handleDownloadResultados}
       />
       <FornecedoresPanel open={fornecedoresOpen} onOpenChange={setFornecedoresOpen} />
+      <MixProdutosPanel open={mixOpen} onOpenChange={setMixOpen} />
       <AlertDialog open={prazoDialogOpen} onOpenChange={setPrazoDialogOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
