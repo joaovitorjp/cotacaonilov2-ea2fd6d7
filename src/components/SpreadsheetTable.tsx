@@ -299,7 +299,7 @@ const SpreadsheetTable: React.FC<SpreadsheetTableProps> = ({
   const allColDefs = useMemo((): ColDef[] => {
     const cols: ColDef[] = [
       { key: '#', label: '', defaultAlign: 'center', isData: false, originalIdx: 0 },
-      { key: 'cod_int', label: 'Código Interno', defaultAlign: 'center', sticky: true, isData: true, originalIdx: 1 },
+      { key: 'cod_int', label: 'Código Interno', defaultAlign: 'center', isData: true, originalIdx: 1 },
       { key: 'desc', label: 'Descrição', defaultAlign: 'left', isData: true, originalIdx: 2 },
       { key: 'cod_bar', label: 'Código de Barras', defaultAlign: 'center', isData: true, originalIdx: 3 },
     ];
@@ -1633,7 +1633,7 @@ const SpreadsheetTable: React.FC<SpreadsheetTableProps> = ({
 
           if (isEmpty) {
             return (
-              <td key={col.key} className={`${cellBaseClass} ${col.sticky ? 'sticky left-[36px] bg-background z-[5]' : ''}`}
+              <td key={col.key} className={`${cellBaseClass}`}
                 style={{ borderColor: 'hsl(var(--border))', minWidth: getColWidth(visualColIdx), width: getColWidth(visualColIdx), ...cellBgStyle }}
                 {...cellEvents}>&nbsp;</td>
             );
@@ -1642,7 +1642,7 @@ const SpreadsheetTable: React.FC<SpreadsheetTableProps> = ({
           const origIdx = col.originalIdx;
           if (origIdx >= 1 && origIdx <= 3) {
             const displayVal = computeDisplayValue(idx, origIdx);
-            const stickyClass = origIdx === 1 ? 'sticky left-[36px] bg-background z-[5]' : '';
+            const stickyClass = '';
             const extraClass = origIdx === 2 ? 'overflow-hidden text-ellipsis' : '';
             const frozenStyle = visualColIdx <= frozenCols ? { position: 'sticky' as const, left: `${getFrozenLeft(visualColIdx)}px`, zIndex: displayIdx < frozenRows ? 9 : 6, backgroundColor: 'hsl(var(--background))' } : {};
             return (
@@ -1958,7 +1958,7 @@ const SpreadsheetTable: React.FC<SpreadsheetTableProps> = ({
                   <th key={col.key}
                     className={`border-r border-b px-2 font-semibold whitespace-nowrap relative select-none text-[11px] ${
                       getCellAlign(colIdx, -1, col.defaultAlign) === 'left' ? 'text-left' : getCellAlign(colIdx, -1, col.defaultAlign) === 'right' ? 'text-right' : 'text-center'
-                    } ${col.sticky ? 'sticky left-[36px] z-20' : ''} ${
+                    } ${
                       col.highlight ? 'bg-primary text-primary-foreground' : 'text-foreground'
                     } ${isDragOverCol ? 'border-l-2 border-l-primary' : ''}`}
                     style={{
