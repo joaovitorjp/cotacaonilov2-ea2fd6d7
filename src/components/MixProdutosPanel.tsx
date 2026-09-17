@@ -78,7 +78,7 @@ const MixProdutosPanel: React.FC<Props> = ({ open, onOpenChange }) => {
     const [cats, mks, prods] = await Promise.all([
       supabase.from('mix_categorias').select('id,nome').eq('user_id', user.id).order('nome'),
       supabase.from('mix_marcas').select('id,categoria_id,nome,classe').eq('user_id', user.id).order('nome'),
-      supabase.from('mix_produtos').select('id,categoria_id,marca_id,descricao,codigo_barras,codigo_interno,preco,imagem_url').eq('user_id', user.id).order('descricao'),
+      supabase.from('mix_produtos').select('id,categoria_id,marca_id,descricao,codigo_barras,codigo_interno,gramatura,preco,imagem_url').eq('user_id', user.id).order('descricao'),
 
     ]);
     const listaCats = (cats.data ?? []) as Categoria[];
@@ -186,7 +186,7 @@ const MixProdutosPanel: React.FC<Props> = ({ open, onOpenChange }) => {
       const { data, error } = await supabase
         .from('mix_produtos')
         .insert(novos)
-        .select('id,categoria_id,marca_id,descricao,codigo_barras,codigo_interno,preco,imagem_url');
+        .select('id,categoria_id,marca_id,descricao,codigo_barras,codigo_interno,gramatura,preco,imagem_url');
       if (error) { toast.error('Não foi possível importar os produtos.'); return; }
       setProdutos(prev => [...prev, ...((data ?? []) as MixProduto[])]);
       toast.success(`${novos.length} produtos importados.`);
@@ -230,7 +230,7 @@ const MixProdutosPanel: React.FC<Props> = ({ open, onOpenChange }) => {
         preco: parsePrecoBR(form.preco),
         imagem_url: form.imagem || null,
       })
-      .select('id,categoria_id,marca_id,descricao,codigo_barras,codigo_interno,preco,imagem_url')
+      .select('id,categoria_id,marca_id,descricao,codigo_barras,codigo_interno,gramatura,preco,imagem_url')
 
       .single();
     if (error) { toast.error('Não foi possível salvar o produto.'); return; }
@@ -259,7 +259,7 @@ const MixProdutosPanel: React.FC<Props> = ({ open, onOpenChange }) => {
         preco: p.preco,
         imagem_url: p.imagem_url,
       })
-      .select('id,categoria_id,marca_id,descricao,codigo_barras,codigo_interno,preco,imagem_url')
+      .select('id,categoria_id,marca_id,descricao,codigo_barras,codigo_interno,gramatura,preco,imagem_url')
       .single();
     if (error) { toast.error('Não foi possível duplicar o produto.'); return; }
     setProdutos(prev => [...prev, data as MixProduto]);
