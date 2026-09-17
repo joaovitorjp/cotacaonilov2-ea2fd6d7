@@ -5,17 +5,21 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from '@/components/ui/sheet';
 import { toast } from 'sonner';
-import { Plus, Trash2, Package, Tag, Search, ImagePlus, Pencil, Check, X, Table as TableIcon, LayoutGrid } from 'lucide-react';
+import { Plus, Trash2, Package, Tag, Search, ImagePlus, Pencil, Check, X, Table as TableIcon, LayoutGrid, Upload } from 'lucide-react';
 import { prepareMixImage, imageFromTransfer, parsePrecoBR, formatPrecoBR } from '@/lib/mix-image';
+import * as XLSX from 'xlsx';
+
+type Classe = 'A' | 'B' | 'C';
 
 interface Categoria { id: string; nome: string; }
-interface Marca { id: string; categoria_id: string; nome: string; }
+interface Marca { id: string; categoria_id: string; nome: string; classe: Classe | null; }
 interface MixProduto {
   id: string;
   categoria_id: string;
   marca_id: string;
   descricao: string;
   codigo_barras: string;
+  codigo_interno: string | null;
   preco: number | null;
   imagem_url: string | null;
 }
@@ -25,7 +29,16 @@ interface Props {
   onOpenChange: (open: boolean) => void;
 }
 
-const emptyProduto = { descricao: '', codigo_barras: '', preco: '', imagem: '' as string };
+const CLASSES: Classe[] = ['A', 'B', 'C'];
+const CLASSE_LABEL: Record<Classe, string> = { A: 'Classe A', B: 'Classe B', C: 'Classe C (low price)' };
+const CLASSE_STYLE: Record<Classe, string> = {
+  A: 'bg-primary/10 text-primary border-primary/30',
+  B: 'bg-warning/10 text-warning border-warning/30',
+  C: 'bg-muted text-muted-foreground border-border',
+};
+
+const emptyProduto = { descricao: '', codigo_barras: '', codigo_interno: '', preco: '', imagem: '' as string };
+
 
 const MixProdutosPanel: React.FC<Props> = ({ open, onOpenChange }) => {
   const { user } = useAuth();
