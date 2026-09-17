@@ -919,6 +919,7 @@ const Index = () => {
         onDownloadResultados={handleDownloadResultados}
       />
       <FornecedoresPanel open={fornecedoresOpen} onOpenChange={setFornecedoresOpen} />
+      <MixProdutosPanel open={mixOpen} onOpenChange={setMixOpen} />
       <AlertDialog open={prazoDialogOpen} onOpenChange={setPrazoDialogOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
