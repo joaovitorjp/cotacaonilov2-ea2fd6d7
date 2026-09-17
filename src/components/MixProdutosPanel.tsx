@@ -506,6 +506,7 @@ const MixProdutosPanel: React.FC<Props> = ({ open, onOpenChange }) => {
     try {
       gerarRelatorioMixPDF({
         categoria: catNome,
+        filtroGramatura: gramFiltro === '__none__' ? 'Sem gramatura' : gramFiltro,
         totalMarcas: marcasCat.length,
         totalProdutos: produtosCat.length,
         semClasse: analise.semClasse,
