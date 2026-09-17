@@ -586,6 +586,10 @@ const Index = () => {
     { label: 'Perfil', icon: UserIcon, action: () => { setPerfilOpen(true); setMobileMenuOpen(false); } },
   ];
 
+  const primaryLabels = ['Importar', 'Abertas', 'Gerar Link', 'Finalizadas'];
+  const primaryItems = navItems.filter(i => primaryLabels.includes(i.label));
+  const secondaryItems = navItems.filter(i => !primaryLabels.includes(i.label) && i.label !== 'Início' && i.label !== 'Perfil');
+
   if (isAdmin) {
     navItems.splice(navItems.length - 1, 0, {
       label: 'Admin',
