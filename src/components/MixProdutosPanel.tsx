@@ -561,7 +561,7 @@ const MixProdutosPanel: React.FC<Props> = ({ open, onOpenChange }) => {
                   onChange={e => { importarExcel(e.target.files?.[0] ?? null); e.target.value = ''; }}
                 />
                 <p className="text-[11px] text-muted-foreground">
-                  Importar Excel: coluna A = Descrição, B = Código de barras, C = Código interno, D = Preço. Classe A, B ou C (low price) definida no cabeçalho de cada marca.
+                  Importar Excel: coluna A = Descrição, B = Código de barras, C = Código interno, D = Preço, E = Gramatura (se vazia, é lida da descrição). Classe A, B ou C (low price) definida no cabeçalho de cada marca.
                 </p>
 
 
@@ -601,7 +601,7 @@ const MixProdutosPanel: React.FC<Props> = ({ open, onOpenChange }) => {
 
                       {formMarca === m.id && (
                         <div
-                          className="p-4 border-b border-border bg-muted/40 grid gap-2 sm:grid-cols-[96px_1fr_160px_150px_130px_auto] items-start"
+                          className="p-4 border-b border-border bg-muted/40 grid gap-2 sm:grid-cols-[96px_1fr_150px_140px_120px_120px_auto] items-start"
                           onPaste={e => anexarImagem(imageFromTransfer(e.clipboardData))}
                           onDrop={e => { e.preventDefault(); anexarImagem(imageFromTransfer(e.dataTransfer)); }}
                           onDragOver={e => e.preventDefault()}
@@ -626,12 +626,13 @@ const MixProdutosPanel: React.FC<Props> = ({ open, onOpenChange }) => {
                           <Input value={form.descricao} onChange={e => setForm(f => ({ ...f, descricao: e.target.value }))} placeholder="Descrição do produto" className="h-9" />
                           <Input value={form.codigo_barras} onChange={e => setForm(f => ({ ...f, codigo_barras: e.target.value }))} placeholder="Código de barras" className="h-9" />
                           <Input value={form.codigo_interno} onChange={e => setForm(f => ({ ...f, codigo_interno: e.target.value }))} placeholder="Código interno" className="h-9" />
+                          <Input value={form.gramatura} onChange={e => setForm(f => ({ ...f, gramatura: e.target.value }))} placeholder="Gramatura (2 L, 500 ml)" className="h-9" />
                           <Input value={form.preco} onChange={e => setForm(f => ({ ...f, preco: e.target.value }))} placeholder="Preço (R$)" className="h-9" />
                           <div className="flex gap-1.5">
                             <Button size="sm" className="h-9" onClick={salvarProduto}>Salvar</Button>
                             <Button size="sm" variant="ghost" className="h-9" onClick={() => { setFormMarca(null); setForm(emptyProduto); }}>Fechar</Button>
                           </div>
-                          <p className="sm:col-span-6 text-[11px] text-muted-foreground">Cole a imagem com Ctrl+V nesta área, arraste o arquivo ou clique no quadrado.</p>
+                          <p className="sm:col-span-7 text-[11px] text-muted-foreground">Cole a imagem com Ctrl+V nesta área, arraste o arquivo ou clique no quadrado.</p>
 
                         </div>
                       )}
@@ -642,7 +643,7 @@ const MixProdutosPanel: React.FC<Props> = ({ open, onOpenChange }) => {
                           editProd?.id === p.id ? (
                             <div
                               key={p.id}
-                              className="p-4 bg-muted/40 grid gap-2 sm:grid-cols-[96px_1fr_160px_150px_130px_auto] items-start"
+                              className="p-4 bg-muted/40 grid gap-2 sm:grid-cols-[96px_1fr_150px_140px_120px_120px_auto] items-start"
                               onPaste={e => editarImagem(imageFromTransfer(e.clipboardData))}
                               onDrop={e => { e.preventDefault(); editarImagem(imageFromTransfer(e.dataTransfer)); }}
                               onDragOver={e => e.preventDefault()}
@@ -667,6 +668,7 @@ const MixProdutosPanel: React.FC<Props> = ({ open, onOpenChange }) => {
                               <Input value={editProd.descricao} onChange={e => setEditProd(v => v && { ...v, descricao: e.target.value })} placeholder="Descrição do produto" className="h-9" />
                               <Input value={editProd.codigo_barras} onChange={e => setEditProd(v => v && { ...v, codigo_barras: e.target.value })} placeholder="Código de barras" className="h-9" />
                               <Input value={editProd.codigo_interno} onChange={e => setEditProd(v => v && { ...v, codigo_interno: e.target.value })} placeholder="Código interno" className="h-9" />
+                              <Input value={editProd.gramatura} onChange={e => setEditProd(v => v && { ...v, gramatura: e.target.value })} placeholder="Gramatura (2 L, 500 ml)" className="h-9" />
                               <Input value={editProd.preco} onChange={e => setEditProd(v => v && { ...v, preco: e.target.value })} placeholder="Preço (R$)" className="h-9" />
                               <div className="flex gap-1.5">
                                 <Button size="sm" className="h-9" onClick={salvarEdicao}>Salvar</Button>
@@ -681,7 +683,7 @@ const MixProdutosPanel: React.FC<Props> = ({ open, onOpenChange }) => {
                               <div className="min-w-0 flex-1">
                                 <p className="text-sm font-bold truncate">{p.descricao}</p>
                                 <p className="text-[11px] text-muted-foreground">
-                                  {p.codigo_barras || 'sem código de barras'}{p.codigo_interno ? ` • interno ${p.codigo_interno}` : ''}
+                                  {p.codigo_barras || 'sem código de barras'}{p.codigo_interno ? ` • interno ${p.codigo_interno}` : ''}{gramaturaLabel(p.gramatura, p.descricao) ? ` • ${gramaturaLabel(p.gramatura, p.descricao)}` : ''}
                                 </p>
                               </div>
                               <span className="text-sm font-bold tabular-nums">{formatPrecoBR(p.preco)}</span>
@@ -782,6 +784,59 @@ const MixProdutosPanel: React.FC<Props> = ({ open, onOpenChange }) => {
                       </div>
                     </div>
 
+                    {/* Gramaturas */}
+                    <div className="grid gap-3 lg:grid-cols-2">
+                      <div className="rounded-xl border border-border bg-card p-3 space-y-1.5">
+                        <p className="text-xs font-bold uppercase text-muted-foreground">Gramaturas da categoria</p>
+                        {analise.gramaturas.length === 0 ? (
+                          <p className="text-sm text-muted-foreground">Nenhuma gramatura identificada. Informe no cadastro (ex.: 2 L, 500 ml).</p>
+                        ) : (
+                          <>
+                            <p className="text-sm">
+                              <strong>{analise.gramaturas.length}</strong> gramaturas diferentes em {catNome}.
+                            </p>
+                            <div className="flex flex-wrap gap-1.5">
+                              {analise.gramaturas.map(g => (
+                                <span key={g.label} className="px-2 py-0.5 rounded-md border border-border bg-muted text-[11px] font-bold">
+                                  {g.label} <span className="font-normal text-muted-foreground">({g.itens})</span>
+                                </span>
+                              ))}
+                            </div>
+                            <p className={`text-sm ${(analise.concentracaoGram ?? 0) > 60 ? 'text-warning' : 'text-success'}`}>
+                              {(analise.concentracaoGram ?? 0) > 60
+                                ? `Concentração alta: ${Math.round(analise.concentracaoGram ?? 0)}% dos produtos são ${analise.gramDominante?.label}. Falta variedade de tamanhos.`
+                                : 'Boa distribuição entre os tamanhos oferecidos.'}
+                            </p>
+                            {analise.semGramatura > 0 && (
+                              <p className="text-[11px] text-muted-foreground">{analise.semGramatura} produtos sem gramatura informada.</p>
+                            )}
+                          </>
+                        )}
+                      </div>
+
+                      <div className="rounded-xl border border-border bg-card p-3 space-y-1.5">
+                        <p className="text-xs font-bold uppercase text-muted-foreground">Gramaturas por marca</p>
+                        <p className="text-sm">
+                          Média de <strong>{analise.mediaGramMarca.toFixed(1)}</strong> tamanhos por marca.
+                        </p>
+                        <ul className="space-y-0.5 text-sm max-h-40 overflow-auto">
+                          {analise.gramPorMarca.map(v => (
+                            <li key={v.marca.id} className="flex items-start gap-2">
+                              <strong className="shrink-0">{v.marca.nome}</strong>
+                              <span className="text-muted-foreground">
+                                {v.gramaturas.length ? `${v.gramaturas.length} — ${v.gramaturas.join(', ')}` : 'sem gramaturas informadas'}
+                              </span>
+                            </li>
+                          ))}
+                        </ul>
+                        {analise.marcasPoucaGram.length > 0 && (
+                          <p className="text-sm text-warning">
+                            Pouca variedade de tamanhos em: {analise.marcasPoucaGram.slice(0, 4).map(v => v.marca.nome).join(', ')}.
+                          </p>
+                        )}
+                      </div>
+                    </div>
+
                     {/* Inversões */}
                     {analise.inversoes.length > 0 && (
                       <div className="rounded-xl border border-warning/40 bg-warning/5 p-3">
@@ -812,6 +867,7 @@ const MixProdutosPanel: React.FC<Props> = ({ open, onOpenChange }) => {
                           <th className="border border-border px-3 py-2 text-left font-bold w-[90px]">Imagem</th>
                           <th className="border border-border px-3 py-2 text-left font-bold min-w-[260px]">Produto</th>
                           <th className="border border-border px-3 py-2 text-left font-bold min-w-[150px]">Código de barras</th>
+                          <th className="border border-border px-3 py-2 text-left font-bold min-w-[110px]">Gramatura</th>
                           {marcasCat.map(m => (
                             <th key={m.id} className="border border-border px-3 py-2 text-center font-bold min-w-[130px]">
                               <div className="flex items-center justify-center gap-1.5">
@@ -839,6 +895,7 @@ const MixProdutosPanel: React.FC<Props> = ({ open, onOpenChange }) => {
                               </td>
                               <td className="border border-border px-3 py-1.5 font-medium">{linha.descricao}</td>
                               <td className="border border-border px-3 py-1.5 text-muted-foreground tabular-nums">{linha.codigo || '-'}</td>
+                              <td className="border border-border px-3 py-1.5 font-medium">{linha.gramatura || '—'}</td>
                               {marcasCat.map(m => {
                                 const prod = linha.porMarca[m.id];
                                 const destaque = prod && min !== null && prod.preco === min;
