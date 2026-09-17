@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from '@/components/ui/sheet';
 import { toast } from 'sonner';
-import { Plus, Trash2, Package, Tag, Search, ImagePlus, Pencil, Check, X, Table as TableIcon, LayoutGrid, Upload } from 'lucide-react';
+import { Plus, Trash2, Package, Tag, Search, ImagePlus, Pencil, Check, X, Table as TableIcon, LayoutGrid, Upload, Copy } from 'lucide-react';
 import { prepareMixImage, imageFromTransfer, parsePrecoBR, formatPrecoBR } from '@/lib/mix-image';
 import * as XLSX from 'xlsx';
 
@@ -60,6 +60,8 @@ const MixProdutosPanel: React.FC<Props> = ({ open, onOpenChange }) => {
   const fileRef = useRef<HTMLInputElement>(null);
 
   const [precoEdit, setPrecoEdit] = useState<{ id: string; valor: string } | null>(null);
+  const [editProd, setEditProd] = useState<{ id: string; descricao: string; codigo_barras: string; codigo_interno: string; preco: string; imagem: string } | null>(null);
+  const editFileRef = useRef<HTMLInputElement>(null);
   const importRef = useRef<HTMLInputElement>(null);
   const importMarcaRef = useRef<string | null>(null);
   const [importando, setImportando] = useState(false);
@@ -241,6 +243,65 @@ const MixProdutosPanel: React.FC<Props> = ({ open, onOpenChange }) => {
     const { error } = await supabase.from('mix_produtos').delete().eq('id', id);
     if (error) { toast.error('Não foi possível excluir.'); return; }
     setProdutos(prev => prev.filter(p => p.id !== id));
+  };
+
+  const duplicarProduto = async (p: MixProduto) => {
+    if (!user?.id) return;
+    const { data, error } = await supabase
+      .from('mix_produtos')
+      .insert({
+        user_id: user.id,
+        categoria_id: p.categoria_id,
+        marca_id: p.marca_id,
+        descricao: `${p.descricao} (cópia)`,
+        codigo_barras: p.codigo_barras,
+        codigo_interno: p.codigo_interno,
+        preco: p.preco,
+        imagem_url: p.imagem_url,
+      })
+      .select('id,categoria_id,marca_id,descricao,codigo_barras,codigo_interno,preco,imagem_url')
+      .single();
+    if (error) { toast.error('Não foi possível duplicar o produto.'); return; }
+    setProdutos(prev => [...prev, data as MixProduto]);
+    toast.success('Produto duplicado.');
+  };
+
+  const abrirEdicao = (p: MixProduto) => {
+    setEditProd({
+      id: p.id,
+      descricao: p.descricao,
+      codigo_barras: p.codigo_barras ?? '',
+      codigo_interno: p.codigo_interno ?? '',
+      preco: p.preco === null ? '' : String(p.preco).replace('.', ','),
+      imagem: p.imagem_url ?? '',
+    });
+  };
+
+  const editarImagem = async (file: File | null) => {
+    if (!file) return;
+    try {
+      const dataUrl = await prepareMixImage(file);
+      setEditProd(e => (e ? { ...e, imagem: dataUrl } : e));
+    } catch (err: any) {
+      toast.error(err?.message ?? 'Não foi possível usar esta imagem.');
+    }
+  };
+
+  const salvarEdicao = async () => {
+    if (!editProd) return;
+    if (!editProd.descricao.trim()) { toast.error('Informe a descrição do produto.'); return; }
+    const patch = {
+      descricao: editProd.descricao.trim(),
+      codigo_barras: editProd.codigo_barras.trim(),
+      codigo_interno: editProd.codigo_interno.trim() || null,
+      preco: parsePrecoBR(editProd.preco),
+      imagem_url: editProd.imagem || null,
+    };
+    const { error } = await supabase.from('mix_produtos').update(patch).eq('id', editProd.id);
+    if (error) { toast.error('Não foi possível salvar as alterações.'); return; }
+    setProdutos(prev => prev.map(p => (p.id === editProd.id ? { ...p, ...patch } : p)));
+    setEditProd(null);
+    toast.success('Produto atualizado.');
   };
 
   const salvarPreco = async () => {
@@ -540,22 +601,63 @@ const MixProdutosPanel: React.FC<Props> = ({ open, onOpenChange }) => {
                       <div className="divide-y divide-border">
                         {itens.length === 0 && <p className="px-4 py-3 text-xs text-muted-foreground">Nenhum produto nesta marca.</p>}
                         {itens.map(p => (
-                          <div key={p.id} className="flex items-center gap-3 px-4 py-2">
-                            <div className="h-10 w-10 rounded border border-border bg-background overflow-hidden flex items-center justify-center shrink-0">
-                              {p.imagem_url ? <img src={p.imagem_url} alt={p.descricao} className="h-full w-full object-contain" /> : <ImagePlus className="w-4 h-4 text-muted-foreground" />}
+                          editProd?.id === p.id ? (
+                            <div
+                              key={p.id}
+                              className="p-4 bg-muted/40 grid gap-2 sm:grid-cols-[96px_1fr_160px_150px_130px_auto] items-start"
+                              onPaste={e => editarImagem(imageFromTransfer(e.clipboardData))}
+                              onDrop={e => { e.preventDefault(); editarImagem(imageFromTransfer(e.dataTransfer)); }}
+                              onDragOver={e => e.preventDefault()}
+                            >
+                              <button
+                                type="button"
+                                onClick={() => editFileRef.current?.click()}
+                                className="h-24 w-24 rounded-lg border border-dashed border-border bg-background flex items-center justify-center overflow-hidden"
+                                title="Clique, cole (Ctrl+V) ou arraste a imagem"
+                              >
+                                {editProd.imagem
+                                  ? <img src={editProd.imagem} alt={editProd.descricao} className="h-full w-full object-contain" />
+                                  : <ImagePlus className="w-6 h-6 text-muted-foreground" />}
+                              </button>
+                              <input
+                                ref={editFileRef}
+                                type="file"
+                                accept="image/*"
+                                className="hidden"
+                                onChange={e => { editarImagem(e.target.files?.[0] ?? null); e.target.value = ''; }}
+                              />
+                              <Input value={editProd.descricao} onChange={e => setEditProd(v => v && { ...v, descricao: e.target.value })} placeholder="Descrição do produto" className="h-9" />
+                              <Input value={editProd.codigo_barras} onChange={e => setEditProd(v => v && { ...v, codigo_barras: e.target.value })} placeholder="Código de barras" className="h-9" />
+                              <Input value={editProd.codigo_interno} onChange={e => setEditProd(v => v && { ...v, codigo_interno: e.target.value })} placeholder="Código interno" className="h-9" />
+                              <Input value={editProd.preco} onChange={e => setEditProd(v => v && { ...v, preco: e.target.value })} placeholder="Preço (R$)" className="h-9" />
+                              <div className="flex gap-1.5">
+                                <Button size="sm" className="h-9" onClick={salvarEdicao}>Salvar</Button>
+                                <Button size="sm" variant="ghost" className="h-9" onClick={() => setEditProd(null)}>Cancelar</Button>
+                              </div>
                             </div>
-                            <div className="min-w-0 flex-1">
-                              <p className="text-sm font-bold truncate">{p.descricao}</p>
-                              <p className="text-[11px] text-muted-foreground">
-                                {p.codigo_barras || 'sem código de barras'}{p.codigo_interno ? ` • interno ${p.codigo_interno}` : ''}
-                              </p>
-
+                          ) : (
+                            <div key={p.id} className="flex items-center gap-3 px-4 py-2">
+                              <div className="h-10 w-10 rounded border border-border bg-background overflow-hidden flex items-center justify-center shrink-0">
+                                {p.imagem_url ? <img src={p.imagem_url} alt={p.descricao} className="h-full w-full object-contain" /> : <ImagePlus className="w-4 h-4 text-muted-foreground" />}
+                              </div>
+                              <div className="min-w-0 flex-1">
+                                <p className="text-sm font-bold truncate">{p.descricao}</p>
+                                <p className="text-[11px] text-muted-foreground">
+                                  {p.codigo_barras || 'sem código de barras'}{p.codigo_interno ? ` • interno ${p.codigo_interno}` : ''}
+                                </p>
+                              </div>
+                              <span className="text-sm font-bold tabular-nums">{formatPrecoBR(p.preco)}</span>
+                              <Button size="icon" variant="ghost" className="h-8 w-8" title="Editar" onClick={() => abrirEdicao(p)}>
+                                <Pencil className="w-4 h-4" />
+                              </Button>
+                              <Button size="icon" variant="ghost" className="h-8 w-8" title="Duplicar" onClick={() => duplicarProduto(p)}>
+                                <Copy className="w-4 h-4" />
+                              </Button>
+                              <Button size="icon" variant="ghost" className="h-8 w-8 text-destructive" title="Excluir" onClick={() => removerProduto(p.id)}>
+                                <Trash2 className="w-4 h-4" />
+                              </Button>
                             </div>
-                            <span className="text-sm font-bold tabular-nums">{formatPrecoBR(p.preco)}</span>
-                            <Button size="icon" variant="ghost" className="h-8 w-8 text-destructive" onClick={() => removerProduto(p.id)}>
-                              <Trash2 className="w-4 h-4" />
-                            </Button>
-                          </div>
+                          )
                         ))}
                       </div>
                     </div>
