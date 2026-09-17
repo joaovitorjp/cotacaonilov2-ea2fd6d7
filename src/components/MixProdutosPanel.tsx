@@ -243,6 +243,65 @@ const MixProdutosPanel: React.FC<Props> = ({ open, onOpenChange }) => {
     setProdutos(prev => prev.filter(p => p.id !== id));
   };
 
+  const duplicarProduto = async (p: MixProduto) => {
+    if (!user?.id) return;
+    const { data, error } = await supabase
+      .from('mix_produtos')
+      .insert({
+        user_id: user.id,
+        categoria_id: p.categoria_id,
+        marca_id: p.marca_id,
+        descricao: `${p.descricao} (cópia)`,
+        codigo_barras: p.codigo_barras,
+        codigo_interno: p.codigo_interno,
+        preco: p.preco,
+        imagem_url: p.imagem_url,
+      })
+      .select('id,categoria_id,marca_id,descricao,codigo_barras,codigo_interno,preco,imagem_url')
+      .single();
+    if (error) { toast.error('Não foi possível duplicar o produto.'); return; }
+    setProdutos(prev => [...prev, data as MixProduto]);
+    toast.success('Produto duplicado.');
+  };
+
+  const abrirEdicao = (p: MixProduto) => {
+    setEditProd({
+      id: p.id,
+      descricao: p.descricao,
+      codigo_barras: p.codigo_barras ?? '',
+      codigo_interno: p.codigo_interno ?? '',
+      preco: p.preco === null ? '' : String(p.preco).replace('.', ','),
+      imagem: p.imagem_url ?? '',
+    });
+  };
+
+  const editarImagem = async (file: File | null) => {
+    if (!file) return;
+    try {
+      const dataUrl = await prepareMixImage(file);
+      setEditProd(e => (e ? { ...e, imagem: dataUrl } : e));
+    } catch (err: any) {
+      toast.error(err?.message ?? 'Não foi possível usar esta imagem.');
+    }
+  };
+
+  const salvarEdicao = async () => {
+    if (!editProd) return;
+    if (!editProd.descricao.trim()) { toast.error('Informe a descrição do produto.'); return; }
+    const patch = {
+      descricao: editProd.descricao.trim(),
+      codigo_barras: editProd.codigo_barras.trim(),
+      codigo_interno: editProd.codigo_interno.trim() || null,
+      preco: parsePrecoBR(editProd.preco),
+      imagem_url: editProd.imagem || null,
+    };
+    const { error } = await supabase.from('mix_produtos').update(patch).eq('id', editProd.id);
+    if (error) { toast.error('Não foi possível salvar as alterações.'); return; }
+    setProdutos(prev => prev.map(p => (p.id === editProd.id ? { ...p, ...patch } : p)));
+    setEditProd(null);
+    toast.success('Produto atualizado.');
+  };
+
   const salvarPreco = async () => {
     if (!precoEdit) return;
     const valor = parsePrecoBR(precoEdit.valor);
