@@ -1,0 +1,1 @@
+ALTER TABLE public.mix_produtos ADD COLUMN IF NOT EXISTS gramatura text;

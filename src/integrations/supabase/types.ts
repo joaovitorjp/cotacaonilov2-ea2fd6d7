@@ -733,6 +733,7 @@ export type Database = {
           codigo_interno: string | null
           created_at: string
           descricao: string
+          gramatura: string | null
           id: string
           imagem_url: string | null
           marca_id: string
@@ -745,6 +746,7 @@ export type Database = {
           codigo_interno?: string | null
           created_at?: string
           descricao?: string
+          gramatura?: string | null
           id?: string
           imagem_url?: string | null
           marca_id: string
@@ -757,6 +759,7 @@ export type Database = {
           codigo_interno?: string | null
           created_at?: string
           descricao?: string
+          gramatura?: string | null
           id?: string
           imagem_url?: string | null
           marca_id?: string
