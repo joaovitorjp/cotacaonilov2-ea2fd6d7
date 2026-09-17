@@ -60,6 +60,8 @@ const MixProdutosPanel: React.FC<Props> = ({ open, onOpenChange }) => {
   const fileRef = useRef<HTMLInputElement>(null);
 
   const [precoEdit, setPrecoEdit] = useState<{ id: string; valor: string } | null>(null);
+  const [editProd, setEditProd] = useState<{ id: string; descricao: string; codigo_barras: string; codigo_interno: string; preco: string; imagem: string } | null>(null);
+  const editFileRef = useRef<HTMLInputElement>(null);
   const importRef = useRef<HTMLInputElement>(null);
   const importMarcaRef = useRef<string | null>(null);
   const [importando, setImportando] = useState(false);
