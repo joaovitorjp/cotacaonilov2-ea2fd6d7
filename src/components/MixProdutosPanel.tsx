@@ -125,11 +125,17 @@ const MixProdutosPanel: React.FC<Props> = ({ open, onOpenChange }) => {
     const { data, error } = await supabase
       .from('mix_marcas')
       .insert({ user_id: user.id, categoria_id: catSel, nome })
-      .select('id,categoria_id,nome')
+      .select('id,categoria_id,nome,classe')
       .single();
     if (error) { toast.error('Não foi possível criar a marca.'); return; }
     setMarcas(prev => [...prev, data as Marca].sort((a, b) => a.nome.localeCompare(b.nome)));
     setNovaMarca('');
+  };
+
+  const definirClasse = async (id: string, classe: Classe | null) => {
+    const { error } = await supabase.from('mix_marcas').update({ classe }).eq('id', id);
+    if (error) { toast.error('Não foi possível definir a classe.'); return; }
+    setMarcas(prev => prev.map(m => (m.id === id ? { ...m, classe } : m)));
   };
 
   const removerMarca = async (id: string) => {
@@ -139,6 +145,57 @@ const MixProdutosPanel: React.FC<Props> = ({ open, onOpenChange }) => {
     setMarcas(prev => prev.filter(m => m.id !== id));
     setProdutos(prev => prev.filter(p => p.marca_id !== id));
   };
+
+  /* ---------- importação em lote (Excel) ---------- */
+  const abrirImportacao = (marcaId: string) => {
+    importMarcaRef.current = marcaId;
+    importRef.current?.click();
+  };
+
+  const importarExcel = async (file: File | null) => {
+    const marcaId = importMarcaRef.current;
+    if (!file || !marcaId || !catSel || !user?.id) return;
+    setImportando(true);
+    try {
+      const buffer = await file.arrayBuffer();
+      const workbook = XLSX.read(buffer, { type: 'array' });
+      const sheet = workbook.Sheets[workbook.SheetNames[0]];
+      const rows: any[][] = XLSX.utils.sheet_to_json(sheet, { header: 1 });
+
+      const texto = (v: any) => (v === undefined || v === null ? '' : String(v).trim());
+      const cabecalho = rows[0]?.some((c: any) => /descri|produto|c[oó]digo|pre[cç]o/i.test(texto(c)));
+      const dados = cabecalho ? rows.slice(1) : rows;
+
+      const novos = dados
+        .map(r => ({
+          user_id: user.id,
+          categoria_id: catSel,
+          marca_id: marcaId,
+          descricao: texto(r?.[0]),
+          codigo_barras: texto(r?.[1]),
+          codigo_interno: texto(r?.[2]) || null,
+          preco: parsePrecoBR(texto(r?.[3])),
+          imagem_url: null as string | null,
+        }))
+        .filter(p => p.descricao);
+
+      if (novos.length === 0) { toast.error('Nenhum produto encontrado na planilha.'); return; }
+
+      const { data, error } = await supabase
+        .from('mix_produtos')
+        .insert(novos)
+        .select('id,categoria_id,marca_id,descricao,codigo_barras,codigo_interno,preco,imagem_url');
+      if (error) { toast.error('Não foi possível importar os produtos.'); return; }
+      setProdutos(prev => [...prev, ...((data ?? []) as MixProduto[])]);
+      toast.success(`${novos.length} produtos importados.`);
+    } catch (e: any) {
+      toast.error('Não foi possível ler o arquivo. Use .xls ou .xlsx.');
+    } finally {
+      setImportando(false);
+      importMarcaRef.current = null;
+    }
+  };
+
 
   /* ---------- produtos ---------- */
   const abrirForm = (marcaId: string) => {
