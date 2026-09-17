@@ -484,6 +484,64 @@ const MixProdutosPanel: React.FC<Props> = ({ open, onOpenChange }) => {
 
   const catNome = categorias.find(c => c.id === catSel)?.nome ?? '';
 
+  /* ---------- relatório PDF do comparativo ---------- */
+  const exportarPDF = () => {
+    if (!marcasComparativo.length || !filtrados.length) {
+      toast.error('Não há dados suficientes para gerar o relatório.');
+      return;
+    }
+    try {
+      gerarRelatorioMixPDF({
+        categoria: catNome,
+        totalMarcas: marcasCat.length,
+        totalProdutos: produtosCat.length,
+        semClasse: analise.semClasse,
+        grupos: analise.grupos,
+        gapAB: analise.gapAB,
+        gapBC: analise.gapBC,
+        inchaco: analise.inchaco,
+        mediaItens: analise.mediaItens,
+        defasadas: analise.defasadas.map(d => ({ nome: d.marca.nome, itens: d.itens })),
+        gramaturas: analise.gramaturas,
+        semGramatura: analise.semGramatura,
+        gramDominante: analise.gramDominante,
+        concentracaoGram: analise.concentracaoGram,
+        gramPorMarca: analise.gramPorMarca.map(g => ({ nome: g.marca.nome, gramaturas: g.gramaturas })),
+        mediaGramMarca: analise.mediaGramMarca,
+        marcasPoucaGram: analise.marcasPoucaGram.map(v => v.marca.nome),
+        inversoes: analise.inversoes.map(i => ({
+          descricao: i.p.descricao,
+          marca: i.m.nome,
+          classe: i.m.classe ?? '—',
+          preco: i.p.preco ?? 0,
+          ref: i.ref,
+          valor: i.valor,
+        })),
+        marcas: marcasComparativo.map(m => {
+          const itens = produtosComparativo[m.id] ?? [];
+          return {
+            nome: m.nome,
+            classe: m.classe ?? null,
+            classeLabel: m.classe ? CLASSE_LABEL[m.classe] : 'Sem classe',
+            imagem: itens.find(p => p.imagem_url)?.imagem_url ?? null,
+            produtos: itens.map(p => ({
+              descricao: p.descricao,
+              gramatura: gramaturaLabel(p.gramatura, p.descricao),
+              codigo: p.codigo_barras || p.codigo_interno || '',
+              preco: typeof p.preco === 'number' ? p.preco : null,
+              imagem: p.imagem_url ?? null,
+              melhorPreco: typeof p.preco === 'number' && menorPrecoPorChave.get(chaveProduto(p)) === p.preco,
+            })),
+          };
+        }),
+      });
+      toast.success('Relatório gerado.');
+    } catch (e) {
+      console.error(e);
+      toast.error('Não foi possível gerar o relatório.');
+    }
+  };
+
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent side="right" className="w-full sm:max-w-none sm:w-[95vw] p-0 flex flex-col">
