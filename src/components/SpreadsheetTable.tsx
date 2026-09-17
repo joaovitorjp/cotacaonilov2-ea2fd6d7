@@ -1980,12 +1980,6 @@ const SpreadsheetTable: React.FC<SpreadsheetTableProps> = ({
                       {col.label}
                       {sortCol === col.originalIdx && <span className="text-[9px]">{sortDir === 'asc' ? '▲' : '▼'}</span>}
                     </span>
-                    {col.isData && (
-                      <Button variant="ghost" size="icon" className={`absolute left-0.5 top-0.5 h-5 w-5 ${columnFilters[col.originalIdx] ? 'text-primary' : 'text-muted-foreground'}`}
-                        onClick={event => { event.stopPropagation(); setFilterDraft(columnFilters[col.originalIdx] ?? {}); setFilterEditor(filterEditor === col.originalIdx ? null : col.originalIdx); }} title="Filtrar coluna">
-                        <Filter className="w-3 h-3" />
-                      </Button>
-                    )}
                     {filterEditor === col.originalIdx && (
                       <div className="absolute left-0 top-full z-50 w-60 border border-border bg-popover p-3 shadow-xl rounded-md text-left" onClick={event => event.stopPropagation()}>
                         <div className="text-[11px] font-bold mb-2">Filtrar {col.label}</div>
