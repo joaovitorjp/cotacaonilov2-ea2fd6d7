@@ -467,7 +467,10 @@ const MixProdutosPanel: React.FC<Props> = ({ open, onOpenChange }) => {
                             </div>
                             <div className="min-w-0 flex-1">
                               <p className="text-sm font-bold truncate">{p.descricao}</p>
-                              <p className="text-[11px] text-muted-foreground">{p.codigo_barras || 'sem código'}</p>
+                              <p className="text-[11px] text-muted-foreground">
+                                {p.codigo_barras || 'sem código de barras'}{p.codigo_interno ? ` • interno ${p.codigo_interno}` : ''}
+                              </p>
+
                             </div>
                             <span className="text-sm font-bold tabular-nums">{formatPrecoBR(p.preco)}</span>
                             <Button size="icon" variant="ghost" className="h-8 w-8 text-destructive" onClick={() => removerProduto(p.id)}>
