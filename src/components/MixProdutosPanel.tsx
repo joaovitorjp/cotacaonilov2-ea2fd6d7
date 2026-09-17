@@ -806,9 +806,22 @@ const MixProdutosPanel: React.FC<Props> = ({ open, onOpenChange }) => {
               <div className="space-y-3">
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <h3 className="font-display text-lg font-bold">{catNome} — comparativo por marca</h3>
-                  <Button size="sm" variant="outline" onClick={exportarPDF}>
-                    <FileText className="w-4 h-4 mr-1.5" /> Gerar PDF
-                  </Button>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <select
+                      value={gramFiltro ?? ''}
+                      onChange={e => setGramFiltro(e.target.value || null)}
+                      className="h-9 rounded-md border border-input bg-background px-3 text-sm font-medium outline-none focus:ring-1 focus:ring-primary"
+                    >
+                      <option value="">Gramatura: todas</option>
+                      {analise.gramaturas.map(g => (
+                        <option key={g.label} value={g.label}>{g.label} ({g.itens})</option>
+                      ))}
+                      {analise.semGramatura > 0 && <option value="__none__">Sem gramatura ({analise.semGramatura})</option>}
+                    </select>
+                    <Button size="sm" variant="outline" onClick={exportarPDF}>
+                      <FileText className="w-4 h-4 mr-1.5" /> Gerar PDF
+                    </Button>
+                  </div>
                 </div>
 
                 {/* Diagnóstico das classes */}
