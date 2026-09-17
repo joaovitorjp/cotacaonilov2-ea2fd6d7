@@ -178,6 +178,7 @@ const MixProdutosPanel: React.FC<Props> = ({ open, onOpenChange }) => {
           descricao: texto(r?.[0]),
           codigo_barras: texto(r?.[1]),
           codigo_interno: texto(r?.[2]) || null,
+          gramatura: texto(r?.[4]) || gramaturaLabel(null, texto(r?.[0])),
           preco: parsePrecoBR(texto(r?.[3])),
           imagem_url: null as string | null,
         }))
@@ -229,6 +230,7 @@ const MixProdutosPanel: React.FC<Props> = ({ open, onOpenChange }) => {
         descricao: form.descricao.trim(),
         codigo_barras: form.codigo_barras.trim(),
         codigo_interno: form.codigo_interno.trim() || null,
+        gramatura: form.gramatura.trim() || gramaturaLabel(null, form.descricao),
         preco: parsePrecoBR(form.preco),
         imagem_url: form.imagem || null,
       })
@@ -258,6 +260,7 @@ const MixProdutosPanel: React.FC<Props> = ({ open, onOpenChange }) => {
         descricao: `${p.descricao} (cópia)`,
         codigo_barras: p.codigo_barras,
         codigo_interno: p.codigo_interno,
+        gramatura: p.gramatura,
         preco: p.preco,
         imagem_url: p.imagem_url,
       })
@@ -274,6 +277,7 @@ const MixProdutosPanel: React.FC<Props> = ({ open, onOpenChange }) => {
       descricao: p.descricao,
       codigo_barras: p.codigo_barras ?? '',
       codigo_interno: p.codigo_interno ?? '',
+      gramatura: p.gramatura ?? '',
       preco: p.preco === null ? '' : String(p.preco).replace('.', ','),
       imagem: p.imagem_url ?? '',
     });
@@ -296,6 +300,7 @@ const MixProdutosPanel: React.FC<Props> = ({ open, onOpenChange }) => {
       descricao: editProd.descricao.trim(),
       codigo_barras: editProd.codigo_barras.trim(),
       codigo_interno: editProd.codigo_interno.trim() || null,
+      gramatura: editProd.gramatura.trim() || gramaturaLabel(null, editProd.descricao),
       preco: parsePrecoBR(editProd.preco),
       imagem_url: editProd.imagem || null,
     };
@@ -324,17 +329,19 @@ const MixProdutosPanel: React.FC<Props> = ({ open, onOpenChange }) => {
     () => (!termo ? produtosCat : produtosCat.filter(p =>
       p.descricao.toLowerCase().includes(termo)
       || (p.codigo_barras ?? '').toLowerCase().includes(termo)
-      || (p.codigo_interno ?? '').toLowerCase().includes(termo))),
+      || (p.codigo_interno ?? '').toLowerCase().includes(termo)
+      || (gramaturaLabel(p.gramatura, p.descricao) ?? '').toLowerCase().includes(termo))),
 
     [produtosCat, termo],
   );
 
   // Linhas do comparativo: mesmo produto (código de barras ou descrição) lado a lado por marca.
   const linhas = useMemo(() => {
-    const map = new Map<string, { chave: string; descricao: string; codigo: string; imagem: string | null; porMarca: Record<string, MixProduto> }>();
+    const map = new Map<string, { chave: string; descricao: string; codigo: string; gramatura: string | null; imagem: string | null; porMarca: Record<string, MixProduto> }>();
     for (const p of filtrados) {
-      const chave = (p.codigo_barras || p.codigo_interno || p.descricao).trim().toLowerCase();
-      const atual = map.get(chave) ?? { chave, descricao: p.descricao, codigo: p.codigo_barras || p.codigo_interno || '', imagem: p.imagem_url, porMarca: {} };
+      const gram = gramaturaLabel(p.gramatura, p.descricao);
+      const chave = `${(p.codigo_barras || p.codigo_interno || p.descricao).trim().toLowerCase()}|${(gram ?? '').toLowerCase()}`;
+      const atual = map.get(chave) ?? { chave, descricao: p.descricao, codigo: p.codigo_barras || p.codigo_interno || '', gramatura: gram, imagem: p.imagem_url, porMarca: {} };
 
       atual.imagem = atual.imagem ?? p.imagem_url;
       atual.porMarca[p.marca_id] = p;
@@ -410,7 +417,36 @@ const MixProdutosPanel: React.FC<Props> = ({ open, onOpenChange }) => {
       : 0;
     const defasadas = variedade.filter(v => topItens >= 3 && v.itens < Math.max(2, mediaItens * 0.6));
 
-    return { grupos, semClasse, totalMarcas, inchaco, gapAB, gapBC, inversoes, variedade, mediaItens, defasadas };
+    // Gramaturas: quantas medidas diferentes existem na categoria e por marca
+    const contagemGram = new Map<string, number>();
+    let semGramatura = 0;
+    for (const p of produtosCat) {
+      const g = gramaturaLabel(p.gramatura, p.descricao);
+      if (!g) { semGramatura++; continue; }
+      contagemGram.set(g, (contagemGram.get(g) ?? 0) + 1);
+    }
+    const gramaturas = ordenarGramaturas(Array.from(contagemGram.keys()))
+      .map(label => ({ label, itens: contagemGram.get(label) ?? 0 }));
+    const totalGramItens = gramaturas.reduce((s, g) => s + g.itens, 0);
+    const gramDominante = gramaturas.reduce<{ label: string; itens: number } | null>(
+      (max, g) => (!max || g.itens > max.itens ? g : max), null);
+    const concentracaoGram = totalGramItens && gramDominante
+      ? (gramDominante.itens / totalGramItens) * 100 : null;
+
+    const gramPorMarca = marcasCat.map(m => {
+      const set = new Set<string>();
+      for (const p of produtosCat.filter(x => x.marca_id === m.id)) {
+        const g = gramaturaLabel(p.gramatura, p.descricao);
+        if (g) set.add(g);
+      }
+      return { marca: m, gramaturas: ordenarGramaturas(Array.from(set)) };
+    }).sort((a, b) => b.gramaturas.length - a.gramaturas.length);
+    const mediaGramMarca = gramPorMarca.length
+      ? gramPorMarca.reduce((s, v) => s + v.gramaturas.length, 0) / gramPorMarca.length : 0;
+    const marcasPoucaGram = gramPorMarca.filter(v => gramPorMarca[0]?.gramaturas.length >= 3 && v.gramaturas.length <= 1);
+
+    return { grupos, semClasse, totalMarcas, inchaco, gapAB, gapBC, inversoes, variedade, mediaItens, defasadas,
+      gramaturas, semGramatura, gramDominante, concentracaoGram, gramPorMarca, mediaGramMarca, marcasPoucaGram };
   }, [marcasCat, produtosCat]);
 
   const pct = (v: number | null) => (v === null ? '—' : `${v.toFixed(0)}%`);
