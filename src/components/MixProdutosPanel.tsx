@@ -57,6 +57,7 @@ const MixProdutosPanel: React.FC<Props> = ({ open, onOpenChange }) => {
   const [novaMarca, setNovaMarca] = useState('');
   const [editCat, setEditCat] = useState<{ id: string; nome: string } | null>(null);
   const [busca, setBusca] = useState('');
+  const [gramFiltro, setGramFiltro] = useState<string | null>(null);
 
   const [formMarca, setFormMarca] = useState<string | null>(null);
   const [form, setForm] = useState(emptyProduto);
