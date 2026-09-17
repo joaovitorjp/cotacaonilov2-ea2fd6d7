@@ -686,7 +686,7 @@ const Index = () => {
 
       {/* Mobile menu dropdown */}
       {mobileMenuOpen && (
-        <div className="md:hidden bg-white border-b border-slate-200 px-4 py-3 space-y-1 shrink-0 animate-in slide-in-from-top duration-200">
+        <div className="lg:hidden bg-white border-b border-slate-200 px-4 py-3 space-y-1 shrink-0 animate-in slide-in-from-top duration-200">
           {navItems.map(item => (
             <button
               key={item.label}
