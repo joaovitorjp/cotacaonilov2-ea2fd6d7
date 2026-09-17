@@ -21,6 +21,7 @@ interface MixProduto {
   descricao: string;
   codigo_barras: string;
   codigo_interno: string | null;
+  gramatura: string | null;
   preco: number | null;
   imagem_url: string | null;
 }
