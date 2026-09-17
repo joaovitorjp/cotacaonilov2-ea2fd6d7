@@ -224,10 +224,12 @@ const MixProdutosPanel: React.FC<Props> = ({ open, onOpenChange }) => {
         marca_id: formMarca,
         descricao: form.descricao.trim(),
         codigo_barras: form.codigo_barras.trim(),
+        codigo_interno: form.codigo_interno.trim() || null,
         preco: parsePrecoBR(form.preco),
         imagem_url: form.imagem || null,
       })
-      .select('id,categoria_id,marca_id,descricao,codigo_barras,preco,imagem_url')
+      .select('id,categoria_id,marca_id,descricao,codigo_barras,codigo_interno,preco,imagem_url')
+
       .single();
     if (error) { toast.error('Não foi possível salvar o produto.'); return; }
     setProdutos(prev => [...prev, data as MixProduto]);
