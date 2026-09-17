@@ -670,6 +670,110 @@ export type Database = {
         }
         Relationships: []
       }
+      mix_categorias: {
+        Row: {
+          created_at: string
+          id: string
+          nome: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          nome: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          nome?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      mix_marcas: {
+        Row: {
+          categoria_id: string
+          created_at: string
+          id: string
+          nome: string
+          user_id: string
+        }
+        Insert: {
+          categoria_id: string
+          created_at?: string
+          id?: string
+          nome: string
+          user_id: string
+        }
+        Update: {
+          categoria_id?: string
+          created_at?: string
+          id?: string
+          nome?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "mix_marcas_categoria_id_fkey"
+            columns: ["categoria_id"]
+            isOneToOne: false
+            referencedRelation: "mix_categorias"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      mix_produtos: {
+        Row: {
+          categoria_id: string
+          codigo_barras: string
+          created_at: string
+          descricao: string
+          id: string
+          imagem_url: string | null
+          marca_id: string
+          preco: number | null
+          user_id: string
+        }
+        Insert: {
+          categoria_id: string
+          codigo_barras?: string
+          created_at?: string
+          descricao?: string
+          id?: string
+          imagem_url?: string | null
+          marca_id: string
+          preco?: number | null
+          user_id: string
+        }
+        Update: {
+          categoria_id?: string
+          codigo_barras?: string
+          created_at?: string
+          descricao?: string
+          id?: string
+          imagem_url?: string | null
+          marca_id?: string
+          preco?: number | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "mix_produtos_categoria_id_fkey"
+            columns: ["categoria_id"]
+            isOneToOne: false
+            referencedRelation: "mix_categorias"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mix_produtos_marca_id_fkey"
+            columns: ["marca_id"]
+            isOneToOne: false
+            referencedRelation: "mix_marcas"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       networks: {
         Row: {
           access_expires_at: string | null
