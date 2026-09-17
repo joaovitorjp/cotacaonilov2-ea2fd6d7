@@ -355,6 +355,57 @@ const MixProdutosPanel: React.FC<Props> = ({ open, onOpenChange }) => {
     return valores.length >= 2 ? Math.min(...valores) : null;
   };
 
+  // Estrutura visual do comparativo: classes agrupam as marcas e cada marca ocupa uma coluna.
+  const gruposComparativo = useMemo(() => {
+    const grupos: { chave: Classe | 'SEM'; label: string; marcas: Marca[] }[] = CLASSES.map(classe => ({
+      chave: classe,
+      label: CLASSE_LABEL[classe],
+      marcas: marcasCat.filter(m => m.classe === classe).sort((a, b) => a.nome.localeCompare(b.nome)),
+    }));
+    const semClasse = marcasCat.filter(m => !m.classe).sort((a, b) => a.nome.localeCompare(b.nome));
+    if (semClasse.length) grupos.push({ chave: 'SEM', label: 'Sem classe', marcas: semClasse });
+    return grupos.filter(grupo => grupo.marcas.length > 0);
+  }, [marcasCat]);
+
+  const marcasComparativo = useMemo(
+    () => gruposComparativo.flatMap(grupo => grupo.marcas),
+    [gruposComparativo],
+  );
+
+  const produtosComparativo = useMemo(() => {
+    const porMarca: Record<string, MixProduto[]> = {};
+    for (const marca of marcasComparativo) {
+      porMarca[marca.id] = filtrados
+        .filter(p => p.marca_id === marca.id)
+        .sort((a, b) => {
+          const gramA = gramaturaLabel(a.gramatura, a.descricao) ?? '';
+          const gramB = gramaturaLabel(b.gramatura, b.descricao) ?? '';
+          return gramA.localeCompare(gramB, 'pt-BR', { numeric: true }) || a.descricao.localeCompare(b.descricao);
+        });
+    }
+    return porMarca;
+  }, [filtrados, marcasComparativo]);
+
+  const menorPrecoPorChave = useMemo(() => {
+    const precos = new Map<string, number[]>();
+    for (const p of filtrados) {
+      if (typeof p.preco !== 'number') continue;
+      const gram = gramaturaLabel(p.gramatura, p.descricao) ?? '';
+      const chave = `${(p.codigo_barras || p.codigo_interno || p.descricao).trim().toLowerCase()}|${gram.toLowerCase()}`;
+      precos.set(chave, [...(precos.get(chave) ?? []), p.preco]);
+    }
+    const menores = new Map<string, number>();
+    for (const [chave, valores] of precos) {
+      if (valores.length >= 2) menores.set(chave, Math.min(...valores));
+    }
+    return menores;
+  }, [filtrados]);
+
+  const chaveProduto = (p: MixProduto) => {
+    const gram = gramaturaLabel(p.gramatura, p.descricao) ?? '';
+    return `${(p.codigo_barras || p.codigo_interno || p.descricao).trim().toLowerCase()}|${gram.toLowerCase()}`;
+  };
+
   /* ---------- análise de classes (comparativo) ---------- */
   const analise = useMemo(() => {
     const precoDe = (p: MixProduto) => (typeof p.preco === 'number' ? p.preco : null);
@@ -857,79 +908,97 @@ const MixProdutosPanel: React.FC<Props> = ({ open, onOpenChange }) => {
                     )}
                   </div>
                 )}
-                {marcasCat.length === 0 || linhas.length === 0 ? (
+                {marcasCat.length === 0 || filtrados.length === 0 ? (
                   <p className="text-sm text-muted-foreground">Cadastre marcas e produtos para ver o comparativo.</p>
                 ) : (
                   <div className="overflow-auto border border-border rounded-xl bg-card">
-                    <table className="text-sm border-collapse">
+                    <table className="w-full min-w-max text-sm border-collapse table-fixed">
                       <thead className="sticky top-0 z-10">
-                        <tr className="bg-muted">
-                          <th className="border border-border px-3 py-2 text-left font-bold w-[90px]">Imagem</th>
-                          <th className="border border-border px-3 py-2 text-left font-bold min-w-[260px]">Produto</th>
-                          <th className="border border-border px-3 py-2 text-left font-bold min-w-[150px]">Código de barras</th>
-                          <th className="border border-border px-3 py-2 text-left font-bold min-w-[110px]">Gramatura</th>
-                          {marcasCat.map(m => (
-                            <th key={m.id} className="border border-border px-3 py-2 text-center font-bold min-w-[130px]">
-                              <div className="flex items-center justify-center gap-1.5">
-                                <span>{m.nome}</span>
-                                {m.classe && (
-                                  <span className={`px-1.5 rounded border text-[10px] font-bold ${CLASSE_STYLE[m.classe]}`}>{m.classe}</span>
-                                )}
-                              </div>
+                        <tr>
+                          {gruposComparativo.map(grupo => (
+                            <th
+                              key={grupo.chave}
+                              colSpan={grupo.marcas.length}
+                              className={`border border-border px-3 py-2 text-center text-xs font-bold uppercase ${grupo.chave === 'SEM' ? 'bg-muted text-muted-foreground' : CLASSE_STYLE[grupo.chave]}`}
+                            >
+                              {grupo.label}
                             </th>
-
                           ))}
+                        </tr>
+                        <tr className="bg-muted">
+                          {marcasComparativo.map(marca => (
+                            <th key={marca.id} className="border border-border px-3 py-2 text-center font-bold w-[230px] min-w-[230px]">
+                              {marca.nome}
+                            </th>
+                          ))}
+                        </tr>
+                        <tr className="bg-card">
+                          {marcasComparativo.map(marca => {
+                            const imagem = produtosComparativo[marca.id]?.find(p => p.imagem_url)?.imagem_url;
+                            return (
+                              <th key={marca.id} className="border border-border p-2 h-28 align-middle">
+                                <div className="h-24 w-full flex items-center justify-center overflow-hidden">
+                                  {imagem
+                                    ? <img src={imagem} alt={`Imagem representativa da marca ${marca.nome}`} className="h-full max-w-full object-contain" />
+                                    : <ImagePlus className="w-6 h-6 text-muted-foreground" />}
+                                </div>
+                              </th>
+                            );
+                          })}
                         </tr>
                       </thead>
                       <tbody>
-                        {linhas.map((linha, i) => {
-                          const min = menorPreco(linha);
-                          return (
-                            <tr key={linha.chave} className={i % 2 ? 'bg-muted/30' : ''}>
-                              <td className="border border-border px-2 py-1.5">
-                                <div className="h-10 w-10 mx-auto overflow-hidden flex items-center justify-center">
-                                  {linha.imagem
-                                    ? <img src={linha.imagem} alt={linha.descricao} className="h-full w-full object-contain" />
-                                    : <ImagePlus className="w-4 h-4 text-muted-foreground" />}
-                                </div>
-                              </td>
-                              <td className="border border-border px-3 py-1.5 font-medium">{linha.descricao}</td>
-                              <td className="border border-border px-3 py-1.5 text-muted-foreground tabular-nums">{linha.codigo || '-'}</td>
-                              <td className="border border-border px-3 py-1.5 font-medium">{linha.gramatura || '—'}</td>
-                              {marcasCat.map(m => {
-                                const prod = linha.porMarca[m.id];
-                                const destaque = prod && min !== null && prod.preco === min;
+                        {Array.from({ length: Math.max(...marcasComparativo.map(m => produtosComparativo[m.id]?.length ?? 0)) }).map((_, indice) => (
+                          <React.Fragment key={indice}>
+                            <tr className={indice % 2 ? 'bg-muted/30' : 'bg-card'}>
+                              {marcasComparativo.map(marca => {
+                                const prod = produtosComparativo[marca.id]?.[indice];
+                                return (
+                                  <td key={marca.id} className="border border-border px-3 py-2 align-top text-center">
+                                    {prod ? (
+                                      <>
+                                        <p className="font-medium leading-snug">{prod.descricao}</p>
+                                        <p className="mt-1 text-[11px] text-muted-foreground">
+                                          {[gramaturaLabel(prod.gramatura, prod.descricao), prod.codigo_barras || prod.codigo_interno].filter(Boolean).join(' • ')}
+                                        </p>
+                                      </>
+                                    ) : <span className="text-muted-foreground">—</span>}
+                                  </td>
+                                );
+                              })}
+                            </tr>
+                            <tr className={indice % 2 ? 'bg-muted/30' : 'bg-card'}>
+                              {marcasComparativo.map(marca => {
+                                const prod = produtosComparativo[marca.id]?.[indice];
+                                const menor = prod ? menorPrecoPorChave.get(chaveProduto(prod)) : undefined;
+                                const destaque = prod && menor !== undefined && prod.preco === menor;
                                 return (
                                   <td
-                                    key={m.id}
-                                    className={`border border-border px-3 py-1.5 text-right tabular-nums cursor-text ${destaque ? 'text-success font-bold' : ''}`}
+                                    key={marca.id}
+                                    className={`border border-border px-3 py-2 text-center tabular-nums cursor-text ${destaque ? 'text-success font-bold' : 'font-semibold'}`}
                                     onDoubleClick={() => prod && setPrecoEdit({ id: prod.id, valor: prod.preco === null ? '' : String(prod.preco).replace('.', ',') })}
                                   >
-                                    {!prod ? (
-                                      <span className="text-muted-foreground">—</span>
-                                    ) : precoEdit?.id === prod.id ? (
+                                    {!prod ? <span className="text-muted-foreground">—</span> : precoEdit?.id === prod.id ? (
                                       <input
                                         autoFocus
                                         value={precoEdit.valor}
                                         onChange={e => setPrecoEdit({ id: prod.id, valor: e.target.value })}
                                         onBlur={salvarPreco}
                                         onKeyDown={e => { if (e.key === 'Enter') salvarPreco(); if (e.key === 'Escape') setPrecoEdit(null); }}
-                                        className="w-full bg-transparent text-right outline-none"
+                                        className="w-full bg-transparent text-center outline-none"
                                       />
-                                    ) : (
-                                      formatPrecoBR(prod.preco)
-                                    )}
+                                    ) : formatPrecoBR(prod.preco)}
                                   </td>
                                 );
                               })}
                             </tr>
-                          );
-                        })}
+                          </React.Fragment>
+                        ))}
                       </tbody>
                     </table>
                   </div>
                 )}
-                <p className="text-xs text-muted-foreground">Dois cliques em um preço para editar. O menor preço da linha aparece em verde.</p>
+                <p className="text-xs text-muted-foreground">Cada coluna representa uma marca, agrupada por classe, com uma imagem representativa. Dois cliques no preço para editar.</p>
               </div>
             )}
           </div>
