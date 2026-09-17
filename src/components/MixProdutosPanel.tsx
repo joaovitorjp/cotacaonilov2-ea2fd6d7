@@ -285,6 +285,73 @@ const MixProdutosPanel: React.FC<Props> = ({ open, onOpenChange }) => {
     return valores.length >= 2 ? Math.min(...valores) : null;
   };
 
+  /* ---------- análise de classes (comparativo) ---------- */
+  const analise = useMemo(() => {
+    const precoDe = (p: MixProduto) => (typeof p.preco === 'number' ? p.preco : null);
+    const media = (vals: number[]) => (vals.length ? vals.reduce((a, b) => a + b, 0) / vals.length : null);
+
+    const grupos = CLASSES.map(cl => {
+      const ms = marcasCat.filter(m => m.classe === cl);
+      const ps = produtosCat.filter(p => ms.some(m => m.id === p.marca_id));
+      const precos = ps.map(precoDe).filter((v): v is number => v !== null);
+      return {
+        classe: cl,
+        marcas: ms.length,
+        produtos: ps.length,
+        media: media(precos),
+        min: precos.length ? Math.min(...precos) : null,
+        max: precos.length ? Math.max(...precos) : null,
+      };
+    });
+
+    const semClasse = marcasCat.filter(m => !m.classe).length;
+    const totalMarcas = marcasCat.length;
+
+    // Inchaço: alguma classe concentra mais de 55% das marcas classificadas
+    const classificadas = totalMarcas - semClasse;
+    const inchaco = classificadas >= 3
+      ? grupos.filter(g => g.marcas / classificadas > 0.55).map(g => g.classe)
+      : [];
+
+    // Harmonia: média A > B > C com folga mínima de 8%
+    const gap = (maior: number | null, menor: number | null) =>
+      maior !== null && menor !== null && maior > 0 ? ((maior - menor) / maior) * 100 : null;
+    const ga = grupos.find(g => g.classe === 'A')!;
+    const gb = grupos.find(g => g.classe === 'B')!;
+    const gc = grupos.find(g => g.classe === 'C')!;
+    const gapAB = gap(ga.media, gb.media);
+    const gapBC = gap(gb.media, gc.media);
+
+    // Inversões: produto de classe inferior mais caro que a média da classe superior
+    const marcaDe = (id: string) => marcasCat.find(m => m.id === id);
+    const inversoes = produtosCat
+      .map(p => {
+        const m = marcaDe(p.marca_id);
+        const preco = precoDe(p);
+        if (!m?.classe || preco === null) return null;
+        if (m.classe === 'C' && ga.media !== null && preco > ga.media) return { p, m, ref: 'média da Classe A', valor: ga.media };
+        if (m.classe === 'C' && gb.media !== null && preco > gb.media) return { p, m, ref: 'média da Classe B', valor: gb.media };
+        if (m.classe === 'B' && ga.media !== null && preco > ga.media) return { p, m, ref: 'média da Classe A', valor: ga.media };
+        return null;
+      })
+      .filter((v): v is { p: MixProduto; m: Marca; ref: string; valor: number } => v !== null)
+      .sort((a, b) => (b.p.preco ?? 0) - (a.p.preco ?? 0));
+
+    // Variedade por marca (fragrâncias/sabores = itens distintos da marca)
+    const variedade = marcasCat
+      .map(m => ({ marca: m, itens: produtosCat.filter(p => p.marca_id === m.id).length }))
+      .sort((a, b) => b.itens - a.itens);
+    const topItens = variedade[0]?.itens ?? 0;
+    const mediaItens = variedade.length
+      ? variedade.reduce((s, v) => s + v.itens, 0) / variedade.length
+      : 0;
+    const defasadas = variedade.filter(v => topItens >= 3 && v.itens < Math.max(2, mediaItens * 0.6));
+
+    return { grupos, semClasse, totalMarcas, inchaco, gapAB, gapBC, inversoes, variedade, mediaItens, defasadas };
+  }, [marcasCat, produtosCat]);
+
+  const pct = (v: number | null) => (v === null ? '—' : `${v.toFixed(0)}%`);
+
   const catNome = categorias.find(c => c.id === catSel)?.nome ?? '';
 
   return (
@@ -498,6 +565,103 @@ const MixProdutosPanel: React.FC<Props> = ({ open, onOpenChange }) => {
             ) : (
               <div className="space-y-3">
                 <h3 className="font-display text-lg font-bold">{catNome} — comparativo por marca</h3>
+
+                {/* Diagnóstico das classes */}
+                {marcasCat.length > 0 && (
+                  <div className="space-y-3">
+                    <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                      {analise.grupos.map(g => {
+                        const part = analise.totalMarcas ? Math.round((g.marcas / analise.totalMarcas) * 100) : 0;
+                        return (
+                          <div key={g.classe} className={`rounded-xl border p-3 ${CLASSE_STYLE[g.classe]}`}>
+                            <p className="text-xs font-bold uppercase">{CLASSE_LABEL[g.classe]}</p>
+                            <p className="text-2xl font-bold leading-tight">{g.marcas}</p>
+                            <p className="text-[11px] opacity-80">
+                              marcas ({part}% do mix) • {g.produtos} produtos
+                            </p>
+                            <p className="text-[11px] opacity-80">
+                              Média {formatPrecoBR(g.media)} • {formatPrecoBR(g.min)} a {formatPrecoBR(g.max)}
+                            </p>
+                          </div>
+                        );
+                      })}
+                      <div className="rounded-xl border border-border p-3 bg-card">
+                        <p className="text-xs font-bold uppercase text-muted-foreground">Sem classe</p>
+                        <p className="text-2xl font-bold leading-tight">{analise.semClasse}</p>
+                        <p className="text-[11px] text-muted-foreground">
+                          {analise.semClasse ? 'Defina a classe dessas marcas na aba Cadastro.' : 'Todas as marcas estão classificadas.'}
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="grid gap-3 lg:grid-cols-3">
+                      {/* Equilíbrio */}
+                      <div className="rounded-xl border border-border bg-card p-3 space-y-1.5">
+                        <p className="text-xs font-bold uppercase text-muted-foreground">Equilíbrio do mix</p>
+                        {analise.inchaco.length > 0 ? (
+                          <p className="text-sm">
+                            A <strong>Classe {analise.inchaco.join(' e ')}</strong> concentra mais da metade das marcas desta categoria — mix inchado nessa faixa.
+                          </p>
+                        ) : (
+                          <p className="text-sm">Distribuição equilibrada entre as classes desta categoria.</p>
+                        )}
+                        {analise.grupos.filter(g => g.marcas === 0).length > 0 && (
+                          <p className="text-sm text-muted-foreground">
+                            Sem nenhuma marca em: {analise.grupos.filter(g => g.marcas === 0).map(g => `Classe ${g.classe}`).join(', ')}.
+                          </p>
+                        )}
+                      </div>
+
+                      {/* Escada de preço */}
+                      <div className="rounded-xl border border-border bg-card p-3 space-y-1.5">
+                        <p className="text-xs font-bold uppercase text-muted-foreground">Escada de preço</p>
+                        <p className="text-sm">
+                          Classe B está <strong>{pct(analise.gapAB)}</strong> abaixo da A;
+                          Classe C está <strong>{pct(analise.gapBC)}</strong> abaixo da B.
+                        </p>
+                        <p className={`text-sm ${(analise.gapAB ?? 0) >= 8 && (analise.gapBC ?? 0) >= 8 ? 'text-success' : 'text-warning'}`}>
+                          {(analise.gapAB ?? -1) >= 8 && (analise.gapBC ?? -1) >= 8
+                            ? 'Escada saudável: cada classe é claramente mais barata que a de cima.'
+                            : 'Escada apertada: as classes têm preços muito próximos e competem entre si.'}
+                        </p>
+                      </div>
+
+                      {/* Variedade */}
+                      <div className="rounded-xl border border-border bg-card p-3 space-y-1.5">
+                        <p className="text-xs font-bold uppercase text-muted-foreground">Variedade por marca</p>
+                        <p className="text-sm">
+                          Média de <strong>{analise.mediaItens.toFixed(1)}</strong> itens (sabores/fragrâncias) por marca.
+                        </p>
+                        {analise.defasadas.length > 0 ? (
+                          <p className="text-sm text-warning">
+                            Pouca variedade em: {analise.defasadas.slice(0, 4).map(v => `${v.marca.nome} (${v.itens})`).join(', ')}.
+                          </p>
+                        ) : (
+                          <p className="text-sm text-success">Nenhuma marca defasada em variedade.</p>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Inversões */}
+                    {analise.inversoes.length > 0 && (
+                      <div className="rounded-xl border border-warning/40 bg-warning/5 p-3">
+                        <p className="text-xs font-bold uppercase text-warning mb-1.5">
+                          {analise.inversoes.length} produtos fora da faixa da sua classe
+                        </p>
+                        <ul className="space-y-0.5 text-sm">
+                          {analise.inversoes.slice(0, 6).map(inv => (
+                            <li key={inv.p.id}>
+                              <strong>{inv.m.nome}</strong> (Classe {inv.m.classe}) — {inv.p.descricao}: {formatPrecoBR(inv.p.preco)} acima da {inv.ref} ({formatPrecoBR(inv.valor)}).
+                            </li>
+                          ))}
+                        </ul>
+                        {analise.inversoes.length > 6 && (
+                          <p className="text-[11px] text-muted-foreground mt-1">e mais {analise.inversoes.length - 6} itens.</p>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                )}
                 {marcasCat.length === 0 || linhas.length === 0 ? (
                   <p className="text-sm text-muted-foreground">Cadastre marcas e produtos para ver o comparativo.</p>
                 ) : (
