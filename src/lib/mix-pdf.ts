@@ -232,9 +232,11 @@ const drawComparisonTables = (doc: jsPDF, data: MixPdfData) => {
   for (let i = 0; i < data.marcas.length; i += perPage) chunks.push(data.marcas.slice(i, i + perPage));
 
   chunks.forEach((marcas, chunkIndex) => {
-    const y = addContinuationPage(doc, data, chunks.length > 1
+    doc.addPage('a4', 'landscape');
+    const pageTitle = chunks.length > 1
       ? `Comparativo lado a lado · ${chunkIndex + 1}/${chunks.length}`
-      : 'Comparativo lado a lado');
+      : 'Comparativo lado a lado';
+    const y = 40;
     const rows = Math.max(...marcas.map(marca => marca.produtos.length));
     const body: any[][] = [];
     for (let row = 0; row < rows; row += 1) {
@@ -258,7 +260,7 @@ const drawComparisonTables = (doc: jsPDF, data: MixPdfData) => {
     const columnWidth = (pageWidth(doc) - MARGIN * 2) / marcas.length;
     autoTable(doc, {
       startY: y,
-      margin: { left: MARGIN, right: MARGIN, bottom: BOTTOM },
+      margin: { top: 40, left: MARGIN, right: MARGIN, bottom: BOTTOM },
       theme: 'grid',
       head: tableHead(marcas),
       body,
@@ -301,6 +303,13 @@ const drawComparisonTables = (doc: jsPDF, data: MixPdfData) => {
           doc.setTextColor(...PDF_COLORS.muted);
           doc.text('SEM IMAGEM', hook.cell.x + hook.cell.width / 2, hook.cell.y + hook.cell.height / 2 + 1, { align: 'center' });
         }
+      },
+      willDrawPage: () => {
+        drawHeader(doc, {
+          title: pageTitle,
+          subtitle: `Categoria: ${data.categoria || 'Todas'}`,
+          meta: data.filtroGramatura ? `Gramatura: ${data.filtroGramatura}` : 'Gramatura: todas',
+        });
       },
     });
   });
