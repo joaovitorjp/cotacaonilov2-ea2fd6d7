@@ -57,6 +57,7 @@ const MixProdutosPanel: React.FC<Props> = ({ open, onOpenChange }) => {
   const [novaMarca, setNovaMarca] = useState('');
   const [editCat, setEditCat] = useState<{ id: string; nome: string } | null>(null);
   const [busca, setBusca] = useState('');
+  const [gramFiltro, setGramFiltro] = useState<string | null>(null);
 
   const [formMarca, setFormMarca] = useState<string | null>(null);
   const [form, setForm] = useState(emptyProduto);
@@ -336,6 +337,13 @@ const MixProdutosPanel: React.FC<Props> = ({ open, onOpenChange }) => {
     [produtosCat, termo],
   );
 
+  // Filtro de gramatura: aplica só no comparativo, para comparar tamanhos equivalentes lado a lado.
+  const comparativos = useMemo(() => {
+    if (!gramFiltro) return filtrados;
+    if (gramFiltro === '__none__') return filtrados.filter(p => !gramaturaLabel(p.gramatura, p.descricao));
+    return filtrados.filter(p => gramaturaLabel(p.gramatura, p.descricao) === gramFiltro);
+  }, [filtrados, gramFiltro]);
+
   // Estrutura visual do comparativo: classes agrupam as marcas e cada marca ocupa uma coluna.
   const gruposComparativo = useMemo(() => {
     const grupos: { chave: Classe | 'SEM'; label: string; marcas: Marca[] }[] = CLASSES.map(classe => ({
@@ -356,7 +364,7 @@ const MixProdutosPanel: React.FC<Props> = ({ open, onOpenChange }) => {
   const produtosComparativo = useMemo(() => {
     const porMarca: Record<string, MixProduto[]> = {};
     for (const marca of marcasComparativo) {
-      porMarca[marca.id] = filtrados
+      porMarca[marca.id] = comparativos
         .filter(p => p.marca_id === marca.id)
         .sort((a, b) => {
           const gramA = gramaturaLabel(a.gramatura, a.descricao) ?? '';
@@ -365,11 +373,11 @@ const MixProdutosPanel: React.FC<Props> = ({ open, onOpenChange }) => {
         });
     }
     return porMarca;
-  }, [filtrados, marcasComparativo]);
+  }, [comparativos, marcasComparativo]);
 
   const menorPrecoPorChave = useMemo(() => {
     const precos = new Map<string, number[]>();
-    for (const p of filtrados) {
+    for (const p of comparativos) {
       if (typeof p.preco !== 'number') continue;
       const gram = gramaturaLabel(p.gramatura, p.descricao) ?? '';
       const chave = `${(p.codigo_barras || p.codigo_interno || p.descricao).trim().toLowerCase()}|${gram.toLowerCase()}`;
@@ -380,7 +388,7 @@ const MixProdutosPanel: React.FC<Props> = ({ open, onOpenChange }) => {
       if (valores.length >= 2) menores.set(chave, Math.min(...valores));
     }
     return menores;
-  }, [filtrados]);
+  }, [comparativos]);
 
   const chaveProduto = (p: MixProduto) => {
     const gram = gramaturaLabel(p.gramatura, p.descricao) ?? '';
@@ -487,7 +495,7 @@ const MixProdutosPanel: React.FC<Props> = ({ open, onOpenChange }) => {
 
   /* ---------- relatório PDF do comparativo ---------- */
   const exportarPDF = () => {
-    if (!marcasComparativo.length || !filtrados.length) {
+    if (!marcasComparativo.length || !comparativos.length) {
       toast.error('Não há dados suficientes para gerar o relatório.');
       return;
     }
@@ -589,7 +597,7 @@ const MixProdutosPanel: React.FC<Props> = ({ open, onOpenChange }) => {
                 <div
                   key={c.id}
                   className={`group flex items-center gap-1 rounded-lg px-2 py-1.5 cursor-pointer ${catSel === c.id ? 'bg-primary/10 text-primary' : 'hover:bg-muted'}`}
-                  onClick={() => setCatSel(c.id)}
+                  onClick={() => { setCatSel(c.id); setGramFiltro(null); }}
                 >
                   {editCat?.id === c.id ? (
                     <>
@@ -798,9 +806,22 @@ const MixProdutosPanel: React.FC<Props> = ({ open, onOpenChange }) => {
               <div className="space-y-3">
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <h3 className="font-display text-lg font-bold">{catNome} — comparativo por marca</h3>
-                  <Button size="sm" variant="outline" onClick={exportarPDF}>
-                    <FileText className="w-4 h-4 mr-1.5" /> Gerar PDF
-                  </Button>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <select
+                      value={gramFiltro ?? ''}
+                      onChange={e => setGramFiltro(e.target.value || null)}
+                      className="h-9 rounded-md border border-input bg-background px-3 text-sm font-medium outline-none focus:ring-1 focus:ring-primary"
+                    >
+                      <option value="">Gramatura: todas</option>
+                      {analise.gramaturas.map(g => (
+                        <option key={g.label} value={g.label}>{g.label} ({g.itens})</option>
+                      ))}
+                      {analise.semGramatura > 0 && <option value="__none__">Sem gramatura ({analise.semGramatura})</option>}
+                    </select>
+                    <Button size="sm" variant="outline" onClick={exportarPDF}>
+                      <FileText className="w-4 h-4 mr-1.5" /> Gerar PDF
+                    </Button>
+                  </div>
                 </div>
 
                 {/* Diagnóstico das classes */}
@@ -952,8 +973,10 @@ const MixProdutosPanel: React.FC<Props> = ({ open, onOpenChange }) => {
                     )}
                   </div>
                 )}
-                {marcasCat.length === 0 || filtrados.length === 0 ? (
+                {marcasCat.length === 0 ? (
                   <p className="text-sm text-muted-foreground">Cadastre marcas e produtos para ver o comparativo.</p>
+                ) : comparativos.length === 0 ? (
+                  <p className="text-sm text-muted-foreground">Nenhum produto para a gramatura ou busca selecionada.</p>
                 ) : (
                   <div className="overflow-auto border border-border rounded-xl bg-card">
                     <table className="w-full min-w-max text-sm border-collapse table-fixed">
