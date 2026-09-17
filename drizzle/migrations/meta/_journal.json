@@ -64,6 +64,13 @@
       "when": 1789668477795,
       "tag": "0008_create_mix_produtos",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1789669214609,
+      "tag": "0009_mix_classe_marca_e_codigo_interno",
+      "breakpoints": true
     }
   ]
 }
