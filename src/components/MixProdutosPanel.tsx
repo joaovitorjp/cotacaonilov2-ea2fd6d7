@@ -9,6 +9,7 @@ import { Plus, Trash2, Package, Tag, Search, ImagePlus, Pencil, Check, X, Table 
 import { prepareMixImage, imageFromTransfer, parsePrecoBR, formatPrecoBR } from '@/lib/mix-image';
 import { gramaturaLabel, ordenarGramaturas } from '@/lib/gramatura';
 import * as XLSX from 'xlsx';
+import { gerarRelatorioMixPDF } from '@/lib/mix-pdf';
 
 type Classe = 'A' | 'B' | 'C';
 
@@ -795,7 +796,12 @@ const MixProdutosPanel: React.FC<Props> = ({ open, onOpenChange }) => {
               </div>
             ) : (
               <div className="space-y-3">
-                <h3 className="font-display text-lg font-bold">{catNome} — comparativo por marca</h3>
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <h3 className="font-display text-lg font-bold">{catNome} — comparativo por marca</h3>
+                  <Button size="sm" variant="outline" onClick={exportarPDF}>
+                    <FileText className="w-4 h-4 mr-1.5" /> Gerar PDF
+                  </Button>
+                </div>
 
                 {/* Diagnóstico das classes */}
                 {marcasCat.length > 0 && (
