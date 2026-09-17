@@ -447,12 +447,14 @@ const MixProdutosPanel: React.FC<Props> = ({ open, onOpenChange }) => {
                           />
                           <Input value={form.descricao} onChange={e => setForm(f => ({ ...f, descricao: e.target.value }))} placeholder="Descrição do produto" className="h-9" />
                           <Input value={form.codigo_barras} onChange={e => setForm(f => ({ ...f, codigo_barras: e.target.value }))} placeholder="Código de barras" className="h-9" />
+                          <Input value={form.codigo_interno} onChange={e => setForm(f => ({ ...f, codigo_interno: e.target.value }))} placeholder="Código interno" className="h-9" />
                           <Input value={form.preco} onChange={e => setForm(f => ({ ...f, preco: e.target.value }))} placeholder="Preço (R$)" className="h-9" />
                           <div className="flex gap-1.5">
                             <Button size="sm" className="h-9" onClick={salvarProduto}>Salvar</Button>
                             <Button size="sm" variant="ghost" className="h-9" onClick={() => { setFormMarca(null); setForm(emptyProduto); }}>Fechar</Button>
                           </div>
-                          <p className="sm:col-span-5 text-[11px] text-muted-foreground">Cole a imagem com Ctrl+V nesta área, arraste o arquivo ou clique no quadrado.</p>
+                          <p className="sm:col-span-6 text-[11px] text-muted-foreground">Cole a imagem com Ctrl+V nesta área, arraste o arquivo ou clique no quadrado.</p>
+
                         </div>
                       )}
 
