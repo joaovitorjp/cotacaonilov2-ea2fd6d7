@@ -335,26 +335,6 @@ const MixProdutosPanel: React.FC<Props> = ({ open, onOpenChange }) => {
     [produtosCat, termo],
   );
 
-  // Linhas do comparativo: mesmo produto (código de barras ou descrição) lado a lado por marca.
-  const linhas = useMemo(() => {
-    const map = new Map<string, { chave: string; descricao: string; codigo: string; gramatura: string | null; imagem: string | null; porMarca: Record<string, MixProduto> }>();
-    for (const p of filtrados) {
-      const gram = gramaturaLabel(p.gramatura, p.descricao);
-      const chave = `${(p.codigo_barras || p.codigo_interno || p.descricao).trim().toLowerCase()}|${(gram ?? '').toLowerCase()}`;
-      const atual = map.get(chave) ?? { chave, descricao: p.descricao, codigo: p.codigo_barras || p.codigo_interno || '', gramatura: gram, imagem: p.imagem_url, porMarca: {} };
-
-      atual.imagem = atual.imagem ?? p.imagem_url;
-      atual.porMarca[p.marca_id] = p;
-      map.set(chave, atual);
-    }
-    return Array.from(map.values()).sort((a, b) => a.descricao.localeCompare(b.descricao));
-  }, [filtrados]);
-
-  const menorPreco = (linha: (typeof linhas)[number]) => {
-    const valores = Object.values(linha.porMarca).map(p => p.preco).filter((v): v is number => typeof v === 'number');
-    return valores.length >= 2 ? Math.min(...valores) : null;
-  };
-
   // Estrutura visual do comparativo: classes agrupam as marcas e cada marca ocupa uma coluna.
   const gruposComparativo = useMemo(() => {
     const grupos: { chave: Classe | 'SEM'; label: string; marcas: Marca[] }[] = CLASSES.map(classe => ({
