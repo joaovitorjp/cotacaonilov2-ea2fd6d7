@@ -387,6 +387,18 @@ const MixProdutosPanel: React.FC<Props> = ({ open, onOpenChange }) => {
 
                 {marcasCat.length === 0 && <p className="text-sm text-muted-foreground">Cadastre a primeira marca desta categoria.</p>}
 
+                <input
+                  ref={importRef}
+                  type="file"
+                  accept=".xls,.xlsx,.csv"
+                  className="hidden"
+                  onChange={e => { importarExcel(e.target.files?.[0] ?? null); e.target.value = ''; }}
+                />
+                <p className="text-[11px] text-muted-foreground">
+                  Importar Excel: coluna A = Descrição, B = Código de barras, C = Código interno, D = Preço. Classe A, B ou C (low price) definida no cabeçalho de cada marca.
+                </p>
+
+
                 {marcasCat.map(m => {
                   const itens = filtrados.filter(p => p.marca_id === m.id);
                   return (
