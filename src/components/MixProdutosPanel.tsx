@@ -601,22 +601,63 @@ const MixProdutosPanel: React.FC<Props> = ({ open, onOpenChange }) => {
                       <div className="divide-y divide-border">
                         {itens.length === 0 && <p className="px-4 py-3 text-xs text-muted-foreground">Nenhum produto nesta marca.</p>}
                         {itens.map(p => (
-                          <div key={p.id} className="flex items-center gap-3 px-4 py-2">
-                            <div className="h-10 w-10 rounded border border-border bg-background overflow-hidden flex items-center justify-center shrink-0">
-                              {p.imagem_url ? <img src={p.imagem_url} alt={p.descricao} className="h-full w-full object-contain" /> : <ImagePlus className="w-4 h-4 text-muted-foreground" />}
+                          editProd?.id === p.id ? (
+                            <div
+                              key={p.id}
+                              className="p-4 bg-muted/40 grid gap-2 sm:grid-cols-[96px_1fr_160px_150px_130px_auto] items-start"
+                              onPaste={e => editarImagem(imageFromTransfer(e.clipboardData))}
+                              onDrop={e => { e.preventDefault(); editarImagem(imageFromTransfer(e.dataTransfer)); }}
+                              onDragOver={e => e.preventDefault()}
+                            >
+                              <button
+                                type="button"
+                                onClick={() => editFileRef.current?.click()}
+                                className="h-24 w-24 rounded-lg border border-dashed border-border bg-background flex items-center justify-center overflow-hidden"
+                                title="Clique, cole (Ctrl+V) ou arraste a imagem"
+                              >
+                                {editProd.imagem
+                                  ? <img src={editProd.imagem} alt={editProd.descricao} className="h-full w-full object-contain" />
+                                  : <ImagePlus className="w-6 h-6 text-muted-foreground" />}
+                              </button>
+                              <input
+                                ref={editFileRef}
+                                type="file"
+                                accept="image/*"
+                                className="hidden"
+                                onChange={e => { editarImagem(e.target.files?.[0] ?? null); e.target.value = ''; }}
+                              />
+                              <Input value={editProd.descricao} onChange={e => setEditProd(v => v && { ...v, descricao: e.target.value })} placeholder="Descrição do produto" className="h-9" />
+                              <Input value={editProd.codigo_barras} onChange={e => setEditProd(v => v && { ...v, codigo_barras: e.target.value })} placeholder="Código de barras" className="h-9" />
+                              <Input value={editProd.codigo_interno} onChange={e => setEditProd(v => v && { ...v, codigo_interno: e.target.value })} placeholder="Código interno" className="h-9" />
+                              <Input value={editProd.preco} onChange={e => setEditProd(v => v && { ...v, preco: e.target.value })} placeholder="Preço (R$)" className="h-9" />
+                              <div className="flex gap-1.5">
+                                <Button size="sm" className="h-9" onClick={salvarEdicao}>Salvar</Button>
+                                <Button size="sm" variant="ghost" className="h-9" onClick={() => setEditProd(null)}>Cancelar</Button>
+                              </div>
                             </div>
-                            <div className="min-w-0 flex-1">
-                              <p className="text-sm font-bold truncate">{p.descricao}</p>
-                              <p className="text-[11px] text-muted-foreground">
-                                {p.codigo_barras || 'sem código de barras'}{p.codigo_interno ? ` • interno ${p.codigo_interno}` : ''}
-                              </p>
-
+                          ) : (
+                            <div key={p.id} className="flex items-center gap-3 px-4 py-2">
+                              <div className="h-10 w-10 rounded border border-border bg-background overflow-hidden flex items-center justify-center shrink-0">
+                                {p.imagem_url ? <img src={p.imagem_url} alt={p.descricao} className="h-full w-full object-contain" /> : <ImagePlus className="w-4 h-4 text-muted-foreground" />}
+                              </div>
+                              <div className="min-w-0 flex-1">
+                                <p className="text-sm font-bold truncate">{p.descricao}</p>
+                                <p className="text-[11px] text-muted-foreground">
+                                  {p.codigo_barras || 'sem código de barras'}{p.codigo_interno ? ` • interno ${p.codigo_interno}` : ''}
+                                </p>
+                              </div>
+                              <span className="text-sm font-bold tabular-nums">{formatPrecoBR(p.preco)}</span>
+                              <Button size="icon" variant="ghost" className="h-8 w-8" title="Editar" onClick={() => abrirEdicao(p)}>
+                                <Pencil className="w-4 h-4" />
+                              </Button>
+                              <Button size="icon" variant="ghost" className="h-8 w-8" title="Duplicar" onClick={() => duplicarProduto(p)}>
+                                <Copy className="w-4 h-4" />
+                              </Button>
+                              <Button size="icon" variant="ghost" className="h-8 w-8 text-destructive" title="Excluir" onClick={() => removerProduto(p.id)}>
+                                <Trash2 className="w-4 h-4" />
+                              </Button>
                             </div>
-                            <span className="text-sm font-bold tabular-nums">{formatPrecoBR(p.preco)}</span>
-                            <Button size="icon" variant="ghost" className="h-8 w-8 text-destructive" onClick={() => removerProduto(p.id)}>
-                              <Trash2 className="w-4 h-4" />
-                            </Button>
-                          </div>
+                          )
                         ))}
                       </div>
                     </div>
