@@ -39,7 +39,7 @@ const CLASSE_STYLE: Record<Classe, string> = {
   C: 'bg-muted text-muted-foreground border-border',
 };
 
-const emptyProduto = { descricao: '', codigo_barras: '', codigo_interno: '', preco: '', imagem: '' as string };
+const emptyProduto = { descricao: '', codigo_barras: '', codigo_interno: '', gramatura: '', preco: '', imagem: '' as string };
 
 
 const MixProdutosPanel: React.FC<Props> = ({ open, onOpenChange }) => {
