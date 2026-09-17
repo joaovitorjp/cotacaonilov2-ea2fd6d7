@@ -259,7 +259,10 @@ const MixProdutosPanel: React.FC<Props> = ({ open, onOpenChange }) => {
   const termo = busca.trim().toLowerCase();
   const filtrados = useMemo(
     () => (!termo ? produtosCat : produtosCat.filter(p =>
-      p.descricao.toLowerCase().includes(termo) || (p.codigo_barras ?? '').toLowerCase().includes(termo))),
+      p.descricao.toLowerCase().includes(termo)
+      || (p.codigo_barras ?? '').toLowerCase().includes(termo)
+      || (p.codigo_interno ?? '').toLowerCase().includes(termo))),
+
     [produtosCat, termo],
   );
 
