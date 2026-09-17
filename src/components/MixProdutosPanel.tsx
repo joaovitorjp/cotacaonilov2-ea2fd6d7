@@ -495,7 +495,7 @@ const MixProdutosPanel: React.FC<Props> = ({ open, onOpenChange }) => {
 
   /* ---------- relatório PDF do comparativo ---------- */
   const exportarPDF = () => {
-    if (!marcasComparativo.length || !filtrados.length) {
+    if (!marcasComparativo.length || !comparativos.length) {
       toast.error('Não há dados suficientes para gerar o relatório.');
       return;
     }
@@ -597,7 +597,7 @@ const MixProdutosPanel: React.FC<Props> = ({ open, onOpenChange }) => {
                 <div
                   key={c.id}
                   className={`group flex items-center gap-1 rounded-lg px-2 py-1.5 cursor-pointer ${catSel === c.id ? 'bg-primary/10 text-primary' : 'hover:bg-muted'}`}
-                  onClick={() => setCatSel(c.id)}
+                  onClick={() => { setCatSel(c.id); setGramFiltro(null); }}
                 >
                   {editCat?.id === c.id ? (
                     <>
@@ -973,8 +973,10 @@ const MixProdutosPanel: React.FC<Props> = ({ open, onOpenChange }) => {
                     )}
                   </div>
                 )}
-                {marcasCat.length === 0 || filtrados.length === 0 ? (
+                {marcasCat.length === 0 ? (
                   <p className="text-sm text-muted-foreground">Cadastre marcas e produtos para ver o comparativo.</p>
+                ) : comparativos.length === 0 ? (
+                  <p className="text-sm text-muted-foreground">Nenhum produto para a gramatura ou busca selecionada.</p>
                 ) : (
                   <div className="overflow-auto border border-border rounded-xl bg-card">
                     <table className="w-full min-w-max text-sm border-collapse table-fixed">
