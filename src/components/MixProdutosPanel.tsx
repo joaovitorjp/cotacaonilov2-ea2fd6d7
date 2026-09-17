@@ -337,6 +337,13 @@ const MixProdutosPanel: React.FC<Props> = ({ open, onOpenChange }) => {
     [produtosCat, termo],
   );
 
+  // Filtro de gramatura: aplica só no comparativo, para comparar tamanhos equivalentes lado a lado.
+  const comparativos = useMemo(() => {
+    if (!gramFiltro) return filtrados;
+    if (gramFiltro === '__none__') return filtrados.filter(p => !gramaturaLabel(p.gramatura, p.descricao));
+    return filtrados.filter(p => gramaturaLabel(p.gramatura, p.descricao) === gramFiltro);
+  }, [filtrados, gramFiltro]);
+
   // Estrutura visual do comparativo: classes agrupam as marcas e cada marca ocupa uma coluna.
   const gruposComparativo = useMemo(() => {
     const grupos: { chave: Classe | 'SEM'; label: string; marcas: Marca[] }[] = CLASSES.map(classe => ({
@@ -357,7 +364,7 @@ const MixProdutosPanel: React.FC<Props> = ({ open, onOpenChange }) => {
   const produtosComparativo = useMemo(() => {
     const porMarca: Record<string, MixProduto[]> = {};
     for (const marca of marcasComparativo) {
-      porMarca[marca.id] = filtrados
+      porMarca[marca.id] = comparativos
         .filter(p => p.marca_id === marca.id)
         .sort((a, b) => {
           const gramA = gramaturaLabel(a.gramatura, a.descricao) ?? '';
@@ -366,11 +373,11 @@ const MixProdutosPanel: React.FC<Props> = ({ open, onOpenChange }) => {
         });
     }
     return porMarca;
-  }, [filtrados, marcasComparativo]);
+  }, [comparativos, marcasComparativo]);
 
   const menorPrecoPorChave = useMemo(() => {
     const precos = new Map<string, number[]>();
-    for (const p of filtrados) {
+    for (const p of comparativos) {
       if (typeof p.preco !== 'number') continue;
       const gram = gramaturaLabel(p.gramatura, p.descricao) ?? '';
       const chave = `${(p.codigo_barras || p.codigo_interno || p.descricao).trim().toLowerCase()}|${gram.toLowerCase()}`;
@@ -381,7 +388,7 @@ const MixProdutosPanel: React.FC<Props> = ({ open, onOpenChange }) => {
       if (valores.length >= 2) menores.set(chave, Math.min(...valores));
     }
     return menores;
-  }, [filtrados]);
+  }, [comparativos]);
 
   const chaveProduto = (p: MixProduto) => {
     const gram = gramaturaLabel(p.gramatura, p.descricao) ?? '';
