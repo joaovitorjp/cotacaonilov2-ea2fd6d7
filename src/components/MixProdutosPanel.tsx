@@ -345,16 +345,20 @@ const MixProdutosPanel: React.FC<Props> = ({ open, onOpenChange }) => {
   }, [filtrados, gramFiltro]);
 
   // Estrutura visual do comparativo: classes agrupam as marcas e cada marca ocupa uma coluna.
+  // Com filtro de gramatura, marcas sem produtos naquele tamanho ficam ocultas para não poluir a planilha.
   const gruposComparativo = useMemo(() => {
+    const marcasVisiveis = marcasCat.filter(
+      m => !gramFiltro || comparativos.some(p => p.marca_id === m.id),
+    );
     const grupos: { chave: Classe | 'SEM'; label: string; marcas: Marca[] }[] = CLASSES.map(classe => ({
       chave: classe,
       label: CLASSE_LABEL[classe],
-      marcas: marcasCat.filter(m => m.classe === classe).sort((a, b) => a.nome.localeCompare(b.nome)),
+      marcas: marcasVisiveis.filter(m => m.classe === classe).sort((a, b) => a.nome.localeCompare(b.nome)),
     }));
-    const semClasse = marcasCat.filter(m => !m.classe).sort((a, b) => a.nome.localeCompare(b.nome));
+    const semClasse = marcasVisiveis.filter(m => !m.classe).sort((a, b) => a.nome.localeCompare(b.nome));
     if (semClasse.length) grupos.push({ chave: 'SEM', label: 'Sem classe', marcas: semClasse });
     return grupos.filter(grupo => grupo.marcas.length > 0);
-  }, [marcasCat]);
+  }, [marcasCat, gramFiltro, comparativos]);
 
   const marcasComparativo = useMemo(
     () => gruposComparativo.flatMap(grupo => grupo.marcas),
