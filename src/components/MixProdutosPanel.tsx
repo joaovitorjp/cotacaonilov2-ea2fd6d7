@@ -391,17 +391,35 @@ const MixProdutosPanel: React.FC<Props> = ({ open, onOpenChange }) => {
                   const itens = filtrados.filter(p => p.marca_id === m.id);
                   return (
                     <div key={m.id} className="rounded-xl border border-border bg-card">
-                      <div className="flex items-center gap-2 px-4 py-2.5 border-b border-border">
+                      <div className="flex flex-wrap items-center gap-2 px-4 py-2.5 border-b border-border">
                         <Tag className="w-4 h-4 text-primary" />
                         <span className="font-bold text-sm">{m.nome}</span>
                         <span className="text-xs text-muted-foreground">({itens.length})</span>
+                        <div className="flex items-center gap-1 ml-1">
+                          {CLASSES.map(cl => (
+                            <button
+                              key={cl}
+                              type="button"
+                              title={CLASSE_LABEL[cl]}
+                              onClick={() => definirClasse(m.id, m.classe === cl ? null : cl)}
+                              className={`h-6 min-w-[26px] px-1.5 rounded-md border text-[11px] font-bold transition-colors ${m.classe === cl ? CLASSE_STYLE[cl] : 'border-border text-muted-foreground hover:bg-muted'}`}
+                            >
+                              {cl}
+                            </button>
+                          ))}
+                          {m.classe && <span className="text-[11px] text-muted-foreground">{CLASSE_LABEL[m.classe]}</span>}
+                        </div>
                         <Button size="sm" variant="ghost" className="ml-auto" onClick={() => abrirForm(m.id)}>
                           <Plus className="w-4 h-4 mr-1" /> Produto
+                        </Button>
+                        <Button size="sm" variant="outline" disabled={importando} onClick={() => abrirImportacao(m.id)}>
+                          <Upload className="w-4 h-4 mr-1" /> {importando ? 'Importando...' : 'Importar Excel'}
                         </Button>
                         <Button size="icon" variant="ghost" className="h-8 w-8 text-destructive" onClick={() => removerMarca(m.id)}>
                           <Trash2 className="w-4 h-4" />
                         </Button>
                       </div>
+
 
                       {formMarca === m.id && (
                         <div
