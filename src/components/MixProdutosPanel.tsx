@@ -285,6 +285,73 @@ const MixProdutosPanel: React.FC<Props> = ({ open, onOpenChange }) => {
     return valores.length >= 2 ? Math.min(...valores) : null;
   };
 
+  /* ---------- análise de classes (comparativo) ---------- */
+  const analise = useMemo(() => {
+    const precoDe = (p: MixProduto) => (typeof p.preco === 'number' ? p.preco : null);
+    const media = (vals: number[]) => (vals.length ? vals.reduce((a, b) => a + b, 0) / vals.length : null);
+
+    const grupos = CLASSES.map(cl => {
+      const ms = marcasCat.filter(m => m.classe === cl);
+      const ps = produtosCat.filter(p => ms.some(m => m.id === p.marca_id));
+      const precos = ps.map(precoDe).filter((v): v is number => v !== null);
+      return {
+        classe: cl,
+        marcas: ms.length,
+        produtos: ps.length,
+        media: media(precos),
+        min: precos.length ? Math.min(...precos) : null,
+        max: precos.length ? Math.max(...precos) : null,
+      };
+    });
+
+    const semClasse = marcasCat.filter(m => !m.classe).length;
+    const totalMarcas = marcasCat.length;
+
+    // Inchaço: alguma classe concentra mais de 55% das marcas classificadas
+    const classificadas = totalMarcas - semClasse;
+    const inchaco = classificadas >= 3
+      ? grupos.filter(g => g.marcas / classificadas > 0.55).map(g => g.classe)
+      : [];
+
+    // Harmonia: média A > B > C com folga mínima de 8%
+    const gap = (maior: number | null, menor: number | null) =>
+      maior !== null && menor !== null && maior > 0 ? ((maior - menor) / maior) * 100 : null;
+    const ga = grupos.find(g => g.classe === 'A')!;
+    const gb = grupos.find(g => g.classe === 'B')!;
+    const gc = grupos.find(g => g.classe === 'C')!;
+    const gapAB = gap(ga.media, gb.media);
+    const gapBC = gap(gb.media, gc.media);
+
+    // Inversões: produto de classe inferior mais caro que a média da classe superior
+    const marcaDe = (id: string) => marcasCat.find(m => m.id === id);
+    const inversoes = produtosCat
+      .map(p => {
+        const m = marcaDe(p.marca_id);
+        const preco = precoDe(p);
+        if (!m?.classe || preco === null) return null;
+        if (m.classe === 'C' && ga.media !== null && preco > ga.media) return { p, m, ref: 'média da Classe A', valor: ga.media };
+        if (m.classe === 'C' && gb.media !== null && preco > gb.media) return { p, m, ref: 'média da Classe B', valor: gb.media };
+        if (m.classe === 'B' && ga.media !== null && preco > ga.media) return { p, m, ref: 'média da Classe A', valor: ga.media };
+        return null;
+      })
+      .filter((v): v is { p: MixProduto; m: Marca; ref: string; valor: number } => v !== null)
+      .sort((a, b) => (b.p.preco ?? 0) - (a.p.preco ?? 0));
+
+    // Variedade por marca (fragrâncias/sabores = itens distintos da marca)
+    const variedade = marcasCat
+      .map(m => ({ marca: m, itens: produtosCat.filter(p => p.marca_id === m.id).length }))
+      .sort((a, b) => b.itens - a.itens);
+    const topItens = variedade[0]?.itens ?? 0;
+    const mediaItens = variedade.length
+      ? variedade.reduce((s, v) => s + v.itens, 0) / variedade.length
+      : 0;
+    const defasadas = variedade.filter(v => topItens >= 3 && v.itens < Math.max(2, mediaItens * 0.6));
+
+    return { grupos, semClasse, totalMarcas, inchaco, gapAB, gapBC, inversoes, variedade, mediaItens, defasadas };
+  }, [marcasCat, produtosCat]);
+
+  const pct = (v: number | null) => (v === null ? '—' : `${v.toFixed(0)}%`);
+
   const catNome = categorias.find(c => c.id === catSel)?.nome ?? '';
 
   return (
