@@ -75,8 +75,9 @@ const MixProdutosPanel: React.FC<Props> = ({ open, onOpenChange }) => {
     setLoading(true);
     const [cats, mks, prods] = await Promise.all([
       supabase.from('mix_categorias').select('id,nome').eq('user_id', user.id).order('nome'),
-      supabase.from('mix_marcas').select('id,categoria_id,nome').eq('user_id', user.id).order('nome'),
-      supabase.from('mix_produtos').select('id,categoria_id,marca_id,descricao,codigo_barras,preco,imagem_url').eq('user_id', user.id).order('descricao'),
+      supabase.from('mix_marcas').select('id,categoria_id,nome,classe').eq('user_id', user.id).order('nome'),
+      supabase.from('mix_produtos').select('id,categoria_id,marca_id,descricao,codigo_barras,codigo_interno,preco,imagem_url').eq('user_id', user.id).order('descricao'),
+
     ]);
     const listaCats = (cats.data ?? []) as Categoria[];
     setCategorias(listaCats);
