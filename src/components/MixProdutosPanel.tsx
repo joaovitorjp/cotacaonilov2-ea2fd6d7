@@ -509,7 +509,15 @@ const MixProdutosPanel: React.FC<Props> = ({ open, onOpenChange }) => {
                           <th className="border border-border px-3 py-2 text-left font-bold min-w-[260px]">Produto</th>
                           <th className="border border-border px-3 py-2 text-left font-bold min-w-[150px]">Código de barras</th>
                           {marcasCat.map(m => (
-                            <th key={m.id} className="border border-border px-3 py-2 text-center font-bold min-w-[130px]">{m.nome}</th>
+                            <th key={m.id} className="border border-border px-3 py-2 text-center font-bold min-w-[130px]">
+                              <div className="flex items-center justify-center gap-1.5">
+                                <span>{m.nome}</span>
+                                {m.classe && (
+                                  <span className={`px-1.5 rounded border text-[10px] font-bold ${CLASSE_STYLE[m.classe]}`}>{m.classe}</span>
+                                )}
+                              </div>
+                            </th>
+
                           ))}
                         </tr>
                       </thead>
