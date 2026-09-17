@@ -423,7 +423,7 @@ const MixProdutosPanel: React.FC<Props> = ({ open, onOpenChange }) => {
 
                       {formMarca === m.id && (
                         <div
-                          className="p-4 border-b border-border bg-muted/40 grid gap-2 sm:grid-cols-[96px_1fr_180px_140px_auto] items-start"
+                          className="p-4 border-b border-border bg-muted/40 grid gap-2 sm:grid-cols-[96px_1fr_160px_150px_130px_auto] items-start"
                           onPaste={e => anexarImagem(imageFromTransfer(e.clipboardData))}
                           onDrop={e => { e.preventDefault(); anexarImagem(imageFromTransfer(e.dataTransfer)); }}
                           onDragOver={e => e.preventDefault()}
