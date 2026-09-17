@@ -616,42 +616,65 @@ const Index = () => {
           </div>
 
           {/* Desktop nav - Refined */}
-          <div className="hidden md:flex items-center gap-3 min-w-0">
-            <div className="flex items-center gap-3 min-w-0 overflow-x-auto no-scrollbar">
-              {navItems.slice(1).filter(i => i.label !== 'Perfil').map(item => (
-                <Button
-                  key={item.label}
-                  variant={item.label === 'Gerar Link' ? 'default' : 'ghost'}
-                  size="sm"
-                  onClick={item.action}
-                  disabled={item.disabled}
-                  className={`relative shrink-0 text-xs font-bold rounded-xl h-9 ${
-                    item.label === 'Gerar Link'
-                      ? 'bg-slate-900 hover:bg-slate-800 text-white shadow-sm'
-                      : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
-                  } ${item.disabled ? 'opacity-30' : ''}`}
-                >
-                  <item.icon className="w-3.5 h-3.5 mr-2" />
-                  {item.label}
-                  {!!item.badge && (
-                    <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] px-1 rounded-full bg-red-500 text-white text-[10px] font-black flex items-center justify-center shadow">
-                      {item.badge > 9 ? '9+' : item.badge}
-                    </span>
-                  )}
+          <div className="hidden lg:flex items-center gap-2 min-w-0">
+            {primaryItems.map(item => (
+              <Button
+                key={item.label}
+                variant={item.label === 'Gerar Link' ? 'default' : 'ghost'}
+                size="sm"
+                onClick={item.action}
+                disabled={item.disabled}
+                className={`relative shrink-0 text-xs font-bold rounded-xl h-9 ${
+                  item.label === 'Gerar Link'
+                    ? 'bg-slate-900 hover:bg-slate-800 text-white shadow-sm'
+                    : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
+                } ${item.disabled ? 'opacity-30' : ''}`}
+              >
+                <item.icon className="w-3.5 h-3.5 mr-2" />
+                {item.label}
+                {!!item.badge && (
+                  <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] px-1 rounded-full bg-red-500 text-white text-[10px] font-black flex items-center justify-center shadow">
+                    {item.badge > 9 ? '9+' : item.badge}
+                  </span>
+                )}
+              </Button>
+            ))}
+
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" size="sm" className="shrink-0 text-xs font-bold rounded-xl h-9 text-slate-600 hover:bg-slate-50 hover:text-slate-900">
+                  Mais
+                  <ChevronDown className="w-3.5 h-3.5 ml-1.5" />
                 </Button>
-              ))}
-            </div>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-52">
+                <DropdownMenuLabel>Outras opções</DropdownMenuLabel>
+                {secondaryItems.map(item => (
+                  <DropdownMenuItem
+                    key={item.label}
+                    onClick={item.action}
+                    disabled={item.disabled}
+                    className="gap-2 cursor-pointer"
+                  >
+                    <item.icon className="w-4 h-4" />
+                    {item.label}
+                  </DropdownMenuItem>
+                ))}
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={signOut} className="gap-2 cursor-pointer text-red-600 focus:text-red-600">
+                  <LogOut className="w-4 h-4" />
+                  Sair da Conta
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+
             <AccessStatusBadge />
             <LanguageSwitcher variant="subtle" className="shrink-0" />
             <HeaderAvatarButton onClick={() => setPerfilOpen(true)} />
-            <div className="w-px h-5 bg-slate-200 mx-2 shrink-0" />
-            <Button variant="ghost" size="icon" onClick={signOut} title="Sair" className="shrink-0 hover:bg-red-50 hover:text-red-600 rounded-full transition-colors w-9 h-9">
-              <LogOut className="h-4 w-4" />
-            </Button>
           </div>
 
           {/* Mobile menu toggle */}
-          <div className="flex md:hidden items-center gap-2 shrink-0">
+          <div className="flex lg:hidden items-center gap-2 shrink-0">
             <LanguageSwitcher variant="subtle" className="shrink-0" />
             <HeaderAvatarButton onClick={() => { setPerfilOpen(true); setMobileMenuOpen(false); }} />
             <Button variant="ghost" size="icon" onClick={() => setMobileMenuOpen(!mobileMenuOpen)} className="w-9 h-9 rounded-xl shrink-0">
