@@ -270,8 +270,9 @@ const MixProdutosPanel: React.FC<Props> = ({ open, onOpenChange }) => {
   const linhas = useMemo(() => {
     const map = new Map<string, { chave: string; descricao: string; codigo: string; imagem: string | null; porMarca: Record<string, MixProduto> }>();
     for (const p of filtrados) {
-      const chave = (p.codigo_barras || p.descricao).trim().toLowerCase();
-      const atual = map.get(chave) ?? { chave, descricao: p.descricao, codigo: p.codigo_barras, imagem: p.imagem_url, porMarca: {} };
+      const chave = (p.codigo_barras || p.codigo_interno || p.descricao).trim().toLowerCase();
+      const atual = map.get(chave) ?? { chave, descricao: p.descricao, codigo: p.codigo_barras || p.codigo_interno || '', imagem: p.imagem_url, porMarca: {} };
+
       atual.imagem = atual.imagem ?? p.imagem_url;
       atual.porMarca[p.marca_id] = p;
       map.set(chave, atual);
