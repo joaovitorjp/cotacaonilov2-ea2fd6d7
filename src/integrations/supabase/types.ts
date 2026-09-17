@@ -694,6 +694,7 @@ export type Database = {
       mix_marcas: {
         Row: {
           categoria_id: string
+          classe: string | null
           created_at: string
           id: string
           nome: string
@@ -701,6 +702,7 @@ export type Database = {
         }
         Insert: {
           categoria_id: string
+          classe?: string | null
           created_at?: string
           id?: string
           nome: string
@@ -708,6 +710,7 @@ export type Database = {
         }
         Update: {
           categoria_id?: string
+          classe?: string | null
           created_at?: string
           id?: string
           nome?: string
@@ -727,6 +730,7 @@ export type Database = {
         Row: {
           categoria_id: string
           codigo_barras: string
+          codigo_interno: string | null
           created_at: string
           descricao: string
           id: string
@@ -738,6 +742,7 @@ export type Database = {
         Insert: {
           categoria_id: string
           codigo_barras?: string
+          codigo_interno?: string | null
           created_at?: string
           descricao?: string
           id?: string
@@ -749,6 +754,7 @@ export type Database = {
         Update: {
           categoria_id?: string
           codigo_barras?: string
+          codigo_interno?: string | null
           created_at?: string
           descricao?: string
           id?: string
