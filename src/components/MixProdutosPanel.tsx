@@ -7,6 +7,7 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from '
 import { toast } from 'sonner';
 import { Plus, Trash2, Package, Tag, Search, ImagePlus, Pencil, Check, X, Table as TableIcon, LayoutGrid, Upload, Copy } from 'lucide-react';
 import { prepareMixImage, imageFromTransfer, parsePrecoBR, formatPrecoBR } from '@/lib/mix-image';
+import { gramaturaLabel, ordenarGramaturas } from '@/lib/gramatura';
 import * as XLSX from 'xlsx';
 
 type Classe = 'A' | 'B' | 'C';
