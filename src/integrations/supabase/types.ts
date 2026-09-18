@@ -238,6 +238,38 @@ export type Database = {
         }
         Relationships: []
       }
+      cotacao_shares: {
+        Row: {
+          created_at: string
+          id: string
+          lista_id: string
+          token: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          lista_id: string
+          token?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          lista_id?: string
+          token?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cotacao_shares_lista_id_fkey"
+            columns: ["lista_id"]
+            isOneToOne: false
+            referencedRelation: "listas"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       empresas: {
         Row: {
           cnpj: string | null
@@ -1083,6 +1115,7 @@ export type Database = {
         Args: { _resposta: Json; _token: string }
         Returns: string
       }
+      get_cotacao_compartilhada: { Args: { _token: string }; Returns: Json }
       get_cotacao_por_token: { Args: { _token: string }; Returns: Json }
       has_role: {
         Args: {
