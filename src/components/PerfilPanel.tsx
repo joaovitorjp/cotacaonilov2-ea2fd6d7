@@ -274,6 +274,67 @@ const PerfilPanel: React.FC<PerfilPanelProps> = ({ open, onOpenChange }) => {
               </div>
             </div>
 
+            {/* Alterar senha */}
+            <div className="space-y-4 rounded-xl border border-border/70 p-4">
+              <div className="flex items-center gap-2">
+                <KeyRound className="w-4 h-4 text-primary" />
+                <h3 className="text-sm font-semibold text-foreground/80">Alterar senha</h3>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="senha-atual" className="text-xs">Senha atual</Label>
+                <Input
+                  id="senha-atual"
+                  type="password"
+                  autoComplete="current-password"
+                  value={senhaAtual}
+                  onChange={e => setSenhaAtual(e.target.value)}
+                  placeholder="Sua senha atual"
+                  className="h-10"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="senha-nova" className="text-xs">Nova senha</Label>
+                <Input
+                  id="senha-nova"
+                  type="password"
+                  autoComplete="new-password"
+                  value={senhaNova}
+                  onChange={e => setSenhaNova(e.target.value)}
+                  placeholder="Mínimo de 6 caracteres"
+                  className="h-10"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="senha-confirma" className="text-xs">Confirmar nova senha</Label>
+                <Input
+                  id="senha-confirma"
+                  type="password"
+                  autoComplete="new-password"
+                  value={senhaConfirma}
+                  onChange={e => setSenhaConfirma(e.target.value)}
+                  placeholder="Repita a nova senha"
+                  className="h-10"
+                  onKeyDown={e => { if (e.key === 'Enter') void alterarSenha(); }}
+                />
+              </div>
+
+              <Button
+                variant="outline"
+                onClick={alterarSenha}
+                disabled={alterandoSenha}
+                className="w-full h-10"
+              >
+                {alterandoSenha ? (
+                  <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Alterando...</>
+                ) : (
+                  'Alterar senha'
+                )}
+              </Button>
+            </div>
+
             {/* Ações de Rodapé */}
             <div className="space-y-3 pt-4">
               <Button 
