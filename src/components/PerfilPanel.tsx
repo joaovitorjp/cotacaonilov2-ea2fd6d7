@@ -8,7 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from '@/components/ui/sheet';
 import { toast } from 'sonner';
-import { LogOut, User as UserIcon, Camera, Trash2, Loader2 } from 'lucide-react';
+import { LogOut, User as UserIcon, Camera, Trash2, Loader2, KeyRound } from 'lucide-react';
 
 interface PerfilPanelProps {
   open: boolean;
@@ -27,6 +27,40 @@ const PerfilPanel: React.FC<PerfilPanelProps> = ({ open, onOpenChange }) => {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const [senhaAtual, setSenhaAtual] = useState('');
+  const [senhaNova, setSenhaNova] = useState('');
+  const [senhaConfirma, setSenhaConfirma] = useState('');
+  const [alterandoSenha, setAlterandoSenha] = useState(false);
+
+  const alterarSenha = async () => {
+    if (!senhaAtual) {
+      toast.error('Informe sua senha atual.');
+      return;
+    }
+    if (senhaNova.length < 6) {
+      toast.error('A nova senha deve ter pelo menos 6 caracteres.');
+      return;
+    }
+    if (senhaNova !== senhaConfirma) {
+      toast.error('A confirmação da nova senha não confere.');
+      return;
+    }
+    setAlterandoSenha(true);
+    const { error } = await supabase.auth.updateUser({
+      password: senhaNova,
+      // aceito pelo backend para validar a senha atual
+      current_password: senhaAtual,
+    } as any);
+    setAlterandoSenha(false);
+    if (error) {
+      toast.error(error.message || 'Não foi possível alterar a senha.');
+      return;
+    }
+    setSenhaAtual('');
+    setSenhaNova('');
+    setSenhaConfirma('');
+    toast.success('Senha alterada com sucesso!');
+  };
 
   useEffect(() => {
     if (!open || !user) return;
@@ -238,6 +272,67 @@ const PerfilPanel: React.FC<PerfilPanelProps> = ({ open, onOpenChange }) => {
                   O e-mail é a chave da sua conta e não pode ser alterado por motivos de segurança.
                 </p>
               </div>
+            </div>
+
+            {/* Alterar senha */}
+            <div className="space-y-4 rounded-xl border border-border/70 p-4">
+              <div className="flex items-center gap-2">
+                <KeyRound className="w-4 h-4 text-primary" />
+                <h3 className="text-sm font-semibold text-foreground/80">Alterar senha</h3>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="senha-atual" className="text-xs">Senha atual</Label>
+                <Input
+                  id="senha-atual"
+                  type="password"
+                  autoComplete="current-password"
+                  value={senhaAtual}
+                  onChange={e => setSenhaAtual(e.target.value)}
+                  placeholder="Sua senha atual"
+                  className="h-10"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="senha-nova" className="text-xs">Nova senha</Label>
+                <Input
+                  id="senha-nova"
+                  type="password"
+                  autoComplete="new-password"
+                  value={senhaNova}
+                  onChange={e => setSenhaNova(e.target.value)}
+                  placeholder="Mínimo de 6 caracteres"
+                  className="h-10"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="senha-confirma" className="text-xs">Confirmar nova senha</Label>
+                <Input
+                  id="senha-confirma"
+                  type="password"
+                  autoComplete="new-password"
+                  value={senhaConfirma}
+                  onChange={e => setSenhaConfirma(e.target.value)}
+                  placeholder="Repita a nova senha"
+                  className="h-10"
+                  onKeyDown={e => { if (e.key === 'Enter') void alterarSenha(); }}
+                />
+              </div>
+
+              <Button
+                variant="outline"
+                onClick={alterarSenha}
+                disabled={alterandoSenha}
+                className="w-full h-10"
+              >
+                {alterandoSenha ? (
+                  <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Alterando...</>
+                ) : (
+                  'Alterar senha'
+                )}
+              </Button>
             </div>
 
             {/* Ações de Rodapé */}
