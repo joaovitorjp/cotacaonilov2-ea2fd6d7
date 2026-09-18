@@ -27,6 +27,40 @@ const PerfilPanel: React.FC<PerfilPanelProps> = ({ open, onOpenChange }) => {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const [senhaAtual, setSenhaAtual] = useState('');
+  const [senhaNova, setSenhaNova] = useState('');
+  const [senhaConfirma, setSenhaConfirma] = useState('');
+  const [alterandoSenha, setAlterandoSenha] = useState(false);
+
+  const alterarSenha = async () => {
+    if (!senhaAtual) {
+      toast.error('Informe sua senha atual.');
+      return;
+    }
+    if (senhaNova.length < 6) {
+      toast.error('A nova senha deve ter pelo menos 6 caracteres.');
+      return;
+    }
+    if (senhaNova !== senhaConfirma) {
+      toast.error('A confirmação da nova senha não confere.');
+      return;
+    }
+    setAlterandoSenha(true);
+    const { error } = await supabase.auth.updateUser({
+      password: senhaNova,
+      // aceito pelo backend para validar a senha atual
+      current_password: senhaAtual,
+    } as any);
+    setAlterandoSenha(false);
+    if (error) {
+      toast.error(error.message || 'Não foi possível alterar a senha.');
+      return;
+    }
+    setSenhaAtual('');
+    setSenhaNova('');
+    setSenhaConfirma('');
+    toast.success('Senha alterada com sucesso!');
+  };
 
   useEffect(() => {
     if (!open || !user) return;
