@@ -27,7 +27,17 @@ export const useUserRole = () => {
 
       if (cancelled) return;
       const roles = (data ?? []).map((r: any) => r.role as AppRole);
-      setRole(roles.includes('admin') ? 'admin' : 'user');
+      let admin = roles.includes('admin');
+
+      // Fallback: em alguns domínios a leitura direta de user_roles pode falhar
+      // (RLS/cache). A RPC de status também informa se o usuário é admin.
+      if (!admin) {
+        const { data: status } = await supabase.rpc('meu_status_acesso' as any);
+        if (cancelled) return;
+        admin = (status as any)?.admin === true;
+      }
+
+      setRole(admin ? 'admin' : 'user');
       setLoading(false);
     })();
 
