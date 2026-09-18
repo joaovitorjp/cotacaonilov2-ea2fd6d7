@@ -8,7 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from '@/components/ui/sheet';
 import { toast } from 'sonner';
-import { LogOut, User as UserIcon, Camera, Trash2, Loader2 } from 'lucide-react';
+import { LogOut, User as UserIcon, Camera, Trash2, Loader2, KeyRound } from 'lucide-react';
 
 interface PerfilPanelProps {
   open: boolean;
