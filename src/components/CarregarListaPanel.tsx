@@ -11,8 +11,9 @@ import {
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
-import { Trash2, Copy, Pencil, Download, FileSpreadsheet, Package, Users, Calendar, Search } from 'lucide-react';
+import { Trash2, Copy, Pencil, Download, FileSpreadsheet, Package, Users, Calendar, Search, Share2 } from 'lucide-react';
 import { ufsDaResposta, getPrecoUF, buildPrecosPayload } from '@/lib/estados';
+import { getPublicBaseUrl } from '@/lib/public-url';
 
 interface Lista {
   id: string;

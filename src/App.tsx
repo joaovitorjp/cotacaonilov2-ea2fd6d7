@@ -8,6 +8,7 @@ import ProtectedRoute from "@/components/ProtectedRoute";
 import Index from "./pages/Index.tsx";
 import Login from "./pages/Login.tsx";
 import CotacaoResposta from "./pages/CotacaoResposta.tsx";
+import CotacaoPublica from "./pages/CotacaoPublica.tsx";
 import OAuthCallback from "./pages/OAuthCallback.tsx";
 import OAuthConsent from "./pages/OAuthConsent.tsx";
 import Perfil from "./pages/Perfil.tsx";
@@ -34,6 +35,7 @@ const App = () => (
             <Route path="/auth/callback" element={<OAuthCallback />} />
             <Route path="/.lovable/oauth/consent" element={<OAuthConsent />} />
             <Route path="/cotacao/:token" element={<CotacaoResposta />} />
+            <Route path="/ver/:token" element={<CotacaoPublica />} />
             {/* Rotas protegidas */}
             <Route
               path="/"
