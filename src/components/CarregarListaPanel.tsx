@@ -463,6 +463,17 @@ const CarregarListaPanel: React.FC<CarregarListaPanelProps> = ({
                           </button>
                         </>
                       )}
+                      {statusFilter === 'finalizada' && (
+                        <button
+                          onClick={() => handleShare(lista)}
+                          disabled={sharing === lista.id}
+                          className="p-1.5 rounded hover:bg-muted text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1 disabled:opacity-50"
+                          title="Compartilhar para visualização"
+                        >
+                          <Share2 className="w-3.5 h-3.5" />
+                          <span className="text-[11px] font-display">Compartilhar</span>
+                        </button>
+                      )}
 
                       <div className="flex-1" />
                       <button
