@@ -60,6 +60,46 @@ const CarregarListaPanel: React.FC<CarregarListaPanelProps> = ({
   const [csvEmpresas, setCsvEmpresas] = useState<string[]>([]);
   const [csvEmpresaSel, setCsvEmpresaSel] = useState<string>('__todos__');
   const [searchTerm, setSearchTerm] = useState('');
+  const [shareTarget, setShareTarget] = useState<{ lista: Lista; url: string } | null>(null);
+  const [sharing, setSharing] = useState<string | null>(null);
+
+  /** Cria (ou reaproveita) o link público somente-leitura de uma cotação. */
+  const handleShare = async (lista: Lista) => {
+    if (!user?.id) return;
+    setSharing(lista.id);
+    try {
+      const { data: existente } = await (supabase as any)
+        .from('cotacao_shares')
+        .select('token')
+        .eq('lista_id', lista.id)
+        .eq('user_id', user.id)
+        .maybeSingle();
+
+      let token: string | undefined = existente?.token;
+      if (!token) {
+        const { data, error } = await (supabase as any)
+          .from('cotacao_shares')
+          .insert({ lista_id: lista.id, user_id: user.id })
+          .select('token')
+          .single();
+        if (error || !data) throw error;
+        token = data.token;
+      }
+
+      const url = `${getPublicBaseUrl()}/ver/${token}`;
+      try {
+        await navigator.clipboard.writeText(url);
+        toast.success('Link de visualização copiado!');
+      } catch {
+        toast.message('Link de visualização gerado.');
+      }
+      setShareTarget({ lista, url });
+    } catch {
+      toast.error('Erro ao gerar link de compartilhamento.');
+    } finally {
+      setSharing(null);
+    }
+  };
 
   const openCsvDialog = async (lista: Lista, formato: 'ciss' | 'consinco') => {
     setCsvTarget({ lista, formato });
