@@ -492,6 +492,39 @@ const CarregarListaPanel: React.FC<CarregarListaPanelProps> = ({
         </SheetContent>
       </Sheet>
 
+      {/* Share dialog */}
+      <Dialog open={!!shareTarget} onOpenChange={(o) => { if (!o) setShareTarget(null); }}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Compartilhar cotação</DialogTitle>
+            <DialogDescription>
+              Qualquer pessoa com este link pode visualizar "{shareTarget?.lista.nome}", sem precisar de cadastro. A visualização é somente leitura.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex items-center gap-2 py-2">
+            <Input readOnly value={shareTarget?.url ?? ''} onFocus={e => e.currentTarget.select()} />
+            <Button
+              variant="outline"
+              onClick={async () => {
+                if (!shareTarget) return;
+                try {
+                  await navigator.clipboard.writeText(shareTarget.url);
+                  toast.success('Link copiado!');
+                } catch {
+                  toast.error('Não foi possível copiar. Selecione e copie manualmente.');
+                }
+              }}
+            >
+              Copiar
+            </Button>
+          </div>
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setShareTarget(null)}>Fechar</Button>
+            <Button onClick={() => shareTarget && window.open(shareTarget.url, '_blank')}>Abrir</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       {/* Delete confirmation */}
       <AlertDialog open={!!deleteTarget} onOpenChange={(o) => !o && setDeleteTarget(null)}>
         <AlertDialogContent>
