@@ -11,8 +11,9 @@ import {
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
-import { Trash2, Copy, Pencil, Download, FileSpreadsheet, Package, Users, Calendar, Search } from 'lucide-react';
+import { Trash2, Copy, Pencil, Download, FileSpreadsheet, Package, Users, Calendar, Search, Share2 } from 'lucide-react';
 import { ufsDaResposta, getPrecoUF, buildPrecosPayload } from '@/lib/estados';
+import { getPublicBaseUrl } from '@/lib/public-url';
 
 interface Lista {
   id: string;
@@ -59,6 +60,46 @@ const CarregarListaPanel: React.FC<CarregarListaPanelProps> = ({
   const [csvEmpresas, setCsvEmpresas] = useState<string[]>([]);
   const [csvEmpresaSel, setCsvEmpresaSel] = useState<string>('__todos__');
   const [searchTerm, setSearchTerm] = useState('');
+  const [shareTarget, setShareTarget] = useState<{ lista: Lista; url: string } | null>(null);
+  const [sharing, setSharing] = useState<string | null>(null);
+
+  /** Cria (ou reaproveita) o link público somente-leitura de uma cotação. */
+  const handleShare = async (lista: Lista) => {
+    if (!user?.id) return;
+    setSharing(lista.id);
+    try {
+      const { data: existente } = await (supabase as any)
+        .from('cotacao_shares')
+        .select('token')
+        .eq('lista_id', lista.id)
+        .eq('user_id', user.id)
+        .maybeSingle();
+
+      let token: string | undefined = existente?.token;
+      if (!token) {
+        const { data, error } = await (supabase as any)
+          .from('cotacao_shares')
+          .insert({ lista_id: lista.id, user_id: user.id })
+          .select('token')
+          .single();
+        if (error || !data) throw error;
+        token = data.token;
+      }
+
+      const url = `${getPublicBaseUrl()}/ver/${token}`;
+      try {
+        await navigator.clipboard.writeText(url);
+        toast.success('Link de visualização copiado!');
+      } catch {
+        toast.message('Link de visualização gerado.');
+      }
+      setShareTarget({ lista, url });
+    } catch {
+      toast.error('Erro ao gerar link de compartilhamento.');
+    } finally {
+      setSharing(null);
+    }
+  };
 
   const openCsvDialog = async (lista: Lista, formato: 'ciss' | 'consinco') => {
     setCsvTarget({ lista, formato });
@@ -422,6 +463,17 @@ const CarregarListaPanel: React.FC<CarregarListaPanelProps> = ({
                           </button>
                         </>
                       )}
+                      {statusFilter === 'finalizada' && (
+                        <button
+                          onClick={() => handleShare(lista)}
+                          disabled={sharing === lista.id}
+                          className="p-1.5 rounded hover:bg-muted text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1 disabled:opacity-50"
+                          title="Compartilhar para visualização"
+                        >
+                          <Share2 className="w-3.5 h-3.5" />
+                          <span className="text-[11px] font-display">Compartilhar</span>
+                        </button>
+                      )}
 
                       <div className="flex-1" />
                       <button
@@ -439,6 +491,39 @@ const CarregarListaPanel: React.FC<CarregarListaPanelProps> = ({
           </div>
         </SheetContent>
       </Sheet>
+
+      {/* Share dialog */}
+      <Dialog open={!!shareTarget} onOpenChange={(o) => { if (!o) setShareTarget(null); }}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Compartilhar cotação</DialogTitle>
+            <DialogDescription>
+              Qualquer pessoa com este link pode visualizar "{shareTarget?.lista.nome}", sem precisar de cadastro. A visualização é somente leitura.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex items-center gap-2 py-2">
+            <Input readOnly value={shareTarget?.url ?? ''} onFocus={e => e.currentTarget.select()} />
+            <Button
+              variant="outline"
+              onClick={async () => {
+                if (!shareTarget) return;
+                try {
+                  await navigator.clipboard.writeText(shareTarget.url);
+                  toast.success('Link copiado!');
+                } catch {
+                  toast.error('Não foi possível copiar. Selecione e copie manualmente.');
+                }
+              }}
+            >
+              Copiar
+            </Button>
+          </div>
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setShareTarget(null)}>Fechar</Button>
+            <Button onClick={() => shareTarget && window.open(shareTarget.url, '_blank')}>Abrir</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Delete confirmation */}
       <AlertDialog open={!!deleteTarget} onOpenChange={(o) => !o && setDeleteTarget(null)}>
