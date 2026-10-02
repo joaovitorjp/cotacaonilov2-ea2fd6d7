@@ -174,6 +174,46 @@ const ImportListaPanel: React.FC<ImportListaPanelProps> = ({ open, onOpenChange,
           <Button onClick={handleImport} disabled={loading || !file || !nome.trim()} className="w-full">
             {loading ? 'Importando...' : 'Importar Lista'}
           </Button>
+
+          <div className="border-t border-border pt-4 space-y-2">
+            <label className="text-sm font-display font-bold text-foreground">Ou monte a lista com os produtos da sua rede</label>
+            <Input value={busca} onChange={e => setBusca(e.target.value)} placeholder="Pesquisar por descrição ou código de barras" />
+            {resultados.length > 0 && (
+              <div className="max-h-48 overflow-y-auto border border-border rounded divide-y divide-border">
+                {resultados.map(p => {
+                  const ja = selecionados.some(s => s.id === p.id);
+                  return (
+                    <button key={p.id} type="button" disabled={ja}
+                      onClick={() => setSelecionados(prev => [...prev, p])}
+                      className="w-full text-left px-3 py-2 text-xs hover:bg-muted disabled:opacity-50">
+                      <span className="font-bold">{p.descricao}</span>
+                      <span className="text-muted-foreground ml-2">{p.codigo_barras}</span>
+                      {ja ? <span className="ml-2 text-success">adicionado</span> : <span className="ml-2 text-primary">+ adicionar</span>}
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+            {busca.trim().length >= 2 && resultados.length === 0 && (
+              <p className="text-[11px] text-muted-foreground">Nenhum produto encontrado na base da sua rede.</p>
+            )}
+            {selecionados.length > 0 && (
+              <div className="space-y-1">
+                <p className="text-xs font-bold">{selecionados.length} produto(s) selecionado(s)</p>
+                <div className="max-h-48 overflow-y-auto border border-border rounded divide-y divide-border">
+                  {selecionados.map(p => (
+                    <div key={p.id} className="flex items-center justify-between px-3 py-1.5 text-xs">
+                      <span>{p.descricao} <span className="text-muted-foreground">{p.codigo_barras}</span></span>
+                      <button type="button" className="text-destructive" onClick={() => setSelecionados(prev => prev.filter(s => s.id !== p.id))}>✕</button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+            <Button variant="secondary" onClick={criarDoSistema} disabled={loading || !nome.trim() || !selecionados.length} className="w-full">
+              Criar cotação com produtos selecionados
+            </Button>
+          </div>
         </div>
       </SheetContent>
     </Sheet>
