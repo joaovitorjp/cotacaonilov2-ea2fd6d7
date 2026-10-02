@@ -124,14 +124,14 @@ const ImportListaPanel: React.FC<ImportListaPanelProps> = ({ open, onOpenChange,
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent side="right" className="w-[40vw] min-w-[360px] sm:max-w-none">
+      <SheetContent side="right" className="w-[40vw] min-w-[360px] sm:max-w-none flex flex-col gap-0">
         <SheetHeader>
           <SheetTitle className="font-display">Importar Lista</SheetTitle>
           <SheetDescription>
             Anexe um arquivo .xls ou .xlsx com as colunas: Código Interno (A), Descrição (B), Código de Barras (C), Categoria (D - opcional), Observação (E - opcional).
           </SheetDescription>
         </SheetHeader>
-        <div className="mt-6 space-y-4">
+        <div className="mt-6 space-y-4 flex-1 overflow-y-auto min-h-0 pr-1">
           <div>
             <label className="text-sm font-display font-bold text-foreground">Nome da Lista</label>
             <Input
