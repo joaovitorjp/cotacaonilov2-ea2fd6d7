@@ -409,6 +409,38 @@ const AdminPanel: React.FC = () => {
                           onClick={() => updateRede(r, { blocked_at: r.blocked_at ? null : new Date().toISOString() }, r.blocked_at ? 'desbloquear_rede' : 'bloquear_rede')}>
                           {r.blocked_at ? 'Desbloquear' : 'Bloquear'}
                         </Button>
+                        <label className="text-xs font-bold rounded-lg px-2 py-1.5 cursor-pointer text-primary hover:bg-primary/10" title="Excel: coluna A = descrição, coluna B = código de barras">
+                          Importar produtos
+                          <input type="file" accept=".xls,.xlsx" className="hidden"
+                            onChange={async e => {
+                              const file = e.target.files?.[0];
+                              e.target.value = '';
+                              if (!file) return;
+                              try {
+                                const XLSX = await import('xlsx');
+                                const wb = XLSX.read(await file.arrayBuffer(), { type: 'array' });
+                                const rows: any[][] = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { header: 1 });
+                                const itens = rows
+                                  .map(row => ({ descricao: String(row[0] ?? '').trim(), codigo_barras: String(row[1] ?? '').trim() }))
+                                  .filter((p, i) => p.descricao && !(i === 0 && /descri/i.test(p.descricao)))
+                                  .map(p => ({ ...p, network_id: r.id }));
+                                if (!itens.length) { toast.error('Nenhum produto encontrado.'); return; }
+                                const substituir = window.confirm(`${itens.length} produtos encontrados para "${r.name}".\n\nOK = substituir a base atual da rede\nCancelar = adicionar à base atual`);
+                                if (substituir) {
+                                  const { error: delErr } = await supabase.from('network_products' as any).delete().eq('network_id', r.id);
+                                  if (delErr) throw delErr;
+                                }
+                                for (let i = 0; i < itens.length; i += 1000) {
+                                  const { error } = await supabase.from('network_products' as any).insert(itens.slice(i, i + 1000) as any);
+                                  if (error) throw error;
+                                }
+                                await registrar('importar_produtos_rede', r.id, { nome: r.name, total: itens.length, substituir });
+                                toast.success(`${itens.length} produtos importados para a rede.`);
+                              } catch (err: any) {
+                                toast.error('Falha na importação: ' + (err?.message ?? err));
+                              }
+                            }} />
+                        </label>
                         <Button size="sm" variant="ghost" className="text-xs rounded-lg text-red-600"
                           onClick={async () => {
                             if (membros.length > 0) { toast.error('Desvincule os usuários antes de excluir.'); return; }

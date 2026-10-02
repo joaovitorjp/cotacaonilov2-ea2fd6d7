@@ -22,6 +22,41 @@ const ImportListaPanel: React.FC<ImportListaPanelProps> = ({ open, onOpenChange,
   const [loading, setLoading] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
 
+  const [busca, setBusca] = useState('');
+  const [resultados, setResultados] = useState<{ id: string; descricao: string; codigo_barras: string }[]>([]);
+  const [selecionados, setSelecionados] = useState<{ id: string; descricao: string; codigo_barras: string }[]>([]);
+
+  React.useEffect(() => {
+    const termo = busca.trim();
+    if (termo.length < 2) { setResultados([]); return; }
+    const t = setTimeout(async () => {
+      const safe = termo.replace(/[%,()]/g, ' ');
+      const { data } = await supabase.from('network_products' as any)
+        .select('id,descricao,codigo_barras')
+        .or(`descricao.ilike.%${safe}%,codigo_barras.ilike.%${safe}%`)
+        .order('descricao').limit(30);
+      setResultados((data as any) ?? []);
+    }, 300);
+    return () => clearTimeout(t);
+  }, [busca]);
+
+  const criarDoSistema = async () => {
+    if (!nome.trim() || !selecionados.length) { toast.error('Informe o nome e adicione produtos.'); return; }
+    setLoading(true);
+    const insertData: any = {
+      nome: nome.trim(), status: 'aberta', user_id: user?.id,
+      produtos: selecionados.map(p => ({ codigo_interno: '', descricao: p.descricao, codigo_barras: p.codigo_barras, categoria: '', observacao: '' })),
+    };
+    if (prazo) insertData.prazo = new Date(`${prazo}T${prazoHora || '23:59'}:00`).toISOString();
+    const { error } = await supabase.from('listas').insert(insertData);
+    setLoading(false);
+    if (error) { toast.error('Erro ao criar: ' + error.message); return; }
+    toast.success(`Lista "${nome}" criada com ${selecionados.length} produtos.`);
+    setNome(''); setSelecionados([]); setBusca(''); setPrazo('');
+    onOpenChange(false);
+    onImported();
+  };
+
   const handleImport = async () => {
     if (!file || !nome.trim()) {
       toast.error('Informe o nome da lista e selecione um arquivo.');
@@ -139,6 +174,46 @@ const ImportListaPanel: React.FC<ImportListaPanelProps> = ({ open, onOpenChange,
           <Button onClick={handleImport} disabled={loading || !file || !nome.trim()} className="w-full">
             {loading ? 'Importando...' : 'Importar Lista'}
           </Button>
+
+          <div className="border-t border-border pt-4 space-y-2">
+            <label className="text-sm font-display font-bold text-foreground">Ou monte a lista com os produtos da sua rede</label>
+            <Input value={busca} onChange={e => setBusca(e.target.value)} placeholder="Pesquisar por descrição ou código de barras" />
+            {resultados.length > 0 && (
+              <div className="max-h-48 overflow-y-auto border border-border rounded divide-y divide-border">
+                {resultados.map(p => {
+                  const ja = selecionados.some(s => s.id === p.id);
+                  return (
+                    <button key={p.id} type="button" disabled={ja}
+                      onClick={() => setSelecionados(prev => [...prev, p])}
+                      className="w-full text-left px-3 py-2 text-xs hover:bg-muted disabled:opacity-50">
+                      <span className="font-bold">{p.descricao}</span>
+                      <span className="text-muted-foreground ml-2">{p.codigo_barras}</span>
+                      {ja ? <span className="ml-2 text-success">adicionado</span> : <span className="ml-2 text-primary">+ adicionar</span>}
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+            {busca.trim().length >= 2 && resultados.length === 0 && (
+              <p className="text-[11px] text-muted-foreground">Nenhum produto encontrado na base da sua rede.</p>
+            )}
+            {selecionados.length > 0 && (
+              <div className="space-y-1">
+                <p className="text-xs font-bold">{selecionados.length} produto(s) selecionado(s)</p>
+                <div className="max-h-48 overflow-y-auto border border-border rounded divide-y divide-border">
+                  {selecionados.map(p => (
+                    <div key={p.id} className="flex items-center justify-between px-3 py-1.5 text-xs">
+                      <span>{p.descricao} <span className="text-muted-foreground">{p.codigo_barras}</span></span>
+                      <button type="button" className="text-destructive" onClick={() => setSelecionados(prev => prev.filter(s => s.id !== p.id))}>✕</button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+            <Button variant="secondary" onClick={criarDoSistema} disabled={loading || !nome.trim() || !selecionados.length} className="w-full">
+              Criar cotação com produtos selecionados
+            </Button>
+          </div>
         </div>
       </SheetContent>
     </Sheet>

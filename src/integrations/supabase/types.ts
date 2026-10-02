@@ -815,6 +815,38 @@ export type Database = {
           },
         ]
       }
+      network_products: {
+        Row: {
+          codigo_barras: string
+          created_at: string
+          descricao: string
+          id: string
+          network_id: string
+        }
+        Insert: {
+          codigo_barras?: string
+          created_at?: string
+          descricao: string
+          id?: string
+          network_id: string
+        }
+        Update: {
+          codigo_barras?: string
+          created_at?: string
+          descricao?: string
+          id?: string
+          network_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "network_products_network_id_fkey"
+            columns: ["network_id"]
+            isOneToOne: false
+            referencedRelation: "networks"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       networks: {
         Row: {
           access_expires_at: string | null
