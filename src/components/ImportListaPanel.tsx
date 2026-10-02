@@ -210,10 +210,12 @@ const ImportListaPanel: React.FC<ImportListaPanelProps> = ({ open, onOpenChange,
                 </div>
               </div>
             )}
-            <Button variant="secondary" onClick={criarDoSistema} disabled={loading || !nome.trim() || !selecionados.length} className="w-full">
-              Criar cotação com produtos selecionados
-            </Button>
           </div>
+        </div>
+        <div className="border-t border-border pt-3 pb-1 shrink-0 bg-background">
+          <Button variant="secondary" onClick={criarDoSistema} disabled={loading || !nome.trim() || !selecionados.length} className="w-full">
+            Criar cotação com produtos selecionados
+          </Button>
         </div>
       </SheetContent>
     </Sheet>
