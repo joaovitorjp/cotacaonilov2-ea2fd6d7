@@ -22,6 +22,41 @@ const ImportListaPanel: React.FC<ImportListaPanelProps> = ({ open, onOpenChange,
   const [loading, setLoading] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
 
+  const [busca, setBusca] = useState('');
+  const [resultados, setResultados] = useState<{ id: string; descricao: string; codigo_barras: string }[]>([]);
+  const [selecionados, setSelecionados] = useState<{ id: string; descricao: string; codigo_barras: string }[]>([]);
+
+  React.useEffect(() => {
+    const termo = busca.trim();
+    if (termo.length < 2) { setResultados([]); return; }
+    const t = setTimeout(async () => {
+      const safe = termo.replace(/[%,()]/g, ' ');
+      const { data } = await supabase.from('network_products' as any)
+        .select('id,descricao,codigo_barras')
+        .or(`descricao.ilike.%${safe}%,codigo_barras.ilike.%${safe}%`)
+        .order('descricao').limit(30);
+      setResultados((data as any) ?? []);
+    }, 300);
+    return () => clearTimeout(t);
+  }, [busca]);
+
+  const criarDoSistema = async () => {
+    if (!nome.trim() || !selecionados.length) { toast.error('Informe o nome e adicione produtos.'); return; }
+    setLoading(true);
+    const insertData: any = {
+      nome: nome.trim(), status: 'aberta', user_id: user?.id,
+      produtos: selecionados.map(p => ({ codigo_interno: '', descricao: p.descricao, codigo_barras: p.codigo_barras, categoria: '', observacao: '' })),
+    };
+    if (prazo) insertData.prazo = new Date(`${prazo}T${prazoHora || '23:59'}:00`).toISOString();
+    const { error } = await supabase.from('listas').insert(insertData);
+    setLoading(false);
+    if (error) { toast.error('Erro ao criar: ' + error.message); return; }
+    toast.success(`Lista "${nome}" criada com ${selecionados.length} produtos.`);
+    setNome(''); setSelecionados([]); setBusca(''); setPrazo('');
+    onOpenChange(false);
+    onImported();
+  };
+
   const handleImport = async () => {
     if (!file || !nome.trim()) {
       toast.error('Informe o nome da lista e selecione um arquivo.');
