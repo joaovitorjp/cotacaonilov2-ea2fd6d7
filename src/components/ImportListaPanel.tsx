@@ -23,8 +23,8 @@ const ImportListaPanel: React.FC<ImportListaPanelProps> = ({ open, onOpenChange,
   const inputRef = useRef<HTMLInputElement>(null);
 
   const [busca, setBusca] = useState('');
-  const [resultados, setResultados] = useState<{ id: string; descricao: string; codigo_barras: string }[]>([]);
-  const [selecionados, setSelecionados] = useState<{ id: string; descricao: string; codigo_barras: string }[]>([]);
+  const [resultados, setResultados] = useState<{ id: string; descricao: string; codigo_barras: string; codigo_interno?: string }[]>([]);
+  const [selecionados, setSelecionados] = useState<{ id: string; descricao: string; codigo_barras: string; codigo_interno?: string }[]>([]);
 
   React.useEffect(() => {
     const termo = busca.trim();
@@ -32,7 +32,7 @@ const ImportListaPanel: React.FC<ImportListaPanelProps> = ({ open, onOpenChange,
     const t = setTimeout(async () => {
       const safe = termo.replace(/[%,()]/g, ' ');
       const { data } = await supabase.from('network_products' as any)
-        .select('id,descricao,codigo_barras')
+        .select('id,descricao,codigo_barras,codigo_interno')
         .or(`descricao.ilike.%${safe}%,codigo_barras.ilike.%${safe}%`)
         .order('descricao').limit(30);
       setResultados((data as any) ?? []);
@@ -45,7 +45,7 @@ const ImportListaPanel: React.FC<ImportListaPanelProps> = ({ open, onOpenChange,
     setLoading(true);
     const insertData: any = {
       nome: nome.trim(), status: 'aberta', user_id: user?.id,
-      produtos: selecionados.map(p => ({ codigo_interno: '', descricao: p.descricao, codigo_barras: p.codigo_barras, categoria: '', observacao: '' })),
+      produtos: selecionados.map(p => ({ codigo_interno: p.codigo_interno ?? '', descricao: p.descricao, codigo_barras: p.codigo_barras, categoria: '', observacao: '' })),
     };
     if (prazo) insertData.prazo = new Date(`${prazo}T${prazoHora || '23:59'}:00`).toISOString();
     const { error } = await supabase.from('listas').insert(insertData);
@@ -187,6 +187,7 @@ const ImportListaPanel: React.FC<ImportListaPanelProps> = ({ open, onOpenChange,
                       onClick={() => setSelecionados(prev => [...prev, p])}
                       className="w-full text-left px-3 py-2 text-xs hover:bg-muted disabled:opacity-50">
                       <span className="font-bold">{p.descricao}</span>
+                      {p.codigo_interno && <span className="text-muted-foreground ml-2">{p.codigo_interno}</span>}
                       <span className="text-muted-foreground ml-2">{p.codigo_barras}</span>
                       {ja ? <span className="ml-2 text-success">adicionado</span> : <span className="ml-2 text-primary">+ adicionar</span>}
                     </button>

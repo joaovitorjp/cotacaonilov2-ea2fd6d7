@@ -409,7 +409,7 @@ const AdminPanel: React.FC = () => {
                           onClick={() => updateRede(r, { blocked_at: r.blocked_at ? null : new Date().toISOString() }, r.blocked_at ? 'desbloquear_rede' : 'bloquear_rede')}>
                           {r.blocked_at ? 'Desbloquear' : 'Bloquear'}
                         </Button>
-                        <label className="text-xs font-bold rounded-lg px-2 py-1.5 cursor-pointer text-primary hover:bg-primary/10" title="Excel: coluna A = descrição, coluna B = código de barras">
+                        <label className="text-xs font-bold rounded-lg px-2 py-1.5 cursor-pointer text-primary hover:bg-primary/10" title="Excel: coluna A = código interno, coluna B = descrição, coluna C = código de barras">
                           Importar produtos
                           <input type="file" accept=".xls,.xlsx" className="hidden"
                             onChange={async e => {
@@ -421,8 +421,8 @@ const AdminPanel: React.FC = () => {
                                 const wb = XLSX.read(await file.arrayBuffer(), { type: 'array' });
                                 const rows: any[][] = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { header: 1 });
                                 const itens = rows
-                                  .map(row => ({ descricao: String(row[0] ?? '').trim(), codigo_barras: String(row[1] ?? '').trim() }))
-                                  .filter((p, i) => p.descricao && !(i === 0 && /descri/i.test(p.descricao)))
+                                  .map(row => ({ codigo_interno: String(row[0] ?? '').trim(), descricao: String(row[1] ?? '').trim(), codigo_barras: String(row[2] ?? '').trim() }))
+                                  .filter((p, i) => p.descricao && !(i === 0 && /descri|c[oó]digo/i.test(p.descricao)))
                                   .map(p => ({ ...p, network_id: r.id }));
                                 if (!itens.length) { toast.error('Nenhum produto encontrado.'); return; }
                                 const substituir = window.confirm(`${itens.length} produtos encontrados para "${r.name}".\n\nOK = substituir a base atual da rede\nCancelar = adicionar à base atual`);
