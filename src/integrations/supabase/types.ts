@@ -818,6 +818,7 @@ export type Database = {
       network_products: {
         Row: {
           codigo_barras: string
+          codigo_interno: string
           created_at: string
           descricao: string
           id: string
@@ -825,6 +826,7 @@ export type Database = {
         }
         Insert: {
           codigo_barras?: string
+          codigo_interno?: string
           created_at?: string
           descricao: string
           id?: string
@@ -832,6 +834,7 @@ export type Database = {
         }
         Update: {
           codigo_barras?: string
+          codigo_interno?: string
           created_at?: string
           descricao?: string
           id?: string
