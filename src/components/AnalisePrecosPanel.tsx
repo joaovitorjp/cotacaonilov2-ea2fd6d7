@@ -256,9 +256,21 @@ const AnalisePrecosPanel: React.FC<AnalisePrecosPanelProps> = ({ produtos, respo
     const doc = new jsPDF('landscape', 'mm', 'a4');
     const outrasEmpresas = respostas.filter(r => r.empresa !== empresaSelecionada);
 
+    // Só entram no comparativo os concorrentes que têm ao menos um preço na
+    // região escolhida. Colunas totalmente vazias ficam de fora para não poluir o PDF.
+    const temAlgumPreco = (resp: RespostaEmpresa) =>
+      produtos.some(p => {
+        const item = findRespItem(resp.resposta as any[], p);
+        if (!item) return false;
+        const preco = getPriceField(item);
+        const num = preco === undefined ? NaN : parsePreco(preco);
+        return !isNaN(num) && num > 0;
+      });
+    const concorrentes = outrasEmpresas.filter(temAlgumPreco);
+
     // Nomes reais ou anonimizados, conforme a escolha feita antes da exportação.
     const nomesConcorrentes: Record<string, string> = {};
-    outrasEmpresas.forEach((r, idx) => {
+    concorrentes.forEach((r, idx) => {
       nomesConcorrentes[r.empresa] = ocultarNomesConcorrentes ? `Concorrente ${idx + 1}` : r.empresa;
     });
 
