@@ -4,7 +4,7 @@ import { BarChart3, Trophy, TrendingDown, History, FileDown, Send } from 'lucide
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { drawHeader, drawChips, drawSectionTitle, drawFooter, tableStyles, PDF_COLORS, formatBRL } from '@/lib/pdf-theme';
-import { ordenarUFs, ufsDaResposta, getPrecoUF, ufNome } from '@/lib/estados';
+import { ordenarUFs, ufsDaResposta, getPrecoUF, ufNome, hasPrecoUF } from '@/lib/estados';
 import { useEstadosUsuario } from '@/hooks/useEstadosUsuario';
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription,
@@ -259,13 +259,7 @@ const AnalisePrecosPanel: React.FC<AnalisePrecosPanelProps> = ({ produtos, respo
     // Só entram no comparativo os concorrentes que têm ao menos um preço na
     // região escolhida. Colunas totalmente vazias ficam de fora para não poluir o PDF.
     const temAlgumPreco = (resp: RespostaEmpresa) =>
-      produtos.some(p => {
-        const item = findRespItem(resp.resposta as any[], p);
-        if (!item) return false;
-        const preco = getPriceField(item);
-        const num = preco === undefined ? NaN : parsePreco(preco);
-        return !isNaN(num) && num > 0;
-      });
+      produtos.some(p => hasPrecoUF(findRespItem(resp.resposta as any[], p), estado));
     const concorrentes = outrasEmpresas.filter(temAlgumPreco);
 
     // Nomes reais ou anonimizados, conforme a escolha feita antes da exportação.
