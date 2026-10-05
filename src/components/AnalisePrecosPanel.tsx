@@ -75,6 +75,7 @@ const AnalisePrecosPanel: React.FC<AnalisePrecosPanelProps> = ({ produtos, respo
   const [loadingHistorico, setLoadingHistorico] = useState(false);
   const [showComparativoDialog, setShowComparativoDialog] = useState(false);
   const [estadoComparativo, setEstadoComparativo] = useState<string>('');
+  const [ocultarNomesConcorrentes, setOcultarNomesConcorrentes] = useState(true);
   const [showFornecedorDialog, setShowFornecedorDialog] = useState(false);
   const [estadoFornecedor, setEstadoFornecedor] = useState<string>('TODOS');
   const [showGanhadoresDialog, setShowGanhadoresDialog] = useState(false);
@@ -255,10 +256,10 @@ const AnalisePrecosPanel: React.FC<AnalisePrecosPanelProps> = ({ produtos, respo
     const doc = new jsPDF('landscape', 'mm', 'a4');
     const outrasEmpresas = respostas.filter(r => r.empresa !== empresaSelecionada);
 
-    // Anonymized names
+    // Nomes reais ou anonimizados, conforme a escolha feita antes da exportação.
     const nomesConcorrentes: Record<string, string> = {};
     outrasEmpresas.forEach((r, idx) => {
-      nomesConcorrentes[r.empresa] = `Concorrente ${idx + 1}`;
+      nomesConcorrentes[r.empresa] = ocultarNomesConcorrentes ? `Concorrente ${idx + 1}` : r.empresa;
     });
 
     // --- Cabeçalho unificado ---
@@ -280,7 +281,9 @@ const AnalisePrecosPanel: React.FC<AnalisePrecosPanelProps> = ({ produtos, respo
         const preco = getPriceField(item);
         return preco === undefined ? NaN : parsePreco(preco);
       };
-      const selPrice = getNum(respostas.find(r => r.empresa === empresaSelecionada)!);
+      const selectedResponse = respostas.find(r => r.empresa === empresaSelecionada);
+      if (!selectedResponse) return;
+      const selPrice = getNum(selectedResponse);
       if (isNaN(selPrice) || selPrice <= 0) return;
       const concPrices = outrasEmpresas.map(r => getNum(r)).filter(v => !isNaN(v) && v > 0);
       if (concPrices.length === 0) return;
@@ -341,8 +344,9 @@ const AnalisePrecosPanel: React.FC<AnalisePrecosPanelProps> = ({ produtos, respo
         ],
         selPrice,
         concPrices,
+        minPrice: Math.min(selPrice, ...validConc),
       };
-    }).filter(Boolean) as { row: string[]; selPrice: number; concPrices: number[] }[];
+    }).filter(Boolean) as { row: string[]; selPrice: number; concPrices: number[]; minPrice: number }[];
 
     // Re-number rows sequentially
     allRowData.forEach((rd, i) => { rd.row[0] = String(i + 1); });
@@ -385,15 +389,16 @@ const AnalisePrecosPanel: React.FC<AnalisePrecosPanelProps> = ({ produtos, respo
           data.cell.styles.textColor = PDF_COLORS.primary;
         }
 
-        // Concorrentes com preço menor (oportunidade de cobrir)
-        if (data.column.index >= firstConcIdx && data.column.index <= lastConcIdx) {
-          const concIdx = data.column.index - firstConcIdx;
-          const concPrice = rd.concPrices[concIdx];
-          if (!isNaN(concPrice) && concPrice > 0 && !isNaN(rd.selPrice) && rd.selPrice > 0 && concPrice < rd.selPrice) {
-            data.cell.styles.fillColor = PDF_COLORS.successSoft;
-            data.cell.styles.textColor = PDF_COLORS.success;
-            data.cell.styles.fontStyle = 'bold';
-          }
+        // Verde somente no menor preço absoluto da linha, entre todos os fornecedores.
+        const price = data.column.index === selColIdx
+          ? rd.selPrice
+          : data.column.index >= firstConcIdx && data.column.index <= lastConcIdx
+            ? rd.concPrices[data.column.index - firstConcIdx]
+            : NaN;
+        if (!isNaN(price) && price > 0 && price === rd.minPrice) {
+          data.cell.styles.fillColor = PDF_COLORS.successSoft;
+          data.cell.styles.textColor = PDF_COLORS.success;
+          data.cell.styles.fontStyle = 'bold';
         }
 
         // Coluna Diferença
@@ -414,11 +419,17 @@ const AnalisePrecosPanel: React.FC<AnalisePrecosPanelProps> = ({ produtos, respo
     const finalY = (doc as any).lastAutoTable?.finalY || 200;
     doc.setFontSize(7.5);
     doc.setTextColor(...PDF_COLORS.muted);
-    doc.text('Os nomes dos concorrentes foram omitidos por questões de confidencialidade.', 14, finalY + 6);
+    doc.text(
+      ocultarNomesConcorrentes
+        ? 'Os nomes dos concorrentes foram omitidos por questões de confidencialidade.'
+        : 'Os nomes dos concorrentes estão identificados neste comparativo.',
+      14,
+      finalY + 6,
+    );
     doc.setFillColor(...PDF_COLORS.successSoft);
     doc.roundedRect(14, finalY + 10, 4, 3, 0.5, 0.5, 'F');
     doc.setTextColor(...PDF_COLORS.body);
-    doc.text('= Concorrente com preço menor (oportunidade de cobrir)', 20, finalY + 12.5);
+    doc.text('= Menor preço entre todos os fornecedores', 20, finalY + 12.5);
 
     drawFooter(doc);
     doc.save(`comparativo_${empresaSelecionada.replace(/\s+/g, '_')}_${estado}.pdf`);
@@ -762,7 +773,7 @@ const AnalisePrecosPanel: React.FC<AnalisePrecosPanelProps> = ({ produtos, respo
           <DialogHeader>
             <DialogTitle className="font-display">Gerar Comparativo de Preços</DialogTitle>
             <DialogDescription>
-              Escolha o estado considerado e o fornecedor. Os nomes dos concorrentes serão anonimizados.
+              Escolha o estado, a identificação dos concorrentes e o fornecedor.
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-3">
@@ -783,6 +794,31 @@ const AnalisePrecosPanel: React.FC<AnalisePrecosPanelProps> = ({ produtos, respo
                     {uf} ({ufNome(uf)})
                   </Button>
                 ))}
+              </div>
+            </div>
+            <div>
+              <label className="text-xs font-display font-bold text-muted-foreground mb-1.5 block">
+                Nomes dos concorrentes no PDF
+              </label>
+              <div className="grid grid-cols-2 gap-2">
+                <Button
+                  type="button"
+                  variant={ocultarNomesConcorrentes ? 'default' : 'outline'}
+                  size="sm"
+                  className="font-display"
+                  onClick={() => setOcultarNomesConcorrentes(true)}
+                >
+                  Ocultar nomes
+                </Button>
+                <Button
+                  type="button"
+                  variant={!ocultarNomesConcorrentes ? 'default' : 'outline'}
+                  size="sm"
+                  className="font-display"
+                  onClick={() => setOcultarNomesConcorrentes(false)}
+                >
+                  Exibir nomes
+                </Button>
               </div>
             </div>
             <div>
