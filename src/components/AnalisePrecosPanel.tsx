@@ -283,7 +283,7 @@ const AnalisePrecosPanel: React.FC<AnalisePrecosPanelProps> = ({ produtos, respo
 
     // --- Cálculo do resumo ---
     const totalProdutos = produtos.length;
-    const totalConcorrentes = outrasEmpresas.length;
+    const totalConcorrentes = concorrentes.length;
     let winsCount = 0;
     let lossesCount = 0;
     produtos.forEach(prod => {
@@ -297,7 +297,7 @@ const AnalisePrecosPanel: React.FC<AnalisePrecosPanelProps> = ({ produtos, respo
       if (!selectedResponse) return;
       const selPrice = getNum(selectedResponse);
       if (isNaN(selPrice) || selPrice <= 0) return;
-      const concPrices = outrasEmpresas.map(r => getNum(r)).filter(v => !isNaN(v) && v > 0);
+      const concPrices = concorrentes.map(r => getNum(r)).filter(v => !isNaN(v) && v > 0);
       if (concPrices.length === 0) return;
       const minConc = Math.min(...concPrices);
       if (selPrice <= minConc) winsCount++;
@@ -314,7 +314,7 @@ const AnalisePrecosPanel: React.FC<AnalisePrecosPanelProps> = ({ produtos, respo
 
 
     // --- Table ---
-    const colHeaders = ['#', 'Código', 'Descrição', empresaSelecionada, ...outrasEmpresas.map(r => nomesConcorrentes[r.empresa]), 'Diferença'];
+    const colHeaders = ['#', 'Código', 'Descrição', empresaSelecionada, ...concorrentes.map(r => nomesConcorrentes[r.empresa]), 'Diferença'];
 
     // Pre-compute numeric prices and filter out wins / no-price items
     const allRowData = produtos.map((prod, idx) => {
@@ -328,7 +328,7 @@ const AnalisePrecosPanel: React.FC<AnalisePrecosPanelProps> = ({ produtos, respo
 
       const selResp = respostas.find(r => r.empresa === empresaSelecionada);
       const selPrice = selResp ? getNum(selResp) : NaN;
-      const concPrices = outrasEmpresas.map(r => getNum(r));
+      const concPrices = concorrentes.map(r => getNum(r));
 
       const validConc = concPrices.filter(v => !isNaN(v) && v > 0);
       const minConc = validConc.length > 0 ? Math.min(...validConc) : NaN;
@@ -387,7 +387,7 @@ const AnalisePrecosPanel: React.FC<AnalisePrecosPanelProps> = ({ produtos, respo
 
         const selColIdx = 3;
         const firstConcIdx = 4;
-        const lastConcIdx = firstConcIdx + outrasEmpresas.length - 1;
+        const lastConcIdx = firstConcIdx + concorrentes.length - 1;
         const diffColIdx = colHeaders.length - 1;
 
         if (data.column.index >= selColIdx && data.column.index <= lastConcIdx) {
