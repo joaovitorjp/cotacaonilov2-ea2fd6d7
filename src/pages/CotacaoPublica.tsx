@@ -38,6 +38,7 @@ const CotacaoPublica = () => {
   const [lista, setLista] = useState<{ nome: string; produtos: Produto[]; created_at: string } | null>(null);
   const [respostas, setRespostas] = useState<RespostaRow[]>([]);
   const [marca, setMarca] = useState<{ nome: string; logo: string }>({ nome: DEFAULT_BRAND.nome, logo: adrLogo });
+  const [ultimaEntrada, setUltimaEntrada] = useState<{ estado: string; precos: Record<string, number> } | null>(null);
   const [ufFiltro, setUfFiltro] = useState<string | null>(null);
 
   useEffect(() => {
@@ -55,6 +56,7 @@ const CotacaoPublica = () => {
         produtos: (payload.lista.produtos ?? []) as Produto[],
         created_at: payload.lista.created_at,
       });
+      setUltimaEntrada(payload.ultima_entrada?.precos ? payload.ultima_entrada : null);
       setRespostas((payload.respostas ?? []) as RespostaRow[]);
       setMarca({
         nome: payload?.marca?.nome || DEFAULT_BRAND.nome,
@@ -109,6 +111,12 @@ const CotacaoPublica = () => {
     }
     return out;
   }, [lista, colunasVisiveis, precoMap]);
+
+  const mostrarUE = !!ultimaEntrada && (!filtroAtual || filtroAtual === ultimaEntrada.estado);
+  const precoUE = (p: Produto) => {
+    const cod = String(p.codigo_barras ?? '').replace(/\D/g, '').replace(/^0+/, '');
+    return cod && ultimaEntrada ? ultimaEntrada.precos[cod] ?? null : null;
+  };
 
   if (loading) {
     return (
@@ -206,6 +214,9 @@ const CotacaoPublica = () => {
                 >
                   Produtos
                 </th>
+                {mostrarUE && (
+                  <th className="px-3 py-1.5 border-b border-l border-border bg-warning/10" />
+                )}
                 {gruposVisiveis.map(g => (
                   <th
                     key={g.uf}
@@ -223,6 +234,12 @@ const CotacaoPublica = () => {
                 <th className="text-left px-3 py-2 font-display text-xs uppercase tracking-wider text-muted-foreground border-b border-border">Código</th>
                 <th className="text-left px-3 py-2 font-display text-xs uppercase tracking-wider text-muted-foreground border-b border-border min-w-[240px]">Descrição</th>
                 <th className="text-left px-3 py-2 font-display text-xs uppercase tracking-wider text-muted-foreground border-b border-border">EAN</th>
+                {mostrarUE && (
+                  <th className="text-right px-3 py-2 font-display text-xs uppercase tracking-wider text-foreground border-b border-l border-border bg-warning/10 whitespace-nowrap">
+                    ULTIMA ENTRADA
+                    <span className="block text-[10px] normal-case text-primary">{ultimaEntrada!.estado} · {ufNome(ultimaEntrada!.estado)}</span>
+                  </th>
+                )}
                 {colunasVisiveis.map((c, i) => (
                   <th key={i} className="text-right px-3 py-2 font-display text-xs uppercase tracking-wider text-muted-foreground border-b border-l border-border whitespace-nowrap">
                     {c.empresa}
@@ -237,6 +254,9 @@ const CotacaoPublica = () => {
                   <td className="px-3 py-1.5 font-mono text-xs text-muted-foreground border-b border-border whitespace-nowrap">{p.codigo_interno}</td>
                   <td className="px-3 py-1.5 text-foreground border-b border-border">{p.descricao}</td>
                   <td className="px-3 py-1.5 text-xs text-muted-foreground border-b border-border whitespace-nowrap">{p.codigo_barras || '—'}</td>
+                  {mostrarUE && (
+                    <td className="px-3 py-1.5 text-right font-semibold border-b border-l border-border bg-warning/5 whitespace-nowrap">{fmt(precoUE(p))}</td>
+                  )}
                   {colunasVisiveis.map((c, i) => {
                     const v = precoMap.get(`${c.empresa}|${c.uf}|${p.codigo_interno}`) ?? null;
                     const melhor = v !== null && menorPorProduto[p.codigo_interno] === v;

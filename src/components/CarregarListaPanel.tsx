@@ -120,7 +120,7 @@ const CarregarListaPanel: React.FC<CarregarListaPanelProps> = ({
     try {
       const { data: existente } = await (supabase as any)
         .from('cotacao_shares')
-        .select('token')
+        .select('token, ultima_entrada')
         .eq('lista_id', lista.id)
         .eq('user_id', user.id)
         .maybeSingle();
@@ -136,6 +136,11 @@ const CarregarListaPanel: React.FC<CarregarListaPanelProps> = ({
         token = data.token;
       }
 
+      const ue = existente?.ultima_entrada;
+      setShareToken(token ?? null);
+      setUeAtivo(!!ue);
+      setUeEstado(ue?.estado ?? null);
+      setUeInfo(ue ? `${Object.keys(ue.precos ?? {}).length} preços de ${ue.estado} anexados.` : '');
       const url = `${getPublicBaseUrl()}/ver/${token}`;
       try {
         await navigator.clipboard.writeText(url);
@@ -570,7 +575,7 @@ const CarregarListaPanel: React.FC<CarregarListaPanelProps> = ({
           </div>
           <div className="border-t border-border pt-3 space-y-2">
             <label className="flex items-center gap-2 text-sm font-medium cursor-pointer">
-              <Checkbox checked={ueAtivo} onCheckedChange={(v) => setUeAtivo(!!v)} />
+              <Checkbox checked={ueAtivo} onCheckedChange={(v) => toggleUltimaEntrada(!!v)} />
               Incluir coluna "ULTIMA ENTRADA"
             </label>
             {ueAtivo && (
