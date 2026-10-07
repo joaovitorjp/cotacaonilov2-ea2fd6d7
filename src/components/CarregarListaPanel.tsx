@@ -62,6 +62,56 @@ const CarregarListaPanel: React.FC<CarregarListaPanelProps> = ({
   const [searchTerm, setSearchTerm] = useState('');
   const [shareTarget, setShareTarget] = useState<{ lista: Lista; url: string } | null>(null);
   const [sharing, setSharing] = useState<string | null>(null);
+  const [shareToken, setShareToken] = useState<string | null>(null);
+  const [ueAtivo, setUeAtivo] = useState(false);
+  const [ueEstado, setUeEstado] = useState<string | null>(null);
+  const [ueSalvando, setUeSalvando] = useState(false);
+  const [ueInfo, setUeInfo] = useState('');
+
+  const salvarUltimaEntrada = async (valor: any) => {
+    if (!shareToken) return false;
+    const { error } = await (supabase as any).from('cotacao_shares').update({ ultima_entrada: valor }).eq('token', shareToken);
+    if (error) { toast.error('Erro ao salvar a última entrada.'); return false; }
+    return true;
+  };
+
+  const importarUltimaEntrada = async (file: File) => {
+    if (!ueEstado) return;
+    setUeSalvando(true);
+    try {
+      const XLSX = await import('xlsx');
+      const wb = XLSX.read(await file.arrayBuffer(), { type: 'array' });
+      const rows: any[][] = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { header: 1, raw: true });
+      const precos: Record<string, number> = {};
+      for (const r of rows) {
+        const cod = String(r?.[0] ?? '').replace(/\D/g, '').replace(/^0+/, '');
+        if (!cod) continue;
+        let n: number;
+        if (typeof r[1] === 'number') n = r[1];
+        else {
+          let s = String(r?.[1] ?? '').replace(/[^\d.,-]/g, '');
+          if (s.includes(',')) s = s.replace(/\./g, '').replace(',', '.');
+          n = Number(s);
+        }
+        if (Number.isFinite(n) && n > 0) precos[cod] = n;
+      }
+      const total = Object.keys(precos).length;
+      if (!total) { toast.error('Nenhum código de barras com preço encontrado.'); return; }
+      if (await salvarUltimaEntrada({ estado: ueEstado, precos })) {
+        setUeInfo(`${total} preços de ${ueEstado} anexados.`);
+        toast.success('Coluna "ULTIMA ENTRADA" adicionada ao link.');
+      }
+    } catch {
+      toast.error('Não foi possível ler o arquivo.');
+    } finally {
+      setUeSalvando(false);
+    }
+  };
+
+  const toggleUltimaEntrada = async (v: boolean) => {
+    setUeAtivo(v);
+    if (!v && ueInfo) { if (await salvarUltimaEntrada(null)) { setUeInfo(''); toast.message('Coluna removida do link.'); } }
+  };
 
   /** Cria (ou reaproveita) o link público somente-leitura de uma cotação. */
   const handleShare = async (lista: Lista) => {
@@ -70,7 +120,7 @@ const CarregarListaPanel: React.FC<CarregarListaPanelProps> = ({
     try {
       const { data: existente } = await (supabase as any)
         .from('cotacao_shares')
-        .select('token')
+        .select('token, ultima_entrada')
         .eq('lista_id', lista.id)
         .eq('user_id', user.id)
         .maybeSingle();
@@ -86,6 +136,11 @@ const CarregarListaPanel: React.FC<CarregarListaPanelProps> = ({
         token = data.token;
       }
 
+      const ue = existente?.ultima_entrada;
+      setShareToken(token ?? null);
+      setUeAtivo(!!ue);
+      setUeEstado(ue?.estado ?? null);
+      setUeInfo(ue ? `${Object.keys(ue.precos ?? {}).length} preços de ${ue.estado} anexados.` : '');
       const url = `${getPublicBaseUrl()}/ver/${token}`;
       try {
         await navigator.clipboard.writeText(url);
@@ -517,6 +572,33 @@ const CarregarListaPanel: React.FC<CarregarListaPanelProps> = ({
             >
               Copiar
             </Button>
+          </div>
+          <div className="border-t border-border pt-3 space-y-2">
+            <label className="flex items-center gap-2 text-sm font-medium cursor-pointer">
+              <Checkbox checked={ueAtivo} onCheckedChange={(v) => toggleUltimaEntrada(!!v)} />
+              Incluir coluna "ULTIMA ENTRADA"
+            </label>
+            {ueAtivo && (
+              <div className="space-y-2 pl-6">
+                <div className="flex items-center gap-2 text-sm">
+                  <span className="text-muted-foreground">Estado:</span>
+                  {['MT', 'GO'].map(uf => (
+                    <Button key={uf} size="sm" variant={ueEstado === uf ? 'default' : 'outline'} onClick={() => setUeEstado(uf)}>{uf}</Button>
+                  ))}
+                </div>
+                <p className="text-xs text-muted-foreground">Excel com códigos de barras na coluna A e preços na coluna B.</p>
+                <Input
+                  type="file"
+                  accept=".xls,.xlsx,.csv"
+                  disabled={!ueEstado || ueSalvando}
+                  onChange={e => { const f = e.target.files?.[0]; if (f) importarUltimaEntrada(f); e.currentTarget.value = ''; }}
+                />
+                {ueInfo && <p className="text-xs text-success">{ueInfo}</p>}
+              </div>
+            )}
+            {!ueAtivo && ueInfo && (
+              <p className="text-xs text-muted-foreground pl-6">A coluna será removida da página.</p>
+            )}
           </div>
           <DialogFooter>
             <Button variant="ghost" onClick={() => setShareTarget(null)}>Fechar</Button>

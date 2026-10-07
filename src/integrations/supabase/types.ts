@@ -244,6 +244,7 @@ export type Database = {
           id: string
           lista_id: string
           token: string
+          ultima_entrada: Json | null
           user_id: string
         }
         Insert: {
@@ -251,6 +252,7 @@ export type Database = {
           id?: string
           lista_id: string
           token?: string
+          ultima_entrada?: Json | null
           user_id: string
         }
         Update: {
@@ -258,6 +260,7 @@ export type Database = {
           id?: string
           lista_id?: string
           token?: string
+          ultima_entrada?: Json | null
           user_id?: string
         }
         Relationships: [
