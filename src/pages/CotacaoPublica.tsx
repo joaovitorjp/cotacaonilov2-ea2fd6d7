@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
-import { AlertCircle, Loader2, Package, Users } from 'lucide-react';
+import { AlertCircle, Filter, Loader2, MapPin, Package, Users } from 'lucide-react';
 import adrLogo from '@/assets/adr-logo.jpeg';
 import { DEFAULT_BRAND } from '@/lib/branding';
 import { getPrecoUF, ufsDaResposta, ordenarUFs, ufNome } from '@/lib/estados';
@@ -38,6 +38,7 @@ const CotacaoPublica = () => {
   const [lista, setLista] = useState<{ nome: string; produtos: Produto[]; created_at: string } | null>(null);
   const [respostas, setRespostas] = useState<RespostaRow[]>([]);
   const [marca, setMarca] = useState<{ nome: string; logo: string }>({ nome: DEFAULT_BRAND.nome, logo: adrLogo });
+  const [ufFiltro, setUfFiltro] = useState<string | null>(null);
 
   useEffect(() => {
     const load = async () => {
@@ -64,15 +65,26 @@ const CotacaoPublica = () => {
     load();
   }, [token]);
 
-  // Colunas: uma por fornecedor + UF respondida
-  const colunas = useMemo(() => {
-    const cols: { empresa: string; uf: string }[] = [];
+  // Colunas: uma por fornecedor + UF, agrupadas por estado (MT de um lado, GO do outro)
+  const gruposUF = useMemo(() => {
+    const mapa = new Map<string, { empresa: string; uf: string }[]>();
     for (const r of respostas) {
-      const ufs = ordenarUFs(ufsDaResposta(r.resposta));
-      for (const uf of ufs) cols.push({ empresa: r.empresa, uf });
+      for (const uf of ordenarUFs(ufsDaResposta(r.resposta))) {
+        const arr = mapa.get(uf) ?? [];
+        arr.push({ empresa: r.empresa, uf });
+        mapa.set(uf, arr);
+      }
     }
-    return cols;
+    return ordenarUFs(Array.from(mapa.keys())).map(uf => ({
+      uf,
+      cols: (mapa.get(uf) ?? []).sort((a, b) => a.empresa.localeCompare(b.empresa, 'pt-BR')),
+    }));
   }, [respostas]);
+
+  const ufsDisponiveis = gruposUF.map(g => g.uf);
+  const filtroAtual = ufFiltro && ufsDisponiveis.includes(ufFiltro) ? ufFiltro : null;
+  const gruposVisiveis = filtroAtual ? gruposUF.filter(g => g.uf === filtroAtual) : gruposUF;
+  const colunasVisiveis = useMemo(() => gruposVisiveis.flatMap(g => g.cols), [gruposVisiveis]);
 
   const precoMap = useMemo(() => {
     const map = new Map<string, number | null>();
@@ -86,16 +98,17 @@ const CotacaoPublica = () => {
     return map;
   }, [respostas]);
 
+  // Menor preço considerado apenas entre as colunas visíveis (respeita o filtro de estado)
   const menorPorProduto = useMemo(() => {
     const out: Record<string, number> = {};
     for (const p of lista?.produtos ?? []) {
-      const vals = colunas
+      const vals = colunasVisiveis
         .map(c => precoMap.get(`${c.empresa}|${c.uf}|${p.codigo_interno}`) ?? null)
         .filter((v): v is number => v !== null);
       if (vals.length >= 2) out[p.codigo_interno] = Math.min(...vals);
     }
     return out;
-  }, [lista, colunas, precoMap]);
+  }, [lista, colunasVisiveis, precoMap]);
 
   if (loading) {
     return (
@@ -143,15 +156,74 @@ const CotacaoPublica = () => {
         </div>
       </div>
 
+      {ufsDisponiveis.length > 0 && (
+        <div className="bg-card border-b border-border px-4 sm:px-6 py-3 shrink-0">
+          <div className="max-w-[1400px] mx-auto flex flex-wrap items-center gap-2">
+            <span className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-muted-foreground mr-1">
+              <Filter className="w-3.5 h-3.5" /> Estado
+            </span>
+            <button
+              type="button"
+              onClick={() => setUfFiltro(null)}
+              className={`px-3 py-1.5 rounded-full text-xs font-bold transition-colors ${
+                !filtroAtual
+                  ? 'bg-primary text-primary-foreground'
+                  : 'border border-border bg-background text-muted-foreground hover:bg-muted'
+              }`}
+            >
+              Todos
+            </button>
+            {gruposUF.map(g => (
+              <button
+                key={g.uf}
+                type="button"
+                onClick={() => setUfFiltro(g.uf)}
+                className={`px-3 py-1.5 rounded-full text-xs font-bold transition-colors ${
+                  filtroAtual === g.uf
+                    ? 'bg-primary text-primary-foreground'
+                    : 'border border-border bg-background text-muted-foreground hover:bg-muted'
+                }`}
+              >
+                <span className="inline-flex items-center gap-1">
+                  <MapPin className="w-3 h-3" />
+                  {g.uf}
+                  <span className="opacity-70 font-normal">({g.cols.length})</span>
+                </span>
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
       <div className="flex-1 overflow-auto p-4 sm:p-6">
         <div className="max-w-[1400px] mx-auto border border-border rounded-lg overflow-auto bg-card">
           <table className="w-full text-sm border-collapse">
             <thead>
               <tr className="bg-muted">
+                <th
+                  colSpan={3}
+                  className="px-3 py-1.5 text-center font-display text-[11px] uppercase tracking-wider text-muted-foreground border-b border-border"
+                >
+                  Produtos
+                </th>
+                {gruposVisiveis.map(g => (
+                  <th
+                    key={g.uf}
+                    colSpan={g.cols.length}
+                    className="px-3 py-1.5 text-center font-display text-[11px] uppercase tracking-wider text-primary border-b border-l border-border bg-primary/5 whitespace-nowrap"
+                  >
+                    {g.uf} · {ufNome(g.uf)}
+                    <span className="ml-1 text-[10px] normal-case text-muted-foreground">
+                      ({g.cols.length} fornecedor{g.cols.length === 1 ? '' : 'es'})
+                    </span>
+                  </th>
+                ))}
+              </tr>
+              <tr className="bg-muted">
                 <th className="text-left px-3 py-2 font-display text-xs uppercase tracking-wider text-muted-foreground border-b border-border">Código</th>
                 <th className="text-left px-3 py-2 font-display text-xs uppercase tracking-wider text-muted-foreground border-b border-border min-w-[240px]">Descrição</th>
                 <th className="text-left px-3 py-2 font-display text-xs uppercase tracking-wider text-muted-foreground border-b border-border">EAN</th>
-                {colunas.map((c, i) => (
+                {colunasVisiveis.map((c, i) => (
                   <th key={i} className="text-right px-3 py-2 font-display text-xs uppercase tracking-wider text-muted-foreground border-b border-l border-border whitespace-nowrap">
                     {c.empresa}
                     <span className="block text-[10px] normal-case text-primary">{c.uf} · {ufNome(c.uf)}</span>
@@ -165,7 +237,7 @@ const CotacaoPublica = () => {
                   <td className="px-3 py-1.5 font-mono text-xs text-muted-foreground border-b border-border whitespace-nowrap">{p.codigo_interno}</td>
                   <td className="px-3 py-1.5 text-foreground border-b border-border">{p.descricao}</td>
                   <td className="px-3 py-1.5 text-xs text-muted-foreground border-b border-border whitespace-nowrap">{p.codigo_barras || '—'}</td>
-                  {colunas.map((c, i) => {
+                  {colunasVisiveis.map((c, i) => {
                     const v = precoMap.get(`${c.empresa}|${c.uf}|${p.codigo_interno}`) ?? null;
                     const melhor = v !== null && menorPorProduto[p.codigo_interno] === v;
                     return (
