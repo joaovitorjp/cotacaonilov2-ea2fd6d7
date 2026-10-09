@@ -243,14 +243,35 @@ const ImportListaPanel: React.FC<ImportListaPanelProps> = ({ open, onOpenChange,
             {busca.trim().length >= 2 && resultados.length === 0 && (
               <p className="text-[11px] text-muted-foreground">Nenhum produto encontrado na base da sua rede.</p>
             )}
+            <Input value={buscaForn} onChange={e => setBuscaForn(e.target.value)} placeholder="Ou pesquise um fornecedor para adicionar todos os produtos dele" />
+            {carregandoForn && <p className="text-[11px] text-muted-foreground">Carregando produtos do fornecedor...</p>}
+            {fornResultados.length > 0 && (
+              <div className="max-h-48 overflow-y-auto border border-border rounded divide-y divide-border">
+                {fornResultados.map(f => (
+                  <button key={f} type="button" disabled={carregandoForn} onClick={() => adicionarFornecedor(f)}
+                    className="w-full text-left px-3 py-2 text-xs hover:bg-muted disabled:opacity-50">
+                    <span className="font-bold">{f}</span>
+                    <span className="ml-2 text-primary">+ adicionar todos os produtos</span>
+                  </button>
+                ))}
+              </div>
+            )}
+            {buscaForn.trim().length >= 2 && fornResultados.length === 0 && (
+              <p className="text-[11px] text-muted-foreground">Nenhum fornecedor encontrado na base da sua rede.</p>
+            )}
             {selecionados.length > 0 && (
               <div className="space-y-1">
-                <p className="text-xs font-bold">{selecionados.length} produto(s) selecionado(s)</p>
-                <div className="max-h-48 overflow-y-auto border border-border rounded divide-y divide-border">
+                <div className="flex items-center justify-between">
+                  <p className="text-xs font-bold">{selecionados.length} produto(s) selecionado(s)</p>
+                  <button type="button" className="text-[11px] text-destructive" onClick={() => setSelecionados([])}>Limpar todos</button>
+                </div>
+                <div className="max-h-72 overflow-y-auto border border-border rounded divide-y divide-border">
                   {selecionados.map(p => (
-                    <div key={p.id} className="flex items-center justify-between px-3 py-1.5 text-xs">
-                      <span>{p.descricao} <span className="text-muted-foreground">{p.codigo_barras}</span></span>
-                      <button type="button" className="text-destructive" onClick={() => setSelecionados(prev => prev.filter(s => s.id !== p.id))}>✕</button>
+                    <div key={p.id} className="grid grid-cols-[70px_1fr_110px_auto] gap-1 items-center px-2 py-1 text-xs">
+                      <Input className="h-7 text-xs px-1.5" value={p.codigo_interno ?? ''} onChange={e => editarSelecionado(p.id, { codigo_interno: e.target.value })} placeholder="Cód." />
+                      <Input className="h-7 text-xs px-1.5" value={p.descricao} onChange={e => editarSelecionado(p.id, { descricao: e.target.value })} placeholder="Descrição" />
+                      <Input className="h-7 text-xs px-1.5" value={p.codigo_barras} onChange={e => editarSelecionado(p.id, { codigo_barras: e.target.value })} placeholder="Cód. barras" />
+                      <button type="button" className="text-destructive px-1" title="Excluir" onClick={() => setSelecionados(prev => prev.filter(s => s.id !== p.id))}>✕</button>
                     </div>
                   ))}
                 </div>
