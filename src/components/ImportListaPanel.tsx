@@ -22,9 +22,13 @@ const ImportListaPanel: React.FC<ImportListaPanelProps> = ({ open, onOpenChange,
   const [loading, setLoading] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
 
+  type Prod = { id: string; descricao: string; codigo_barras: string; codigo_interno?: string; fornecedor?: string };
   const [busca, setBusca] = useState('');
-  const [resultados, setResultados] = useState<{ id: string; descricao: string; codigo_barras: string; codigo_interno?: string }[]>([]);
-  const [selecionados, setSelecionados] = useState<{ id: string; descricao: string; codigo_barras: string; codigo_interno?: string }[]>([]);
+  const [resultados, setResultados] = useState<Prod[]>([]);
+  const [selecionados, setSelecionados] = useState<Prod[]>([]);
+  const [buscaForn, setBuscaForn] = useState('');
+  const [fornResultados, setFornResultados] = useState<string[]>([]);
+  const [carregandoForn, setCarregandoForn] = useState(false);
 
   React.useEffect(() => {
     const termo = busca.trim();
@@ -32,13 +36,54 @@ const ImportListaPanel: React.FC<ImportListaPanelProps> = ({ open, onOpenChange,
     const t = setTimeout(async () => {
       const safe = termo.replace(/[%,()]/g, ' ');
       const { data } = await supabase.from('network_products' as any)
-        .select('id,descricao,codigo_barras,codigo_interno')
+        .select('id,descricao,codigo_barras,codigo_interno,fornecedor')
         .or(`descricao.ilike.%${safe}%,codigo_barras.ilike.%${safe}%`)
         .order('descricao').limit(30);
       setResultados((data as any) ?? []);
     }, 300);
     return () => clearTimeout(t);
   }, [busca]);
+
+  React.useEffect(() => {
+    const termo = buscaForn.trim();
+    if (termo.length < 2) { setFornResultados([]); return; }
+    const t = setTimeout(async () => {
+      const safe = termo.replace(/[%,()]/g, ' ');
+      const { data } = await supabase.from('network_products' as any)
+        .select('fornecedor').ilike('fornecedor', `%${safe}%`).limit(1000);
+      const nomes = Array.from(new Set(((data as any[]) ?? []).map(d => String(d.fornecedor || '').trim()).filter(Boolean)));
+      nomes.sort((a, b) => a.localeCompare(b, 'pt-BR'));
+      setFornResultados(nomes.slice(0, 20));
+    }, 300);
+    return () => clearTimeout(t);
+  }, [buscaForn]);
+
+  const adicionarFornecedor = async (nomeForn: string) => {
+    setCarregandoForn(true);
+    const todos: Prod[] = [];
+    for (let from = 0; ; from += 1000) {
+      const { data, error } = await supabase.from('network_products' as any)
+        .select('id,descricao,codigo_barras,codigo_interno,fornecedor')
+        .eq('fornecedor', nomeForn).order('descricao').range(from, from + 999);
+      if (error) { toast.error('Erro ao carregar produtos do fornecedor.'); break; }
+      todos.push(...((data as any[]) ?? []));
+      if (!data || data.length < 1000) break;
+    }
+    setCarregandoForn(false);
+    let novos = 0;
+    setSelecionados(prev => {
+      const ids = new Set(prev.map(p => p.id));
+      const add = todos.filter(p => !ids.has(p.id));
+      novos = add.length;
+      return [...prev, ...add];
+    });
+    if (!nome.trim()) setNome(`Cotação ${nomeForn}`);
+    setTimeout(() => toast.success(`${novos} produto(s) de ${nomeForn} adicionados.`), 0);
+    setBuscaForn(''); setFornResultados([]);
+  };
+
+  const editarSelecionado = (id: string, patch: Partial<Prod>) =>
+    setSelecionados(prev => prev.map(p => (p.id === id ? { ...p, ...patch } : p)));
 
   const criarDoSistema = async () => {
     if (!nome.trim() || !selecionados.length) { toast.error('Informe o nome e adicione produtos.'); return; }
@@ -198,14 +243,35 @@ const ImportListaPanel: React.FC<ImportListaPanelProps> = ({ open, onOpenChange,
             {busca.trim().length >= 2 && resultados.length === 0 && (
               <p className="text-[11px] text-muted-foreground">Nenhum produto encontrado na base da sua rede.</p>
             )}
+            <Input value={buscaForn} onChange={e => setBuscaForn(e.target.value)} placeholder="Ou pesquise um fornecedor para adicionar todos os produtos dele" />
+            {carregandoForn && <p className="text-[11px] text-muted-foreground">Carregando produtos do fornecedor...</p>}
+            {fornResultados.length > 0 && (
+              <div className="max-h-48 overflow-y-auto border border-border rounded divide-y divide-border">
+                {fornResultados.map(f => (
+                  <button key={f} type="button" disabled={carregandoForn} onClick={() => adicionarFornecedor(f)}
+                    className="w-full text-left px-3 py-2 text-xs hover:bg-muted disabled:opacity-50">
+                    <span className="font-bold">{f}</span>
+                    <span className="ml-2 text-primary">+ adicionar todos os produtos</span>
+                  </button>
+                ))}
+              </div>
+            )}
+            {buscaForn.trim().length >= 2 && fornResultados.length === 0 && (
+              <p className="text-[11px] text-muted-foreground">Nenhum fornecedor encontrado na base da sua rede.</p>
+            )}
             {selecionados.length > 0 && (
               <div className="space-y-1">
-                <p className="text-xs font-bold">{selecionados.length} produto(s) selecionado(s)</p>
-                <div className="max-h-48 overflow-y-auto border border-border rounded divide-y divide-border">
+                <div className="flex items-center justify-between">
+                  <p className="text-xs font-bold">{selecionados.length} produto(s) selecionado(s)</p>
+                  <button type="button" className="text-[11px] text-destructive" onClick={() => setSelecionados([])}>Limpar todos</button>
+                </div>
+                <div className="max-h-72 overflow-y-auto border border-border rounded divide-y divide-border">
                   {selecionados.map(p => (
-                    <div key={p.id} className="flex items-center justify-between px-3 py-1.5 text-xs">
-                      <span>{p.descricao} <span className="text-muted-foreground">{p.codigo_barras}</span></span>
-                      <button type="button" className="text-destructive" onClick={() => setSelecionados(prev => prev.filter(s => s.id !== p.id))}>✕</button>
+                    <div key={p.id} className="grid grid-cols-[70px_1fr_110px_auto] gap-1 items-center px-2 py-1 text-xs">
+                      <Input className="h-7 text-xs px-1.5" value={p.codigo_interno ?? ''} onChange={e => editarSelecionado(p.id, { codigo_interno: e.target.value })} placeholder="Cód." />
+                      <Input className="h-7 text-xs px-1.5" value={p.descricao} onChange={e => editarSelecionado(p.id, { descricao: e.target.value })} placeholder="Descrição" />
+                      <Input className="h-7 text-xs px-1.5" value={p.codigo_barras} onChange={e => editarSelecionado(p.id, { codigo_barras: e.target.value })} placeholder="Cód. barras" />
+                      <button type="button" className="text-destructive px-1" title="Excluir" onClick={() => setSelecionados(prev => prev.filter(s => s.id !== p.id))}>✕</button>
                     </div>
                   ))}
                 </div>

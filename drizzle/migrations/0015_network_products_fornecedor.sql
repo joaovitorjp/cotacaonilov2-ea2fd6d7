@@ -1,0 +1,2 @@
+ALTER TABLE public.network_products ADD COLUMN IF NOT EXISTS fornecedor text NOT NULL DEFAULT '';
+CREATE INDEX IF NOT EXISTS idx_network_products_fornecedor ON public.network_products (network_id, fornecedor);
