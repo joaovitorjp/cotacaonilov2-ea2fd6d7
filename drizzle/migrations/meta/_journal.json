@@ -99,6 +99,13 @@
       "when": 1791384181814,
       "tag": "0013_cotacao_shares_ultima_entrada",
       "breakpoints": true
+    },
+    {
+      "idx": 14,
+      "version": "7",
+      "when": 1791556342692,
+      "tag": "0014_cobertura_config",
+      "breakpoints": true
     }
   ]
 }
