@@ -22,9 +22,13 @@ const ImportListaPanel: React.FC<ImportListaPanelProps> = ({ open, onOpenChange,
   const [loading, setLoading] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
 
+  type Prod = { id: string; descricao: string; codigo_barras: string; codigo_interno?: string; fornecedor?: string };
   const [busca, setBusca] = useState('');
-  const [resultados, setResultados] = useState<{ id: string; descricao: string; codigo_barras: string; codigo_interno?: string }[]>([]);
-  const [selecionados, setSelecionados] = useState<{ id: string; descricao: string; codigo_barras: string; codigo_interno?: string }[]>([]);
+  const [resultados, setResultados] = useState<Prod[]>([]);
+  const [selecionados, setSelecionados] = useState<Prod[]>([]);
+  const [buscaForn, setBuscaForn] = useState('');
+  const [fornResultados, setFornResultados] = useState<string[]>([]);
+  const [carregandoForn, setCarregandoForn] = useState(false);
 
   React.useEffect(() => {
     const termo = busca.trim();
@@ -32,13 +36,54 @@ const ImportListaPanel: React.FC<ImportListaPanelProps> = ({ open, onOpenChange,
     const t = setTimeout(async () => {
       const safe = termo.replace(/[%,()]/g, ' ');
       const { data } = await supabase.from('network_products' as any)
-        .select('id,descricao,codigo_barras,codigo_interno')
+        .select('id,descricao,codigo_barras,codigo_interno,fornecedor')
         .or(`descricao.ilike.%${safe}%,codigo_barras.ilike.%${safe}%`)
         .order('descricao').limit(30);
       setResultados((data as any) ?? []);
     }, 300);
     return () => clearTimeout(t);
   }, [busca]);
+
+  React.useEffect(() => {
+    const termo = buscaForn.trim();
+    if (termo.length < 2) { setFornResultados([]); return; }
+    const t = setTimeout(async () => {
+      const safe = termo.replace(/[%,()]/g, ' ');
+      const { data } = await supabase.from('network_products' as any)
+        .select('fornecedor').ilike('fornecedor', `%${safe}%`).limit(1000);
+      const nomes = Array.from(new Set(((data as any[]) ?? []).map(d => String(d.fornecedor || '').trim()).filter(Boolean)));
+      nomes.sort((a, b) => a.localeCompare(b, 'pt-BR'));
+      setFornResultados(nomes.slice(0, 20));
+    }, 300);
+    return () => clearTimeout(t);
+  }, [buscaForn]);
+
+  const adicionarFornecedor = async (nomeForn: string) => {
+    setCarregandoForn(true);
+    const todos: Prod[] = [];
+    for (let from = 0; ; from += 1000) {
+      const { data, error } = await supabase.from('network_products' as any)
+        .select('id,descricao,codigo_barras,codigo_interno,fornecedor')
+        .eq('fornecedor', nomeForn).order('descricao').range(from, from + 999);
+      if (error) { toast.error('Erro ao carregar produtos do fornecedor.'); break; }
+      todos.push(...((data as any[]) ?? []));
+      if (!data || data.length < 1000) break;
+    }
+    setCarregandoForn(false);
+    let novos = 0;
+    setSelecionados(prev => {
+      const ids = new Set(prev.map(p => p.id));
+      const add = todos.filter(p => !ids.has(p.id));
+      novos = add.length;
+      return [...prev, ...add];
+    });
+    if (!nome.trim()) setNome(`Cotação ${nomeForn}`);
+    setTimeout(() => toast.success(`${novos} produto(s) de ${nomeForn} adicionados.`), 0);
+    setBuscaForn(''); setFornResultados([]);
+  };
+
+  const editarSelecionado = (id: string, patch: Partial<Prod>) =>
+    setSelecionados(prev => prev.map(p => (p.id === id ? { ...p, ...patch } : p)));
 
   const criarDoSistema = async () => {
     if (!nome.trim() || !selecionados.length) { toast.error('Informe o nome e adicione produtos.'); return; }
