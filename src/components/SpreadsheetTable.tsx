@@ -1318,25 +1318,48 @@ const SpreadsheetTable: React.FC<SpreadsheetTableProps> = ({
     return colDef?.empresa || null;
   };
 
-  const calcUndercutPrice = (competitorPrice: number): number => {
+  const calcUndercutPrice = (competitorPrice: number, cfg: { modo: 'centavos' | 'percentual'; valor: number; final579: boolean }): number => {
     const cents = Math.round(competitorPrice * 100);
-    for (let c = cents - 1; c >= cents - 5; c--) {
-      const lastDigit = c % 10;
-      if (lastDigit === 5 || lastDigit === 7 || lastDigit === 9) return c / 100;
+    const maxCents = cfg.modo === 'centavos'
+      ? Math.max(1, Math.round(cfg.valor))
+      : Math.max(1, Math.round(cents * cfg.valor / 100));
+    const alvo = cents - maxCents;
+    if (!cfg.final579) return Math.max(alvo, 0) / 100;
+    const ok = (c: number) => { const d = c % 10; return d === 5 || d === 7 || d === 9; };
+    // Maior valor válido até `maxCents` abaixo do menor preço; se não houver, amplia a busca em até 5 centavos
+    for (let c = cents - 1; c >= cents - maxCents - 5; c--) {
+      if (c > 0 && ok(c)) return c / 100;
     }
-    for (let c = cents - 6; c >= cents - 10; c--) {
-      const lastDigit = c % 10;
-      if (lastDigit === 5 || lastDigit === 7 || lastDigit === 9) return c / 100;
-    }
-    return (cents - 1) / 100;
+    return Math.max(alvo, 0) / 100;
   };
 
-  const handleCobrirConcorrentes = useCallback(() => {
+  const abrirCobertura = () => {
     if (!contextMenu || contextMenu.colIdx === undefined) return;
     const colDef = orderedColDefs.find(c => c.orderIdx === contextMenu.colIdx);
     if (!colDef?.empresa || !colDef?.state) { setContextMenu(null); return; }
-    const emp = colDef.empresa;
-    const state = colDef.state;
+    setCoberturaDialog({ empresa: colDef.empresa, state: colDef.state });
+    setContextMenu(null);
+    setTimeout(() => coberturaInputRef.current?.select(), 50);
+  };
+
+  const aplicarCobertura = () => {
+    if (!coberturaDialog) return;
+    const valor = parseFloat(String(coberturaCfg.valor).replace(',', '.'));
+    if (!isFinite(valor) || valor <= 0 || valor > 100) { toast.error('Informe um valor maior que zero (máx. 100).'); return; }
+    const cfg = { modo: coberturaCfg.modo, valor, final579: coberturaCfg.final579 };
+    const { empresa, state } = coberturaDialog;
+    setCoberturaDialog(null);
+    setCoberturaCfg({ ...cfg, valor: String(valor).replace('.', ',') });
+    if (user?.id) {
+      supabase.from('cobertura_config').upsert(
+        { user_id: user.id, modo: cfg.modo, valor, final_579: cfg.final579, updated_at: new Date().toISOString() },
+        { onConflict: 'user_id' }
+      ).then(({ error }) => { if (error) toast.error('Não foi possível salvar a configuração de cobertura.'); });
+    }
+    handleCobrirConcorrentes(empresa, state, cfg);
+  };
+
+  const handleCobrirConcorrentes = (emp: string, state: string, cfg: { modo: 'centavos' | 'percentual'; valor: number; final579: boolean }) => {
     const newEdits: Record<string, string> = {};
     let changed = 0;
 
@@ -2084,7 +2107,7 @@ const SpreadsheetTable: React.FC<SpreadsheetTableProps> = ({
                       <X className="w-3.5 h-3.5" /> Remover acréscimo
                     </button>
                   ) : null}
-                  <button onClick={handleCobrirConcorrentes}
+                  <button onClick={abrirCobertura}
                     className="flex items-center gap-2 w-full px-3 py-1.5 text-xs hover:bg-accent transition-colors text-foreground">
                     <Swords className="w-3.5 h-3.5" /> Cobrir concorrentes
                   </button>
@@ -2192,6 +2215,52 @@ const SpreadsheetTable: React.FC<SpreadsheetTableProps> = ({
                 <button onClick={applyMarkup} className="h-9 px-3 rounded-md bg-primary text-primary-foreground text-sm font-bold hover:bg-primary/90 transition-colors">
                   Aplicar
                 </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Cobrir concorrentes Dialog */}
+        {coberturaDialog && (
+          <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-[60]" onClick={() => setCoberturaDialog(null)}>
+            <div className="bg-popover border border-border rounded-lg shadow-xl p-4 w-80" onClick={e => e.stopPropagation()}>
+              <h3 className="text-sm font-bold text-foreground mb-1">Cobrir concorrentes</h3>
+              <p className="text-xs text-muted-foreground mb-3">
+                Fornecedor: <span className="font-bold text-foreground">{coberturaDialog.empresa}</span> ({coberturaDialog.state})
+              </p>
+              <div className="grid grid-cols-2 gap-1 p-1 rounded-md bg-muted mb-3">
+                {(['centavos', 'percentual'] as const).map(m => (
+                  <button key={m} onClick={() => setCoberturaCfg(prev => ({ ...prev, modo: m }))}
+                    className={`h-8 rounded text-xs font-bold transition-colors ${coberturaCfg.modo === m ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:text-foreground'}`}>
+                    {m === 'centavos' ? 'Em centavos' : 'Em %'}
+                  </button>
+                ))}
+              </div>
+              <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider mb-1 block">
+                {coberturaCfg.modo === 'centavos' ? 'Cobrir em até (centavos)' : 'Cobrir em até (% do menor preço)'}
+              </label>
+              <div className="relative mb-3">
+                <input ref={coberturaInputRef} type="text" inputMode="decimal"
+                  className="w-full h-9 rounded-md border border-input bg-background px-3 pr-12 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+                  value={coberturaCfg.valor}
+                  onChange={e => setCoberturaCfg(prev => ({ ...prev, valor: e.target.value }))}
+                  onKeyDown={e => { if (e.key === 'Enter') aplicarCobertura(); if (e.key === 'Escape') setCoberturaDialog(null); }}
+                  placeholder={coberturaCfg.modo === 'centavos' ? 'Ex: 5' : 'Ex: 2'} />
+                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">
+                  {coberturaCfg.modo === 'centavos' ? 'cent.' : '%'}
+                </span>
+              </div>
+              <label className="flex items-start gap-2 text-xs text-foreground mb-3 cursor-pointer">
+                <input type="checkbox" className="mt-0.5" checked={coberturaCfg.final579}
+                  onChange={e => setCoberturaCfg(prev => ({ ...prev, final579: e.target.checked }))} />
+                <span>Terminar o preço em 5, 7 ou 9 <span className="text-muted-foreground">(desmarcado: desconto exato)</span></span>
+              </label>
+              <p className="text-[11px] text-muted-foreground mb-3">
+                Só altera itens em que este fornecedor não tem o menor preço. A configuração fica salva na sua conta.
+              </p>
+              <div className="flex justify-end gap-2">
+                <button onClick={() => setCoberturaDialog(null)} className="h-9 px-3 rounded-md border border-input text-sm hover:bg-accent transition-colors">Cancelar</button>
+                <button onClick={aplicarCobertura} className="h-9 px-3 rounded-md bg-primary text-primary-foreground text-sm font-bold hover:bg-primary/90 transition-colors">Aplicar</button>
               </div>
             </div>
           </div>
