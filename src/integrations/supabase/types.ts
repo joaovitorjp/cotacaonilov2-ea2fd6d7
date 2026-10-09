@@ -238,6 +238,30 @@ export type Database = {
         }
         Relationships: []
       }
+      cobertura_config: {
+        Row: {
+          final_579: boolean
+          modo: string
+          updated_at: string
+          user_id: string
+          valor: number
+        }
+        Insert: {
+          final_579?: boolean
+          modo?: string
+          updated_at?: string
+          user_id: string
+          valor?: number
+        }
+        Update: {
+          final_579?: boolean
+          modo?: string
+          updated_at?: string
+          user_id?: string
+          valor?: number
+        }
+        Relationships: []
+      }
       cotacao_shares: {
         Row: {
           created_at: string
