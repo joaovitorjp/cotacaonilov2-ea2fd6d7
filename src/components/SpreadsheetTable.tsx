@@ -2,6 +2,7 @@ import React, { useState, useCallback, useRef, useEffect, useMemo } from 'react'
 import { AlignLeft, AlignCenter, AlignRight, ArrowUp, ArrowDown, ArrowLeft, ArrowRight, Copy, ClipboardPaste, Bold, Italic, Paintbrush, X, Save, Percent, Search, Trash2, Plus, Swords, Trash, Filter, Check, Undo2, CheckCircle2, Loader2, AlertCircle, Scissors, Eraser, Rows3, Columns3, Snowflake, Scaling } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
+import { toast } from 'sonner';
 import { useAuth } from '@/contexts/AuthContext';
 import { useEstadosUsuario } from '@/hooks/useEstadosUsuario';
 import { ufNome, getPrecoUF, hasPrecoUF, buildPrecosPayload, ufsDaResposta, ordenarUFs, TIPO_LABELS, FRETE_LABELS } from '@/lib/estados';
@@ -1216,6 +1217,15 @@ const SpreadsheetTable: React.FC<SpreadsheetTableProps> = ({
   // Price markup state
   const [priceMarkups, setPriceMarkups] = useState<Record<string, number>>({});
   const [markupDialog, setMarkupDialog] = useState<{ empresa: string } | null>(null);
+  const [coberturaDialog, setCoberturaDialog] = useState<{ empresa: string; state: string } | null>(null);
+  const [coberturaCfg, setCoberturaCfg] = useState<{ modo: 'centavos' | 'percentual'; valor: string; final579: boolean }>({ modo: 'centavos', valor: '5', final579: true });
+  const coberturaInputRef = useRef<HTMLInputElement>(null);
+  useEffect(() => {
+    if (!user?.id) return;
+    supabase.from('cobertura_config').select('modo, valor, final_579').eq('user_id', user.id).maybeSingle().then(({ data }) => {
+      if (data) setCoberturaCfg({ modo: data.modo === 'percentual' ? 'percentual' : 'centavos', valor: String(Number(data.valor)).replace('.', ','), final579: data.final_579 });
+    });
+  }, [user?.id]);
   const [markupValue, setMarkupValue] = useState('');
   const markupInputRef = useRef<HTMLInputElement>(null);
 
@@ -1383,7 +1393,7 @@ const SpreadsheetTable: React.FC<SpreadsheetTableProps> = ({
       // Only undercut if supplier lost (their price > lowest competitor)
       if (minConc === Infinity || selPrice <= minConc) continue;
 
-      const undercutPrice = calcUndercutPrice(minConc);
+      const undercutPrice = calcUndercutPrice(minConc, cfg);
       if (undercutPrice > 0 && undercutPrice < selPrice) {
         // Find the originalIdx for this empresa+state column
         const matchCol = allColDefs.find(c => c.empresa === emp && c.state === state);
@@ -1400,8 +1410,7 @@ const SpreadsheetTable: React.FC<SpreadsheetTableProps> = ({
       setCellEdits(prev => ({ ...prev, ...newEdits }));
       setHasUnsavedChanges(true);
     }
-    setContextMenu(null);
-  }, [contextMenu, orderedColDefs, allColDefs, produtos, empresas, getPreco, pushUndo]);
+  };
 
   // Toolbar
   const getSelectionTarget = (): { type: 'cell'; keys: string[] } | null => {
