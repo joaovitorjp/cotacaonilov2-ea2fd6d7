@@ -848,6 +848,7 @@ export type Database = {
           codigo_interno: string
           created_at: string
           descricao: string
+          fornecedor: string
           id: string
           network_id: string
         }
@@ -856,6 +857,7 @@ export type Database = {
           codigo_interno?: string
           created_at?: string
           descricao: string
+          fornecedor?: string
           id?: string
           network_id: string
         }
@@ -864,6 +866,7 @@ export type Database = {
           codigo_interno?: string
           created_at?: string
           descricao?: string
+          fornecedor?: string
           id?: string
           network_id?: string
         }

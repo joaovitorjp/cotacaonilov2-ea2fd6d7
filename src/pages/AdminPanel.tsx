@@ -421,7 +421,7 @@ const AdminPanel: React.FC = () => {
                                 const wb = XLSX.read(await file.arrayBuffer(), { type: 'array' });
                                 const rows: any[][] = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { header: 1 });
                                 const itens = rows
-                                  .map(row => ({ codigo_interno: String(row[0] ?? '').trim(), descricao: String(row[1] ?? '').trim(), codigo_barras: String(row[2] ?? '').trim() }))
+                                  .map(row => ({ codigo_interno: String(row[0] ?? '').trim(), descricao: String(row[1] ?? '').trim(), codigo_barras: String(row[2] ?? '').trim(), fornecedor: String(row[3] ?? '').trim() }))
                                   .filter((p, i) => p.descricao && !(i === 0 && /descri|c[oó]digo/i.test(p.descricao)))
                                   .map(p => ({ ...p, network_id: r.id }));
                                 if (!itens.length) { toast.error('Nenhum produto encontrado.'); return; }
