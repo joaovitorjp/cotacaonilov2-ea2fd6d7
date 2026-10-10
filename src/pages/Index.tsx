@@ -23,6 +23,8 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import ProfileGate from '@/components/ProfileGate';
 import { condicoesFromLink, getPrecoUF, ufsDaResposta, ordenarUFs, ufNome } from '@/lib/estados';
+import { getBrand } from '@/lib/branding';
+import { parsePrecoNum, aplicarMarkup } from '@/lib/preco';
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
