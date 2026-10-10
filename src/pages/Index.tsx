@@ -239,26 +239,24 @@ const Index = () => {
   };
 
   const handleExport = async (lista: Lista) => {
-    const { data } = await supabase
-      .from('respostas')
-      .select('empresa, resposta')
-      .eq('user_id', user?.id ?? '')
-      .eq('lista_id', lista.id);
+    const [{ data }, { data: mk }, { data: tps }] = await Promise.all([
+      supabase.from('respostas').select('empresa, resposta').eq('user_id', user?.id ?? '').eq('lista_id', lista.id),
+      supabase.from('price_markups').select('empresa, markup_percent').eq('lista_id', lista.id).eq('user_id', user?.id ?? ''),
+      (supabase as any).from('price_types').select('empresa, estado, tipo').eq('lista_id', lista.id),
+    ]);
 
-    const resps: RespostaEmpresa[] = (data ?? []).map((d: any) => ({
-      empresa: d.empresa,
-      resposta: d.resposta as any[],
-    }));
-
-    const parseBR = (v: any): number | null => {
-      if (v === null || v === undefined || v === '') return null;
-      if (typeof v === 'number') return isFinite(v) ? v : null;
-      const s = String(v).trim().replace(/[R$\s]/g, '').replace(/\./g, '').replace(',', '.');
-      const n = parseFloat(s);
-      return isFinite(n) ? n : null;
+    const markups: Record<string, number> = {};
+    (mk ?? []).forEach((m: any) => { markups[m.empresa] = Number(m.markup_percent) || 0; });
+    const tipos: Record<string, string> = {};
+    (tps ?? []).forEach((t: any) => { tipos[`${t.empresa}_${t.estado}`] = t.tipo; });
+    const tipoLabel = (emp: string, uf: string) => {
+      const t = tipos[`${emp}_${uf}`] ?? (uf === 'GO' ? 'NOTA' : 'IPI_ST');
+      return t === 'NOTA' ? 'PREÇO NOTA' : 'IPI + ST';
     };
 
-    // Build price map per UF and identify suppliers that have any price for each UF
+    const resps: RespostaEmpresa[] = (data ?? [])
+      .map((d: any) => ({ empresa: d.empresa, resposta: (d.resposta as any[]) ?? [] }));
+
     const ufs = ordenarUFs(resps.flatMap(r => ufsDaResposta(r.resposta as any[])));
     const byEmpPorUf: Record<string, Record<string, Record<string, number>>> = {};
     for (const uf of ufs) {
@@ -266,179 +264,218 @@ const Index = () => {
       for (const r of resps) {
         byEmpPorUf[uf][r.empresa] = {};
         for (const item of r.resposta as any[]) {
-          const v = parseBR(getPrecoUF(item, uf));
-          if (v !== null) byEmpPorUf[uf][r.empresa][item.codigo_interno] = v;
+          if (!item?.codigo_interno && item?.codigo_interno !== 0) continue;
+          const v = parsePrecoNum(getPrecoUF(item, uf));
+          if (v !== null && v > 0) byEmpPorUf[uf][r.empresa][String(item.codigo_interno)] = aplicarMarkup(v, markups[r.empresa]);
         }
       }
     }
-
     const empresasPorUf: Record<string, string[]> = {};
     ufs.forEach(uf => {
       empresasPorUf[uf] = resps.map(r => r.empresa).filter(e => Object.keys(byEmpPorUf[uf][e]).length > 0);
     });
+    const ufsAtivas = ufs.filter(uf => empresasPorUf[uf].length > 0);
+
+    const C = {
+      navy: 'FF0F3D66', blue: 'FF1F5F99', soft: 'FFEAF1F8', zebra: 'FFF7F9FB', border: 'FFD5DDE6',
+      text: 'FF1F2937', muted: 'FF64748B', green: 'FF166534', greenBg: 'FFDCFCE7', white: 'FFFFFFFF',
+    };
+    const fill = (argb: string) => ({ type: 'pattern' as const, pattern: 'solid' as const, fgColor: { argb } });
+    const thin = { style: 'thin' as const, color: { argb: C.border } };
+    const money = '"R$" #,##0.00;-"R$" #,##0.00;"-"';
+    const font = (o: any = {}) => ({ name: 'Arial', size: 10, color: { argb: C.text }, ...o });
 
     const wb = new ExcelJS.Workbook();
-    wb.creator = 'COTARME';
+    wb.creator = getBrand().nome || 'COTARME';
     wb.created = new Date();
     const ws = wb.addWorksheet('Cotação', {
-      views: [{ state: 'frozen', xSplit: 3, ySplit: 4 }],
+      views: [{ state: 'frozen', xSplit: 3, ySplit: 6, showGridLines: false }],
+      pageSetup: { orientation: 'landscape', paperSize: 9, fitToPage: true, fitToWidth: 1, fitToHeight: 0, margins: { left: 0.3, right: 0.3, top: 0.4, bottom: 0.4, header: 0.2, footer: 0.2 } },
+      headerFooter: { oddFooter: `&L${lista.nome}&RPágina &P de &N` },
     });
 
-    const fixedCols = ['Código Interno', 'Descrição', 'Código de Barras'];
-    const totalEmpresasCols = ufs.reduce((acc, uf) => acc + empresasPorUf[uf].length, 0);
-    const totalCols = fixedCols.length + totalEmpresasCols;
+    const fixedCols = ['Código Interno', 'Descrição do Produto', 'Código de Barras'];
+    // Por UF: fornecedores + "Menor preço" + "Vencedor"
+    let col = fixedCols.length + 1;
+    const ufLayout: Record<string, { start: number; empCols: number[]; minCol: number; winCol: number }> = {};
+    ufsAtivas.forEach(uf => {
+      const empCols = empresasPorUf[uf].map((_, i) => col + i);
+      const minCol = col + empresasPorUf[uf].length;
+      ufLayout[uf] = { start: col, empCols, minCol, winCol: minCol + 1 };
+      col = minCol + 2;
+    });
+    const totalCols = Math.max(col - 1, fixedCols.length);
+    const HEAD = 4, SUB = 5, TIPO = 6, FIRST = 7;
 
-    // Row 1: Title
+    // Título
     ws.mergeCells(1, 1, 1, totalCols);
-    const titleCell = ws.getCell(1, 1);
-    titleCell.value = `Cotação: ${lista.nome}`;
-    titleCell.font = { name: 'Calibri', size: 16, bold: true, color: { argb: 'FFFFFFFF' } };
-    titleCell.alignment = { vertical: 'middle', horizontal: 'center' };
-    titleCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF1E40AF' } };
-    ws.getRow(1).height = 26;
+    const t = ws.getCell(1, 1);
+    t.value = `${(getBrand().nome || 'COTARME').toUpperCase()} • MAPA DE COTAÇÃO`;
+    t.font = font({ size: 15, bold: true, color: { argb: C.white } });
+    t.fill = fill(C.navy);
+    t.alignment = { vertical: 'middle', horizontal: 'left', indent: 1 };
+    ws.getRow(1).height = 28;
 
-    // Row 2: Subtitle
     ws.mergeCells(2, 1, 2, totalCols);
-    const subCell = ws.getCell(2, 1);
-    const subLabel = ufs.map(uf => `${uf}: ${empresasPorUf[uf].length} fornecedor(es)`).join(' • ');
-    subCell.value = `Exportado em ${new Date().toLocaleString('pt-BR')} • ${lista.produtos.length} produtos${subLabel ? ` • ${subLabel}` : ''}`;
-    subCell.font = { name: 'Calibri', size: 10, italic: true, color: { argb: 'FF475569' } };
-    subCell.alignment = { vertical: 'middle', horizontal: 'center' };
-    subCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF1F5F9' } };
-    ws.getRow(2).height = 18;
+    const s = ws.getCell(2, 1);
+    s.value = `Cotação: ${lista.nome}   |   Status: ${lista.status === 'finalizada' ? 'Finalizada' : 'Aberta'}   |   Produtos: ${lista.produtos.length}   |   ${ufsAtivas.map(uf => `${uf}: ${empresasPorUf[uf].length} fornecedor(es)`).join('   ')}   |   Gerado em ${new Date().toLocaleString('pt-BR')}`;
+    s.font = font({ size: 10, color: { argb: C.navy } });
+    s.fill = fill(C.soft);
+    s.alignment = { vertical: 'middle', horizontal: 'left', indent: 1 };
+    ws.getRow(2).height = 20;
 
-    // Header rows 3-4
-    const headerFontWhite = { name: 'Calibri', size: 11, bold: true, color: { argb: 'FFFFFFFF' } };
-    const fixedFill = { type: 'pattern' as const, pattern: 'solid' as const, fgColor: { argb: 'FF2563EB' } };
-    const ufGroupFills = ['FF1D4ED8', 'FF15803D', 'FFB45309', 'FF7C3AED', 'FFBE185D', 'FF0E7490'].map(argb => ({ type: 'pattern' as const, pattern: 'solid' as const, fgColor: { argb } }));
-    const ufGroupSubFills = ['FFDBEAFE', 'FFDCFCE7', 'FFFEF3C7', 'FFEDE9FE', 'FFFCE7F3', 'FFCFFAFE'].map(argb => ({ type: 'pattern' as const, pattern: 'solid' as const, fgColor: { argb } }));
-    const ufGroupTextColors = ['FF1E3A8A', 'FF14532D', 'FF78350F', 'FF4C1D95', 'FF831843', 'FF164E63'];
+    const ajustes = Object.entries(markups).filter(([, v]) => v);
+    ws.mergeCells(3, 1, 3, totalCols);
+    const n = ws.getCell(3, 1);
+    n.value = `Preços finais já com ajustes aplicados na planilha (edições, cobertura de concorrentes${ajustes.length ? ' e acréscimos: ' + ajustes.map(([e, v]) => `${e} ${v > 0 ? '+' : ''}${v.toFixed(1)}%`).join(', ') : ''}). Verde = menor preço do estado.`;
+    n.font = font({ size: 9, italic: true, color: { argb: C.muted } });
+    n.alignment = { vertical: 'middle', horizontal: 'left', indent: 1, wrapText: true };
+    ws.getRow(3).height = 18;
 
     fixedCols.forEach((label, i) => {
-      const col = i + 1;
-      ws.mergeCells(3, col, 4, col);
-      const c = ws.getCell(3, col);
+      ws.mergeCells(HEAD, i + 1, TIPO, i + 1);
+      const c = ws.getCell(HEAD, i + 1);
       c.value = label;
-      c.font = headerFontWhite;
-      c.fill = fixedFill;
+      c.font = font({ bold: true, color: { argb: C.white } });
+      c.fill = fill(C.navy);
       c.alignment = { vertical: 'middle', horizontal: 'center', wrapText: true };
     });
 
-    // UF region group headers + supplier columns
-    let colCursor = fixedCols.length + 1;
-    const ufStartCol: Record<string, number> = {};
-    ufs.forEach((uf, ufIdx) => {
-      const empresasUf = empresasPorUf[uf];
-      if (empresasUf.length === 0) return;
-      const startCol = colCursor;
-      ufStartCol[uf] = startCol;
-      const endCol = startCol + empresasUf.length - 1;
-      ws.mergeCells(3, startCol, 3, endCol);
-      const g = ws.getCell(3, startCol);
+    ufsAtivas.forEach(uf => {
+      const L = ufLayout[uf];
+      ws.mergeCells(HEAD, L.start, HEAD, L.winCol);
+      const g = ws.getCell(HEAD, L.start);
       g.value = `${ufNome(uf).toUpperCase()} (${uf})`;
-      g.font = headerFontWhite;
-      g.fill = ufGroupFills[ufIdx % ufGroupFills.length];
+      g.font = font({ size: 11, bold: true, color: { argb: C.white } });
+      g.fill = fill(C.navy);
       g.alignment = { vertical: 'middle', horizontal: 'center' };
-      empresasUf.forEach((emp, idx) => {
-        const cell = ws.getCell(4, startCol + idx);
-        cell.value = emp;
-        cell.font = { name: 'Calibri', size: 10, bold: true, color: { argb: ufGroupTextColors[ufIdx % ufGroupTextColors.length] } };
-        cell.fill = ufGroupSubFills[ufIdx % ufGroupSubFills.length];
-        cell.alignment = { vertical: 'middle', horizontal: 'center', wrapText: true };
+      empresasPorUf[uf].forEach((emp, i) => {
+        const c = ws.getCell(SUB, L.empCols[i]);
+        c.value = markups[emp] ? `${emp} (${markups[emp] > 0 ? '+' : ''}${markups[emp].toFixed(1)}%)` : emp;
+        c.font = font({ bold: true, color: { argb: C.white } });
+        c.fill = fill(C.blue);
+        c.alignment = { vertical: 'middle', horizontal: 'center', wrapText: true };
+        const tp = ws.getCell(TIPO, L.empCols[i]);
+        tp.value = tipoLabel(emp, uf);
+        tp.font = font({ size: 8, color: { argb: C.navy } });
+        tp.fill = fill(C.soft);
+        tp.alignment = { vertical: 'middle', horizontal: 'center' };
       });
-      colCursor = endCol + 1;
+      [[L.minCol, 'MENOR PREÇO'], [L.winCol, 'VENCEDOR']].forEach(([cc, label]) => {
+        ws.mergeCells(SUB, cc as number, TIPO, cc as number);
+        const c = ws.getCell(SUB, cc as number);
+        c.value = label;
+        c.font = font({ bold: true, color: { argb: C.green } });
+        c.fill = fill(C.greenBg);
+        c.alignment = { vertical: 'middle', horizontal: 'center', wrapText: true };
+      });
     });
+    ws.getRow(HEAD).height = 22;
+    ws.getRow(SUB).height = 32;
+    ws.getRow(TIPO).height = 16;
 
-    ws.getRow(3).height = 22;
-    ws.getRow(4).height = 22;
-
-    // Data rows
     lista.produtos.forEach((prod, rIdx) => {
-      const rowNum = 5 + rIdx;
-      ws.getCell(rowNum, 1).value = prod.codigo_interno;
-      ws.getCell(rowNum, 2).value = prod.descricao;
-      ws.getCell(rowNum, 3).value = prod.codigo_barras;
-
-      const priceCellsPorUf: Record<string, { col: number; value: number }[]> = {};
-
-      ufs.forEach(uf => {
-        const empresasUf = empresasPorUf[uf];
-        if (empresasUf.length === 0) return;
-        const list: { col: number; value: number }[] = [];
-        empresasUf.forEach((emp, idx) => {
-          const col = ufStartCol[uf] + idx;
-          const v = byEmpPorUf[uf][emp][prod.codigo_interno];
-          const cell = ws.getCell(rowNum, col);
-          if (v !== undefined) {
-            cell.value = v;
-            cell.numFmt = '"R$" #,##0.00';
-            list.push({ col, value: v });
-          }
-          cell.alignment = { vertical: 'middle', horizontal: 'right' };
-        });
-        priceCellsPorUf[uf] = list;
-      });
-
-      // Zebra
-      if (rIdx % 2 === 1) {
-        for (let c = 1; c <= totalCols; c++) {
-          const cell = ws.getCell(rowNum, c);
-          if (!cell.fill || (cell.fill as any).type !== 'pattern') {
-            cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF8FAFC' } };
-          }
-        }
+      const r = FIRST + rIdx;
+      const row = ws.getRow(r);
+      row.height = 18;
+      const zebra = rIdx % 2 === 1;
+      for (let c = 1; c <= totalCols; c++) {
+        const cell = ws.getCell(r, c);
+        cell.font = font();
+        if (zebra) cell.fill = fill(C.zebra);
       }
+      ws.getCell(r, 1).value = prod.codigo_interno ?? '';
+      ws.getCell(r, 1).alignment = { vertical: 'middle', horizontal: 'center' };
+      ws.getCell(r, 2).value = prod.descricao ?? '';
+      ws.getCell(r, 2).alignment = { vertical: 'middle', horizontal: 'left', wrapText: true };
+      ws.getCell(r, 3).value = prod.codigo_barras ?? '';
+      ws.getCell(r, 3).numFmt = '@';
+      ws.getCell(r, 3).alignment = { vertical: 'middle', horizontal: 'center' };
 
-      // Highlight min price per region (>= 2 prices)
-      const highlight = (list: { col: number; value: number }[]) => {
-        if (list.length < 2) return;
-        const min = Math.min(...list.map(p => p.value));
-        list.forEach(p => {
-          if (p.value === min) {
-            const cell = ws.getCell(rowNum, p.col);
-            cell.font = { name: 'Calibri', size: 11, bold: true, color: { argb: 'FF166534' } };
-            cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFDCFCE7' } };
-          }
+      ufsAtivas.forEach(uf => {
+        const L = ufLayout[uf];
+        const precos: { col: number; v: number; emp: string }[] = [];
+        empresasPorUf[uf].forEach((emp, i) => {
+          const v = byEmpPorUf[uf][emp][String(prod.codigo_interno)];
+          const cell = ws.getCell(r, L.empCols[i]);
+          cell.numFmt = money;
+          cell.alignment = { vertical: 'middle', horizontal: 'right' };
+          if (v !== undefined) { cell.value = v; precos.push({ col: L.empCols[i], v, emp }); }
         });
-      };
-      ufs.forEach(uf => highlight(priceCellsPorUf[uf] || []));
+        const minC = ws.getCell(r, L.minCol);
+        const winC = ws.getCell(r, L.winCol);
+        minC.numFmt = money;
+        minC.alignment = { vertical: 'middle', horizontal: 'right' };
+        winC.alignment = { vertical: 'middle', horizontal: 'left', wrapText: true };
+        if (precos.length) {
+          const min = Math.min(...precos.map(p => p.v));
+          const winners = precos.filter(p => p.v === min);
+          minC.value = min;
+          minC.font = font({ bold: true, color: { argb: C.green } });
+          winC.value = winners.map(w => w.emp).join(' / ');
+          winC.font = font({ size: 9, bold: true, color: { argb: C.green } });
+          if (precos.length >= 2) winners.forEach(w => {
+            const cell = ws.getCell(r, w.col);
+            cell.font = font({ bold: true, color: { argb: C.green } });
+            cell.fill = fill(C.greenBg);
+          });
+        } else {
+          winC.value = '-';
+          winC.font = font({ color: { argb: C.muted } });
+        }
+      });
     });
 
-    // Borders
-    const lastRow = 4 + lista.produtos.length;
-    for (let r = 3; r <= lastRow; r++) {
-      for (let c = 1; c <= totalCols; c++) {
-        ws.getCell(r, c).border = {
-          top: { style: 'thin', color: { argb: 'FFE2E8F0' } },
-          left: { style: 'thin', color: { argb: 'FFE2E8F0' } },
-          bottom: { style: 'thin', color: { argb: 'FFE2E8F0' } },
-          right: { style: 'thin', color: { argb: 'FFE2E8F0' } },
-        };
-      }
+    const lastRow = FIRST + lista.produtos.length - 1;
+    // Linha de totais
+    const totRow = lastRow + 1;
+    ws.mergeCells(totRow, 1, totRow, 3);
+    const tl = ws.getCell(totRow, 1);
+    tl.value = 'TOTAL (soma dos preços cotados)';
+    tl.alignment = { vertical: 'middle', horizontal: 'right', indent: 1 };
+    for (let c = 1; c <= totalCols; c++) {
+      const cell = ws.getCell(totRow, c);
+      cell.fill = fill(C.soft);
+      cell.font = font({ bold: true, color: { argb: C.navy } });
+      cell.border = { top: { style: 'medium', color: { argb: C.navy } }, bottom: thin, left: thin, right: thin };
     }
-    // Thicker divider between UF blocks
-    const ufsComEmpresas = ufs.filter(uf => empresasPorUf[uf].length > 0);
-    for (let i = 0; i < ufsComEmpresas.length - 1; i++) {
-      const uf = ufsComEmpresas[i];
-      const divCol = ufStartCol[uf] + empresasPorUf[uf].length - 1;
-      for (let r = 3; r <= lastRow; r++) {
-        const cell = ws.getCell(r, divCol);
-        cell.border = { ...cell.border, right: { style: 'medium', color: { argb: 'FF64748B' } } };
-      }
-    }
+    if (lista.produtos.length) ufsAtivas.forEach(uf => {
+      const L = ufLayout[uf];
+      [...L.empCols, L.minCol].forEach(cc => {
+        const letter = ws.getColumn(cc).letter;
+        const cell = ws.getCell(totRow, cc);
+        cell.value = { formula: `SUM(${letter}${FIRST}:${letter}${lastRow})` };
+        cell.numFmt = money;
+        cell.alignment = { vertical: 'middle', horizontal: 'right' };
+      });
+    });
+    ws.getRow(totRow).height = 20;
 
-    // Column widths
+    for (let r = HEAD; r <= Math.max(lastRow, TIPO); r++) {
+      for (let c = 1; c <= totalCols; c++) ws.getCell(r, c).border = { top: thin, left: thin, bottom: thin, right: thin };
+    }
+    ufsAtivas.forEach(uf => {
+      const L = ufLayout[uf];
+      for (let r = HEAD; r <= totRow; r++) {
+        const a = ws.getCell(r, L.start);
+        a.border = { ...a.border, left: { style: 'medium', color: { argb: C.navy } } };
+        const b = ws.getCell(r, L.winCol);
+        b.border = { ...b.border, right: { style: 'medium', color: { argb: C.navy } } };
+      }
+    });
+
     ws.getColumn(1).width = 14;
-    ws.getColumn(2).width = 48;
-    ws.getColumn(3).width = 18;
-    for (let i = 0; i < totalEmpresasCols; i++) {
-      ws.getColumn(fixedCols.length + 1 + i).width = 16;
-    }
+    ws.getColumn(2).width = Math.min(60, Math.max(36, ...lista.produtos.map(p => String(p.descricao ?? '').length * 0.9)));
+    ws.getColumn(3).width = 17;
+    ufsAtivas.forEach(uf => {
+      const L = ufLayout[uf];
+      L.empCols.forEach(cc => { ws.getColumn(cc).width = 15; });
+      ws.getColumn(L.minCol).width = 14;
+      ws.getColumn(L.winCol).width = 22;
+    });
 
-    ws.autoFilter = {
-      from: { row: 4, column: 1 },
-      to: { row: lastRow, column: totalCols },
-    };
+    if (lista.produtos.length) ws.autoFilter = { from: { row: TIPO, column: 1 }, to: { row: lastRow, column: totalCols } };
+    ws.pageSetup.printTitlesRow = `${HEAD}:${TIPO}`;
 
     const buf = await wb.xlsx.writeBuffer();
     const blob = new Blob([buf], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
@@ -490,13 +527,12 @@ const Index = () => {
     }
 
 
-    const parsePrice = (raw: any): number => {
-      if (typeof raw === 'number') return raw;
-      if (typeof raw === 'string' && raw !== '') {
-        const n = parseFloat(raw.replace(/\./g, '').replace(',', '.'));
-        return isNaN(n) ? NaN : n;
-      }
-      return NaN;
+    const { data: mkCsv } = await supabase.from('price_markups').select('empresa, markup_percent').eq('lista_id', lista.id).eq('user_id', user?.id ?? '');
+    const markupsCsv: Record<string, number> = {};
+    (mkCsv ?? []).forEach((m: any) => { markupsCsv[m.empresa] = Number(m.markup_percent) || 0; });
+    const parsePrice = (raw: any, empresa?: string): number => {
+      const n = parsePrecoNum(raw);
+      return n === null ? NaN : aplicarMarkup(n, empresa ? markupsCsv[empresa] : 0);
     };
 
     const ufs = ordenarUFs(resps.flatMap(r => ufsDaResposta(r.resposta as any[])));
@@ -514,7 +550,7 @@ const Index = () => {
           const item = resp.resposta.find((i: any) => i.codigo_interno === prod.codigo_interno);
           if (!item) continue;
           const raw = getPrecoUF(item, uf);
-          const num = parsePrice(raw);
+          const num = parsePrice(raw, resp.empresa);
           if (!isNaN(num) && num > 0 && num < lowestPrice) {
             lowestPrice = num;
             winnerEmpresa = resp.empresa;
