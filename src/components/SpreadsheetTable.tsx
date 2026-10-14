@@ -1790,6 +1790,12 @@ const SpreadsheetTable: React.FC<SpreadsheetTableProps> = ({
     });
   }, [sortedRows, winnerFilter, getLowestEmpresa, columnFilters, orderedColDefs, getCellValue, evalRaw]);
 
+  // Menu de contexto da coluna de fornecedor: apenas Preço e Tipo de preço
+  const menuColDef = contextMenu?.colIdx !== undefined
+    ? orderedColDefs.find(c => c.orderIdx === contextMenu.colIdx)
+    : undefined;
+  const isSupplierColMenu =
+    contextMenu?.type === 'column' && !!menuColDef?.empresa && !!menuColDef?.state && menuColDef.isData;
 
   return (
     <div className="flex-1 flex flex-col" style={{ border: '1px solid hsl(var(--border))' }}>
@@ -2073,6 +2079,8 @@ const SpreadsheetTable: React.FC<SpreadsheetTableProps> = ({
         {/* Context Menu */}
         {contextMenu && (
           <div ref={contextMenuRef} className="fixed bg-popover border border-border rounded-lg shadow-lg py-1 z-50 min-w-[180px]" style={{ left: contextMenu.x, top: contextMenu.y }}>
+            {!isSupplierColMenu && (
+              <>
             <button onClick={handleCopyFromMenu} className="flex items-center gap-2 w-full px-3 py-1.5 text-xs hover:bg-accent transition-colors text-foreground">
               <Copy className="w-3.5 h-3.5" /> Copiar (Ctrl+C)
             </button>
@@ -2113,6 +2121,8 @@ const SpreadsheetTable: React.FC<SpreadsheetTableProps> = ({
               </button>
             </div>
             <div className="border-t border-border my-1" />
+              </>
+            )}
 
             {(() => {
               const emp = getContextEmpresa();
@@ -2156,7 +2166,7 @@ const SpreadsheetTable: React.FC<SpreadsheetTableProps> = ({
                   {(() => {
                     const cd = orderedColDefs.find(c => c.orderIdx === contextMenu.colIdx);
                     const st = cd?.state as string | undefined;
-                    if (!st) return null;
+                    if (!st || isSupplierColMenu) return null;
                     const isActive = winnerFilter?.empresa === emp && winnerFilter?.state === st;
                     return (
                       <button onClick={() => { setWinnerFilter(isActive ? null : { empresa: emp, state: st }); setContextMenu(null); }}
@@ -2171,7 +2181,7 @@ const SpreadsheetTable: React.FC<SpreadsheetTableProps> = ({
               );
             })()}
 
-            {(contextMenu.type === 'column' || contextMenu.type === 'cell') && contextMenu.colIdx !== undefined && contextMenu.colIdx > 0 && (
+            {!isSupplierColMenu && (contextMenu.type === 'column' || contextMenu.type === 'cell') && contextMenu.colIdx !== undefined && contextMenu.colIdx > 0 && (
               <>
                 <div className="px-3 py-1.5 text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Coluna</div>
                 <button onClick={() => moveColumn('left')} className="flex items-center gap-2 w-full px-3 py-1.5 text-xs hover:bg-accent transition-colors text-foreground">
