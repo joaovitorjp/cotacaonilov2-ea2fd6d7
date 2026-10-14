@@ -7,6 +7,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useEstadosUsuario } from '@/hooks/useEstadosUsuario';
 import { ufNome, getPrecoUF, hasPrecoUF, buildPrecosPayload, ufsDaResposta, ordenarUFs, TIPO_LABELS, FRETE_LABELS } from '@/lib/estados';
 import { isFormula, isFormulaError, evaluateFormula, ERR_CIRC } from '@/lib/spreadsheet-formula';
+import NovoItemDialog, { type ItemRede } from '@/components/NovoItemDialog';
 
 interface Produto {
   codigo_interno: string;
@@ -1127,6 +1128,19 @@ const SpreadsheetTable: React.FC<SpreadsheetTableProps> = ({
     if (onSave) onSave(updated);
   };
 
+  const [novoItemOpen, setNovoItemOpen] = useState(false);
+  const addItensRede = (itens: ItemRede[]) => {
+    if (readOnly || !itens.length) return;
+    pushUndo();
+    const novos: Produto[] = itens.map(p => ({
+      codigo_interno: p.codigo_interno || '',
+      descricao: p.descricao,
+      codigo_barras: p.codigo_barras || '',
+    }));
+    if (onSave) onSave([...produtos, ...novos]);
+    toast.success(`${novos.length} item(ns) adicionado(s) à cotação.`);
+  };
+
   const handleCopyFromMenu = () => { document.execCommand('copy'); setContextMenu(null); };
   const handlePasteFromMenu = async () => {
     try {
@@ -1799,7 +1813,8 @@ const SpreadsheetTable: React.FC<SpreadsheetTableProps> = ({
         )}
         {!readOnly && (
           <>
-            <button onClick={addRow}
+            <NovoItemDialog open={novoItemOpen} onOpenChange={setNovoItemOpen} existentes={produtos} onAdd={addItensRede} onManual={addRow} />
+            <button onClick={() => setNovoItemOpen(true)}
               className="p-1.5 rounded hover:bg-accent transition-colors flex items-center gap-1 text-xs text-blue-600 font-bold" title="Adicionar Novo Produto">
               <Plus className="w-4 h-4" /><span>Novo Item</span>
             </button>
