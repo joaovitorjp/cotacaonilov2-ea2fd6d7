@@ -22,6 +22,7 @@ import ExcelJS from 'exceljs';
 import { useAuth } from '@/contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import ProfileGate from '@/components/ProfileGate';
+import OnboardingGuide from '@/components/OnboardingGuide';
 import { condicoesFromLink, getPrecoUF, ufsDaResposta, ordenarUFs, ufNome } from '@/lib/estados';
 import { getBrand } from '@/lib/branding';
 import { parsePrecoNum, aplicarMarkup } from '@/lib/preco';
@@ -1035,6 +1036,13 @@ const Index = () => {
         <GerarLinkPanel open={gerarLinkOpen} onOpenChange={setGerarLinkOpen} listaId={currentLista.id} />
       )}
       <PerfilPanel open={perfilOpen} onOpenChange={setPerfilOpen} />
+      <OnboardingGuide
+        hasListaAberta={!!currentLista && !isFinalized}
+        onImportar={() => setImportOpen(true)}
+        onAbrir={() => setCarregarOpen(true)}
+        onFornecedores={() => setFornecedoresOpen(true)}
+        onGerarLink={() => setGerarLinkOpen(true)}
+      />
 
     </div>
     </ProfileGate>

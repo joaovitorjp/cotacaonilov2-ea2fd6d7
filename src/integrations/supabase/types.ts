@@ -1003,6 +1003,7 @@ export type Database = {
           is_super_admin: boolean | null
           network_id: string | null
           nome: string
+          onboarding_concluido_at: string | null
           user_id: string
         }
         Insert: {
@@ -1020,6 +1021,7 @@ export type Database = {
           is_super_admin?: boolean | null
           network_id?: string | null
           nome?: string
+          onboarding_concluido_at?: string | null
           user_id: string
         }
         Update: {
@@ -1037,6 +1039,7 @@ export type Database = {
           is_super_admin?: boolean | null
           network_id?: string | null
           nome?: string
+          onboarding_concluido_at?: string | null
           user_id?: string
         }
         Relationships: [
